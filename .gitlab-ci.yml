@@ -1,0 +1,16 @@
+stages:
+  - compile
+  - test
+
+compile:
+  stage: compile
+  script:
+    - scala compile .
+
+
+test:
+  stage: test
+  script:
+    - scala test .
+
+

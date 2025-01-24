@@ -1,5 +1,6 @@
 package wacc
 
+
 enum Token {
   case Equals // Should Times and Divide be more general? // Plus Times Divides are purely BinaryOps
   case LParen, RParen, LBrack, RBrack // Parentheses and Brackets

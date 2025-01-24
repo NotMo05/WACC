@@ -1,9 +1,11 @@
 package wacc
 
+
 import parsley.Parsley
 import parsley.token.Lexer
 import parsley.token.Basic
 import parsley.token.descriptions.*
+import parsley.syntax.character._
 
 
 object lexer {
@@ -25,6 +27,7 @@ object lexer {
     )
     private val lexer = Lexer(desc)
 
+    val boolLiteral: Parsley[Boolean] = lexer.lexeme(("true" as true) | ("false" as false))
     val intliteral = lexer.lexeme.integer.decimal32[BigInt]
     val ident = lexer.lexeme.names.identifier
     val semi = lexer.lexeme.symbol.semi
@@ -34,6 +37,9 @@ object lexer {
     val lSquare = lexer.lexeme.symbol.openSquare
     val rSquare = lexer.lexeme.symbol.closingSquare
     val implicits = lexer.lexeme.symbol.implicits
+    
+
+    
     
     def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
 }

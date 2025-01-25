@@ -3,6 +3,7 @@ import parsley.{Parsley, Result}
 import parsley.Parsley._
 import lexer.implicits.implicitSymbol
 // If anyone knows how to import from syntax.scala, then we can get rid of importing the whole package
+// and if anyone can be bothered to go through the imports and only import whats needed we can stop getting the errors
 import wacc._
 import lexer._
 import parsley.expr._
@@ -25,16 +26,15 @@ object parser {
 
     // Basic rundown of how this currently works, we take an expr, exprs can be any of these atoms ( see Syntax.scala ) and more.
     // We downcast ( bad but only for now ) via asInstanceOf, do what we need now that we "know" the type and then turn back into an expr via ___Atom() to be returned.
-    // Safer way would probably be to have each of these functions do a match case thing where we match types but thats a lot of writing so I'll
-    // leave that to someone else, goodbye
+    // Later on ( or if someone can be bothered now )we should probably use match cases on types instead 
 
     // Unary operations
     Ops(Prefix)(
-      ("!" as (_ => BoolAtom(!_.asInstanceOf[BoolAtom].bool))),
-      ("-" as (_ => IntAtom(-_.asInstanceOf[IntAtom].int))),
-      ("len" as (_ => IntAtom(_.asInstanceOf[StringAtom].string.length))), // Len takes in a list, doesnt exist yet so made it work for strings for testing
-      ("ord" as (_ => IntAtom(_.asInstanceOf[CharAtom].char.toInt))),
-      ("char" as (_ => CharAtom(_.asInstanceOf[IntAtom].int.toChar)))
+      ("!" as (expr => BoolAtom(!expr.asInstanceOf[BoolAtom].bool))),
+      ("-" as (expr => IntAtom(-expr.asInstanceOf[IntAtom].int))),
+      ("len" as (expr => IntAtom(expr.asInstanceOf[StringAtom].string.length))), // Len takes in a list, doesnt exist yet so made it work for strings for testing
+      ("ord" as (expr => IntAtom(expr.asInstanceOf[CharAtom].char.toInt))),
+      ("char" as (expr => CharAtom(expr.asInstanceOf[IntAtom].int.toChar)))
     ),
 
     // Arithmetic operations

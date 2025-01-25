@@ -40,8 +40,5 @@ object lexer {
     val rSquare = lexer.lexeme.symbol.closingSquare
     val implicits = lexer.lexeme.symbol.implicits
     
-
-    
-    
     def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
 }

@@ -1,9 +1,8 @@
 package wacc
-
 import parsley.{Parsley, Result}
 import parsley.Parsley._
 import lexer.implicits.implicitSymbol
-
+// If anyone knows how to import from syntax.scala, then we can get rid of importing the whole package
 import wacc._
 import lexer._
 import parsley.expr._
@@ -16,19 +15,26 @@ object parser {
 
     private lazy val expr: Parsley[Expr] =
     precedence(
+        // Once we have the remaining atoms done ( see bottom ) we should abstract the atoms to be parsed seperately
         stringliteral.map(StringAtom.apply(_)),
         charliteral.map(CharAtom.apply(_)),
         intliteral.map(IntAtom.apply(_)),
         boolLiteral.map(BoolAtom.apply(_)),
         lParen ~> expr <~ rParen
     )(
+
+    // Basic rundown of how this currently works, we take an expr, exprs can be any of these atoms ( see Syntax.scala ) and more.
+    // We downcast ( bad but only for now ) via asInstanceOf, do what we need now that we "know" the type and then turn back into an expr via ___Atom() to be returned.
+    // Safer way would probably be to have each of these functions do a match case thing where we match types but thats a lot of writing so I'll
+    // leave that to someone else, goodbye
+
     // Unary operations
     Ops(Prefix)(
-      ("!" as (expr => BoolAtom(!expr.asInstanceOf[BoolAtom].bool))),
-      ("-" as (expr => IntAtom(-expr.asInstanceOf[IntAtom].int))),
-      ("len" as (expr => IntAtom(expr.asInstanceOf[StringAtom].string.length))), // Len takes in a list, doesnt exist yet so made it work for strings for testing
-      ("ord" as (expr => IntAtom(expr.asInstanceOf[CharAtom].char.toInt))),
-      ("char" as (expr => CharAtom(expr.asInstanceOf[IntAtom].int.toChar)))
+      ("!" as (_ => BoolAtom(!_.asInstanceOf[BoolAtom].bool))),
+      ("-" as (_ => IntAtom(-_.asInstanceOf[IntAtom].int))),
+      ("len" as (_ => IntAtom(_.asInstanceOf[StringAtom].string.length))), // Len takes in a list, doesnt exist yet so made it work for strings for testing
+      ("ord" as (_ => IntAtom(_.asInstanceOf[CharAtom].char.toInt))),
+      ("char" as (_ => CharAtom(_.asInstanceOf[IntAtom].int.toChar)))
     ),
 
     // Arithmetic operations
@@ -71,9 +77,7 @@ object parser {
   )
 
 // Atoms remaining to be added to expr / tokenised
-//   ⟨atom⟩ ::= ⟨char-liter⟩
-// | ⟨str-liter⟩
-// | ⟨pair-liter⟩
+//   ⟨atom⟩ ::= | ⟨pair-liter⟩
 // | ⟨ident⟩
 // | ⟨array-elem⟩
 

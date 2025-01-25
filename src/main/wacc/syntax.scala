@@ -20,6 +20,7 @@ case class ArrayLiter(elems: List[Expr]) extends RValue
 case class NewPair(fst: Expr, snd: Expr) extends RValue
 case class FuncCall(ident: Ident, params: List[Expr]) extends RValue
 
+//Atoms
 case class IntAtom(int: BigInt) extends Expr
 case class BoolAtom(bool: Boolean) extends Expr
 case class StringAtom(string: String) extends Expr

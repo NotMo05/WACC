@@ -27,8 +27,10 @@ object lexer {
     )
     private val lexer = Lexer(desc)
 
-    val boolLiteral: Parsley[Boolean] = lexer.lexeme(("true" as true) | ("false" as false))
+    val boolLiteral = lexer.lexeme(("true" as true) | ("false" as false))
     val intliteral = lexer.lexeme.integer.decimal32[BigInt]
+    val stringliteral = lexer.lexeme.string.ascii
+    val charliteral = lexer.lexeme.character.ascii
     val ident = lexer.lexeme.names.identifier
     val semi = lexer.lexeme.symbol.semi
     val comma = lexer.lexeme.symbol.comma

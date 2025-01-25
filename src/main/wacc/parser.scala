@@ -16,6 +16,8 @@ object parser {
 
     private lazy val expr: Parsley[Expr] =
     precedence(
+        stringliteral.map(StringAtom.apply(_)),
+        charliteral.map(CharAtom.apply(_)),
         intliteral.map(IntAtom.apply(_)),
         boolLiteral.map(BoolAtom.apply(_)),
         lParen ~> expr <~ rParen
@@ -24,9 +26,9 @@ object parser {
     Ops(Prefix)(
       ("!" as (expr => BoolAtom(!expr.asInstanceOf[BoolAtom].bool))),
       ("-" as (expr => IntAtom(-expr.asInstanceOf[IntAtom].int))),
-      // ("len" as (expr => IntAtom(-expr.asInstanceOf[IntAtom].int))),
-      // ("ord" as (expr => IntAtom(-expr.asInstanceOf[IntAtom].int))),
-      // ("char" as (expr => IntAtom(-expr.asInstanceOf[IntAtom].int)))
+      ("len" as (expr => IntAtom(expr.asInstanceOf[StringAtom].string.length))), // Len takes in a list, doesnt exist yet so made it work for strings for testing
+      ("ord" as (expr => IntAtom(expr.asInstanceOf[CharAtom].char.toInt))),
+      ("char" as (expr => CharAtom(expr.asInstanceOf[IntAtom].int.toChar)))
     ),
 
     // Arithmetic operations

@@ -19,7 +19,7 @@ object lexer {
         ),
         symbolDesc = SymbolDesc.plain.copy(
             hardKeywords = Set("read", "exit", "begin", "end", "if", "then", "else", "fi", "skip", "true", "false",
-                               "free", "while", "do", "done", "fst", "snd", "newpair", "print", "println", "call"),
+                               "free", "while", "do", "done", "fst", "snd", "newpair", "print", "println", "call", "null"),
             hardOperators = Set("*", "/", "%", "+", "-", ">", ">=", "<", "<=",
                                 "==", "!=", "&&", "||", "!", "len", "ord", "chr")
         )
@@ -31,6 +31,7 @@ object lexer {
     val intliteral = lexer.lexeme.integer.decimal32[BigInt]
     val stringliteral = lexer.lexeme.string.ascii
     val charliteral = lexer.lexeme.character.ascii
+    val nullliteral = lexer.lexeme("null" as null)
     val ident = lexer.lexeme.names.identifier
     val semi = lexer.lexeme.symbol.semi
     val comma = lexer.lexeme.symbol.comma

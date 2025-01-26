@@ -1,0 +1,2 @@
+# This file is tested if no arguments are given
+len"Hello" + ord'h'

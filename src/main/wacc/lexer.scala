@@ -7,15 +7,13 @@ import parsley.token.Basic
 import parsley.token.descriptions.*
 import parsley.syntax.character._
 
-
 def isEnglishLetter(c: Char): Boolean = ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || (c == '_')
 
 object lexer {
     private val desc = LexicalDesc.plain.copy(
         nameDesc = NameDesc.plain.copy(
-            identifierStart  =  Basic(char => char.isLetter),
-            identifierLetter = Basic(char => char.isLetter || char.isDigit),
-            
+            identifierStart  =  Basic(char => isEnglishLetter(char)),
+            identifierLetter = Basic(char => isEnglishLetter(char) || char.isDigit), 
         ), 
         spaceDesc = SpaceDesc.plain.copy(
             lineCommentStart = "#",
@@ -27,6 +25,19 @@ object lexer {
             hardOperators = Set("*", "/", "%", "+", "-", ">", ">=", "<", "<=",
                                 "==", "!=", "&&", "||", "!", "len", "ord", "chr")
         ),
+        textDesc = TextDesc.plain.copy(
+            escapeSequences = EscapeDesc.plain.copy(
+            literals = Set('\"', '\\', '\''),
+            mapping = Map(
+                "n" -> 0x0a,
+                "t" -> 0x09,
+                "b" -> 0x08,
+                "r" -> 0x0d,
+                "f" -> 0x0c,
+                "0" -> 0x00
+                )
+            )
+        )
     )
 
     private val lexer = Lexer(desc)
@@ -37,15 +48,14 @@ object lexer {
     val charLiteral = lexer.lexeme.character.ascii
     val nullLiteral = lexer.lexeme(atomic("null" as null))
     val ident = lexer.lexeme.names.identifier
-    val semi = lexer.lexeme.symbol.semi
-    val comma = lexer.lexeme.symbol.comma
-    val lParen = lexer.lexeme.symbol.openParen
-    val rParen = lexer.lexeme.symbol.closingParen 
-    val lSquare = lexer.lexeme.symbol.openSquare
-    val rSquare = lexer.lexeme.symbol.closingSquare
     val implicits = lexer.lexeme.symbol.implicits
-    
+    val typeParser: Parsley[Type] = lexer.lexeme(
+          atomic("int" as IntType)
+        | atomic("char" as CharType)
+        | atomic("bool" as BoolType)
+        | atomic("string" as StringType)
+    )
+
     def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
 
-    val intType = lexer.lexeme(atomic("int" as IntType))
 }

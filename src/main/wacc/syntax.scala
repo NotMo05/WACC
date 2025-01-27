@@ -78,7 +78,7 @@ object Or extends BinaryBridge
 
 
 
-sealed trait Type 
+sealed trait Type extends Expr
 sealed trait PairElemType
 sealed trait BaseType extends Type, PairElemType 
 
@@ -86,7 +86,7 @@ case class PairType(t1: PairElemType, t2: PairElemType) extends Type
 case class ArrayType(t: Type) extends Type, PairElemType
 case object Pair extends PairElemType
 
-case object IntType extends BaseType, Expr
+case object IntType extends BaseType
 case object BoolType extends BaseType
 case object StringType extends BaseType
 case object CharType extends BaseType

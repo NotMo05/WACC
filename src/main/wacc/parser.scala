@@ -25,9 +25,9 @@ object parser {
     private lazy val expr: Parsley[Expr] =
     precedence(
         atoms,
-        atomic(ident <~> some(lSquare ~> expr <~ rSquare)).map((ident, expr) => ArrayElem(Ident(ident), expr)),
+        atomic(ident <~> some("[" ~> expr <~ "]")).map((ident, expr) => ArrayElem(Ident(ident), expr)),
         ident.map(Ident.apply(_)),
-        lParen ~> expr <~ rParen,
+        "(" ~> expr <~ ")",
     )(unaryOps, mulDivOps, addSubOps, comparisonOps, equalOps, boolOps)
 
     // private lazy val param =

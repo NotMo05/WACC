@@ -16,17 +16,18 @@ sealed trait Stmt
 
 case class Ident(identifier: String) extends Expr, LValue, RValue
 case class PairElem(lValue: LValue, fstorsnd: String) extends LValue, RValue
-case class ArrayElem(arrayName: Ident, index: Expr) extends LValue
+case class ArrayElem(arrayName: Ident, index: List[Expr]) extends Expr, LValue
 
 case class ArrayLiter(elems: List[Expr]) extends RValue
 case class NewPair(fst: Expr, snd: Expr) extends RValue
 case class FuncCall(ident: Ident, params: List[Expr]) extends RValue
 
-//Atoms
-case class IntAtom(int: BigInt) extends Expr
-case class BoolAtom(bool: Boolean) extends Expr
-case class StringAtom(string: String) extends Expr
-case class CharAtom(char: Char) extends Expr
+//Literals
+case class IntLiteral(int: BigInt) extends Expr
+case class BoolLiteral(bool: Boolean) extends Expr
+case class StringLiteral(string: String) extends Expr
+case class CharLiteral(char: Char) extends Expr
+case object NullLiteral extends Expr
 
 
 case class Param(t: Type, ident: Ident)
@@ -85,7 +86,7 @@ case class PairType(t1: PairElemType, t2: PairElemType) extends Type
 case class ArrayType(t: Type) extends Type, PairElemType
 case object Pair extends PairElemType
 
-case object IntType extends BaseType
+case object IntType extends BaseType, Expr
 case object BoolType extends BaseType
 case object StringType extends BaseType
 case object CharType extends BaseType

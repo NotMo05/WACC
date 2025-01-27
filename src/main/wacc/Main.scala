@@ -7,7 +7,7 @@ import scala.io.Source
 def main(args: Array[String]): Unit = {
     println("hello WACC!")
 
-    val filePath = "src/test/wacc/wacctest.txt"
+    val filePath = "src/test/wacc/wacctest.wacc"
     val fileContent = Source.fromFile(filePath).mkString
     Source.fromFile(filePath).close()
 

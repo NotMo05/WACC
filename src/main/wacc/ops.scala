@@ -23,9 +23,9 @@ val mulDivOps: Ops[Expr, Expr] = Ops(InfixL)(
     ("%" as ((l, r) => Mod(l,r)))
   )
 val addSubOps: Ops[Expr, Expr] = Ops(InfixL)(
-      ("+" as ((l, r) => Add(l,r))),
-      ("-" as ((l, r) => Sub(l,r)))
-    )
+    ("+" as ((l, r) => Add(l,r))),
+    ("-" as ((l, r) => Sub(l,r)))
+  )
 
 val comparisonOps: Ops[Expr, Expr] = Ops(InfixN)(
     ("<"  as ((l, r) => Less(l,r))),

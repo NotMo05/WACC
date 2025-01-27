@@ -22,60 +22,14 @@ object parser {
         intliteral.map(IntAtom.apply(_)),
         boolLiteral.map(BoolAtom.apply(_)),
         // nullliteral, // What do we do with this?
-        atomic(ident ~> lSquare ~> expr <~ "]"), // Since arrays dont exist, just taking the index for now
+        atomic(ident ~> lSquare ~> expr <~ rSquare), // Since arrays dont exist, just taking the index for now
         ident.map(StringAtom.apply(_)), //We need to store idents and their values, for now just treating as a string
         lParen ~> expr <~ rParen,
-        
+
     )(
     // Basic rundown of how this currently works, we take an expr, exprs can be any of these atoms ( see Syntax.scala ) and more.
     // We downcast ( bad but only for now ) via asInstanceOf, do what we need now that we "know" the type and then turn back into an expr via ___Atom() to be returned.
-    // Later on ( or if someone can be bothered now )we should probably use match cases on types instead 
+    // Later on ( or if someone can be bothered now )we should probably use match cases on types instead
 
-    // Unary operations
-    Ops(Prefix)(
-      ("!" as (expr => BoolAtom(!expr.asInstanceOf[BoolAtom].bool))),
-      ("-" as (expr => IntAtom(-expr.asInstanceOf[IntAtom].int))),
-      ("len" as (expr => IntAtom(expr.asInstanceOf[StringAtom].string.length))), // Len takes in a list, doesnt exist yet so made it work for strings for testing
-      ("ord" as (expr => IntAtom(expr.asInstanceOf[CharAtom].char.toInt))),
-      ("char" as (expr => CharAtom(expr.asInstanceOf[IntAtom].int.toChar)))
-    ),
-
-    // Arithmetic operations
-    Ops(InfixL)(
-      ("*" as ((l, r) => IntAtom(
-        l.asInstanceOf[IntAtom].int * r.asInstanceOf[IntAtom].int))),
-      ("/" as ((l, r) => IntAtom(
-        l.asInstanceOf[IntAtom].int / r.asInstanceOf[IntAtom].int))),
-      ("%" as ((l, r) => IntAtom(
-        l.asInstanceOf[IntAtom].int % r.asInstanceOf[IntAtom].int)))
-    ),
-    Ops(InfixL)(
-      ("+" as ((l, r) => IntAtom(
-        l.asInstanceOf[IntAtom].int + r.asInstanceOf[IntAtom].int))),
-      ("-" as ((l, r) => IntAtom(
-        l.asInstanceOf[IntAtom].int - r.asInstanceOf[IntAtom].int)))
-    ),
-
-    // Comparison and logical operations
-    Ops(InfixN)(
-      ("<" as ((l, r) => BoolAtom(
-        l.asInstanceOf[IntAtom].int < r.asInstanceOf[IntAtom].int))),
-      ("<=" as ((l, r) => BoolAtom(
-        l.asInstanceOf[IntAtom].int <= r.asInstanceOf[IntAtom].int))),
-      (">" as ((l, r) => BoolAtom(
-        l.asInstanceOf[IntAtom].int > r.asInstanceOf[IntAtom].int))),
-      (">=" as ((l, r) => BoolAtom(
-        l.asInstanceOf[IntAtom].int >= r.asInstanceOf[IntAtom].int)))
-    ),
-    Ops(InfixN)(
-      ("==" as ((l, r) => BoolAtom(l == r))),
-      ("!=" as ((l, r) => BoolAtom(l != r))) 
-    ),
-    Ops(InfixR)(
-      ("&&" as ((l, r) => BoolAtom(
-        l.asInstanceOf[BoolAtom].bool && r.asInstanceOf[BoolAtom].bool))),
-      ("||" as ((l, r) => BoolAtom(
-        l.asInstanceOf[BoolAtom].bool || r.asInstanceOf[BoolAtom].bool)))
-    )
-  )
+    unaryOps, arithmeticOps, comparisonOps, boolOps)
 }

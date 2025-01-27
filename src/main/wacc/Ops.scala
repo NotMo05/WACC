@@ -10,47 +10,36 @@ import parsley.expr._
 import parsley.token.errors._
 
 val unaryOps: Ops[Expr, Expr] = Ops(Prefix)(
-    ("!" as (expr => BoolAtom(!expr.asInstanceOf[BoolAtom].bool))),
-    ("-" as (expr => IntAtom(-expr.asInstanceOf[IntAtom].int))),
-    ("len" as (expr => IntAtom(expr.asInstanceOf[StringAtom].string.length))), // Len takes in a list, doesnt exist yet so made it work for strings for testing
-    ("ord" as (expr => IntAtom(expr.asInstanceOf[CharAtom].char.toInt))),
-    ("char" as (expr => CharAtom(expr.asInstanceOf[IntAtom].int.toChar)))
+    ("!"    as (expr => Not(expr))),
+    ("-"    as (expr => Neg(expr))),
+    ("len"  as (expr => Len(expr))), // Len takes in a list, doesnt exist yet so made it work for strings for testing
+    ("ord"  as (expr => Ord(expr))),
+    ("char" as (expr => Chr(expr)))
   )
 
 val mulDivOps: Ops[Expr, Expr] = Ops(InfixL)(
-    ("*" as ((l, r) => IntAtom(
-      l.asInstanceOf[IntAtom].int * r.asInstanceOf[IntAtom].int))),
-    ("/" as ((l, r) => IntAtom(
-      l.asInstanceOf[IntAtom].int / r.asInstanceOf[IntAtom].int))),
-    ("%" as ((l, r) => IntAtom(
-      l.asInstanceOf[IntAtom].int % r.asInstanceOf[IntAtom].int)))
+    ("*" as ((l, r) => Mul(l,r))),
+    ("/" as ((l, r) => Div(l,r))),
+    ("%" as ((l, r) => Mod(l,r)))
   )
 val addSubOps: Ops[Expr, Expr] = Ops(InfixL)(
-      ("+" as ((l, r) => IntAtom(
-        l.asInstanceOf[IntAtom].int + r.asInstanceOf[IntAtom].int))),
-      ("-" as ((l, r) => IntAtom(
-        l.asInstanceOf[IntAtom].int - r.asInstanceOf[IntAtom].int)))
+      ("+" as ((l, r) => Add(l,r))),
+      ("-" as ((l, r) => Sub(l,r)))
     )
 
 val comparisonOps: Ops[Expr, Expr] = Ops(InfixN)(
-    ("<" as ((l, r) => BoolAtom(
-      l.asInstanceOf[IntAtom].int < r.asInstanceOf[IntAtom].int))),
-    ("<=" as ((l, r) => BoolAtom(
-      l.asInstanceOf[IntAtom].int <= r.asInstanceOf[IntAtom].int))),
-    (">" as ((l, r) => BoolAtom(
-      l.asInstanceOf[IntAtom].int > r.asInstanceOf[IntAtom].int))),
-    (">=" as ((l, r) => BoolAtom(
-      l.asInstanceOf[IntAtom].int >= r.asInstanceOf[IntAtom].int)))
+    ("<"  as ((l, r) => Less(l,r))),
+    ("<=" as ((l, r) => LessE(l,r))),
+    (">"  as ((l, r) => Greater(l,r))),
+    (">=" as ((l, r) => GreaterE(l,r)))
   )
 
-val equalOps = Ops(InfixL)(
-    ("==" as ((l, r) => BoolAtom(l == r))),
-    ("!=" as ((l, r) => BoolAtom(l != r)))
+val equalOps:Ops[Expr, Expr] = Ops(InfixL)(
+    ("==" as ((l, r) => Eq(l,r))),
+    ("!=" as ((l, r) => NotEq(l,r)))
   )
 
 val boolOps: Ops[Expr, Expr] = Ops(InfixR)(
-    ("&&" as ((l, r) => BoolAtom(
-      l.asInstanceOf[BoolAtom].bool && r.asInstanceOf[BoolAtom].bool))),
-    ("||" as ((l, r) => BoolAtom(
-      l.asInstanceOf[BoolAtom].bool || r.asInstanceOf[BoolAtom].bool)))
+    ("&&" as ((l, r) => And(l,r))),
+    ("||" as ((l, r) => Or(l,r)))
   )

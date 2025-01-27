@@ -2,6 +2,8 @@ package wacc
 import scala.language.implicitConversions
 import parsley.Parsley._
 import parsley.Parsley
+import parsley.generic._
+import parsley.ap._
 
 
 case class Prog(funcs: List[Func], main: List[Stmt])
@@ -30,10 +32,46 @@ case class CharAtom(char: Char) extends Expr
 case class Param(t: Type, ident: Ident)
 
 
-// trait BinaryBridge extends ParserBridgeInfo2[Expr, Expr, Expr]
-// object Mul extends BinaryBridge
-// case class Mul(lhs: Expr, rhs: Expr)(val info: Info) extends Expr derives ParserBridgeInfo2
+trait BinaryBridge extends ParserBridge2[Expr, Expr, Expr]
+trait UnaryBridge extends ParserBridge1[Expr,Expr]
 
+case class Neg(x: Expr) extends Expr
+case class Not(x: Expr) extends Expr
+case class Len(x: Expr) extends Expr
+case class Chr(x: Expr) extends Expr
+case class Ord(x: Expr) extends Expr
+object Neg extends UnaryBridge
+object Not extends UnaryBridge
+object Len extends UnaryBridge
+object Chr extends UnaryBridge
+object Ord extends UnaryBridge
+
+case class Mul(l: Expr, r: Expr) extends Expr
+case class Div(l: Expr, r: Expr) extends Expr
+case class Mod(l: Expr, r: Expr) extends Expr
+case class Add(l: Expr, r: Expr) extends Expr
+case class Sub(l: Expr, r: Expr) extends Expr
+case class Less(l: Expr, r: Expr) extends Expr
+case class LessE(l: Expr, r: Expr) extends Expr
+case class Greater(l: Expr, r: Expr) extends Expr
+case class GreaterE(l: Expr, r: Expr) extends Expr
+case class Eq(l: Expr, r: Expr) extends Expr
+case class NotEq(l: Expr, r: Expr) extends Expr
+case class And(l: Expr, r: Expr) extends Expr
+case class Or(l: Expr, r: Expr) extends Expr
+object Mul extends BinaryBridge
+object Div extends BinaryBridge
+object Mod extends BinaryBridge
+object Add extends BinaryBridge
+object Sub extends BinaryBridge
+object Less extends BinaryBridge
+object LessE extends BinaryBridge
+object Greater extends BinaryBridge
+object GreaterE extends BinaryBridge
+object Eq extends BinaryBridge
+object NotEq extends BinaryBridge
+object And extends BinaryBridge
+object Or extends BinaryBridge
 
 
 

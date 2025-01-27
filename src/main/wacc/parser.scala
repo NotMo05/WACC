@@ -25,11 +25,5 @@ object parser {
         atomic(ident ~> lSquare ~> expr <~ rSquare), // Since arrays dont exist, just taking the index for now
         ident.map(StringAtom.apply(_)), //We need to store idents and their values, for now just treating as a string
         lParen ~> expr <~ rParen,
-
-    )(
-    // Basic rundown of how this currently works, we take an expr, exprs can be any of these atoms ( see Syntax.scala ) and more.
-    // We downcast ( bad but only for now ) via asInstanceOf, do what we need now that we "know" the type and then turn back into an expr via ___Atom() to be returned.
-    // Later on ( or if someone can be bothered now )we should probably use match cases on types instead
-
-    unaryOps, mulDivOps, addSubOps, comparisonOps, equalOps, boolOps)
+    )( unaryOps, mulDivOps, addSubOps, comparisonOps, equalOps, boolOps)
 }

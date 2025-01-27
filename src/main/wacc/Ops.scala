@@ -17,7 +17,7 @@ val unaryOps: Ops[Expr, Expr] = Ops(Prefix)(
     ("char" as (expr => CharAtom(expr.asInstanceOf[IntAtom].int.toChar)))
   )
 
-val arithmeticOps: Ops[Expr, Expr] = Ops(InfixL)(
+val mulDivOps: Ops[Expr, Expr] = Ops(InfixL)(
     ("*" as ((l, r) => IntAtom(
       l.asInstanceOf[IntAtom].int * r.asInstanceOf[IntAtom].int))),
     ("/" as ((l, r) => IntAtom(
@@ -25,6 +25,12 @@ val arithmeticOps: Ops[Expr, Expr] = Ops(InfixL)(
     ("%" as ((l, r) => IntAtom(
       l.asInstanceOf[IntAtom].int % r.asInstanceOf[IntAtom].int)))
   )
+val addSubOps: Ops[Expr, Expr] = Ops(InfixL)(
+      ("+" as ((l, r) => IntAtom(
+        l.asInstanceOf[IntAtom].int + r.asInstanceOf[IntAtom].int))),
+      ("-" as ((l, r) => IntAtom(
+        l.asInstanceOf[IntAtom].int - r.asInstanceOf[IntAtom].int)))
+    )
 
 val comparisonOps: Ops[Expr, Expr] = Ops(InfixN)(
     ("<" as ((l, r) => BoolAtom(
@@ -34,7 +40,10 @@ val comparisonOps: Ops[Expr, Expr] = Ops(InfixN)(
     (">" as ((l, r) => BoolAtom(
       l.asInstanceOf[IntAtom].int > r.asInstanceOf[IntAtom].int))),
     (">=" as ((l, r) => BoolAtom(
-      l.asInstanceOf[IntAtom].int >= r.asInstanceOf[IntAtom].int))),
+      l.asInstanceOf[IntAtom].int >= r.asInstanceOf[IntAtom].int)))
+  )
+
+val equalOps = Ops(InfixL)(
     ("==" as ((l, r) => BoolAtom(l == r))),
     ("!=" as ((l, r) => BoolAtom(l != r)))
   )

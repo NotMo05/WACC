@@ -31,5 +31,5 @@ object parser {
     // We downcast ( bad but only for now ) via asInstanceOf, do what we need now that we "know" the type and then turn back into an expr via ___Atom() to be returned.
     // Later on ( or if someone can be bothered now )we should probably use match cases on types instead
 
-    unaryOps, arithmeticOps, comparisonOps, boolOps)
+    unaryOps, mulDivOps, addSubOps, comparisonOps, equalOps, boolOps)
 }

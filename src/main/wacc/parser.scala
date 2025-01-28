@@ -4,15 +4,15 @@ import lexer.implicits.implicitSymbol
 import parsley.combinator.{sepBy1, optionalAs}
 import parsley.expr.{precedence}
 import parsley.{Parsley, Result}
-import parsley.Parsley.{some}
+import parsley.Parsley.{atomic, some}
 import wacc.lexer._
 
 object parser {
-  def parse(input: String): Result[String, Stmt] = parser.parse(input)
-  private val parser = fully(stmt)
+  // def parse(input: String): Result[String, Stmt] = parser.parse(input)
+  // private val parser = fully(stmt)
 
-  // def parse(input: String): Result[String, Expr] = parser.parse(input)
-  // private val parser = fully(expr)
+  def parse(input: String): Result[String, Expr] = parser.parse(input)
+  private val parser = fully(expr)
 
   private lazy val atoms =
     stringLiteral
@@ -20,7 +20,6 @@ object parser {
     | intLiteral
     | boolLiteral
     | nullLiteral.map(_ => NullLiteral)
-
 
   val stmts: Parsley[List[Stmt]] = sepBy1(stmt, ";")
 
@@ -39,7 +38,7 @@ object parser {
   private lazy val pairElem = PairElem(fstOrSnd, lValue)
 
   private lazy val lValue: Parsley[LValue] =
-    arrayElem
+    atomic(arrayElem)
     | ident
     | pairElem
 
@@ -56,14 +55,15 @@ object parser {
 
   private lazy val expr: Parsley[Expr] =
     precedence(
+      // Identifiers not being read
       atoms,
-      arrayElem,
+      atomic(arrayElem),
       ident,
       "(" ~> expr <~ ")"
     )(unaryOps, mulDivModOps, addSubOps, comparisonOps, equalOps, logicOps)
 
   private lazy val stmt: Parsley[Stmt] =
-    assgn
+     assgn
     | reassgn
     | readStmt
     | freeStmt
@@ -77,3 +77,11 @@ object parser {
     | "begin" ~> stmt <~ "end"
 
 }
+
+
+
+
+// PairType / ArrayType / PairElemType
+
+// Func //  Params/List
+// Program // Stmt ; Stmt

@@ -7,6 +7,7 @@ import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions._
 
 object lexer {
+  val illegalCharacters = Set('\'', '\\', '\"')
   private def isEnglishLetter(c: Char): Boolean =
     ('a' <= c && c <= 'z') ||
     ('A' <= c && c <= 'Z') ||
@@ -38,7 +39,9 @@ object lexer {
           "f" -> 0x0c,
           "0" -> 0x00
         )
-      )
+      ),
+      // Makes sure c is not an illegal character and has unicode code above that of ' '
+      graphicCharacter = Basic(c => (c >= ' ' && !illegalCharacters.contains(c)))
     )
   )
 

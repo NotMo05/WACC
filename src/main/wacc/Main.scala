@@ -1,6 +1,7 @@
 package wacc
-import parsley.{Success, Failure}
+
 import scala.io.Source
+import parsley.{Success, Failure}
 
 
 

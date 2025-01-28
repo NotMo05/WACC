@@ -1,13 +1,7 @@
 package wacc
-import parsley.{Parsley, Result}
-import parsley.Parsley._
+
 import lexer.implicits.implicitSymbol
-// If anyone knows how to import from syntax.scala, then we can get rid of importing the whole package
-// and if anyone can be bothered to go through the imports and only import whats needed we can stop getting the warnings
-import wacc._
-import lexer._
-import parsley.expr._
-import parsley.token.errors._
+import parsley.expr.{Ops, Prefix, InfixL, InfixN, InfixR}
 
 val unaryOps: Ops[Expr, Expr] = Ops(Prefix)(
     ("!"    as (expr => Not(expr))),
@@ -17,7 +11,7 @@ val unaryOps: Ops[Expr, Expr] = Ops(Prefix)(
     ("char" as (expr => Chr(expr)))
   )
 
-val mulDivOps: Ops[Expr, Expr] = Ops(InfixL)(
+val mulDivModOps: Ops[Expr, Expr] = Ops(InfixL)(
     ("*" as ((l, r) => Mul(l,r))),
     ("/" as ((l, r) => Div(l,r))),
     ("%" as ((l, r) => Mod(l,r)))
@@ -39,7 +33,7 @@ val equalOps:Ops[Expr, Expr] = Ops(InfixL)(
     ("!=" as ((l, r) => NotEq(l,r)))
   )
 
-val boolOps: Ops[Expr, Expr] = Ops(InfixR)(
+val logicOps: Ops[Expr, Expr] = Ops(InfixR)(
     ("&&" as ((l, r) => And(l,r))),
     ("||" as ((l, r) => Or(l,r)))
   )

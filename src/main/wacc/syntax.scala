@@ -1,16 +1,14 @@
 package wacc
-import scala.language.implicitConversions
-import parsley.Parsley._
-import parsley.Parsley
-import parsley.generic._
-import parsley.ap._
 
+import scala.language.implicitConversions
+import parsley.generic.{ParserBridge1, ParserBridge2}
+
+sealed trait Stmt
 sealed trait RValue
 sealed trait LValue
 sealed trait Expr extends RValue
-sealed trait Stmt
 
-enum Pos{
+enum Pos {
   case Fst
   case Snd
 }
@@ -24,15 +22,6 @@ case class CharLiteral(char: Char) extends Expr
 case object NullLiteral extends Expr
 case class Ident(identifier: String) extends Expr, LValue, RValue
 case class ArrayElem(arrayName: Ident, index: List[Expr]) extends Expr, LValue
-
-
-
-
-
-
-
-
-
 
 // Statements
 
@@ -55,12 +44,8 @@ case class WhileDo(condition: Expr, stmts: List[Stmt]) extends Stmt
 case class IfElse(condition: Expr, thenStmts: List[Stmt], elseStmts: List[Stmt]) extends Stmt
 case class Assgn(t: Type, identifier: Ident, rValue: RValue) extends Stmt
 case class ReAssgn(lValue: LValue, rValue: RValue) extends Stmt
- 
 
-// Stmts = Stmt ; Stmt
-// Begin Statement End ( )
-
-//Type Stuff
+//Types
 
 sealed trait Type extends Expr
 sealed trait PairElemType
@@ -75,16 +60,7 @@ case object BoolType extends BaseType
 case object StringType extends BaseType
 case object CharType extends BaseType
 
-
-
-
-
-
-
-
-
-
-// Operator Stuff
+// Operators
 
 trait BinaryBridge extends ParserBridge2[Expr, Expr, Expr]
 trait UnaryBridge extends ParserBridge1[Expr,Expr]

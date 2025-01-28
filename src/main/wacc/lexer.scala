@@ -1,15 +1,18 @@
 package wacc
 
 import parsley.Parsley
-import parsley.Parsley._
-import parsley.token.Lexer
-import parsley.token.Basic
-import parsley.token.descriptions.*
-import parsley.syntax.character._
-
-def isEnglishLetter(c: Char): Boolean = ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || (c == '_')
+import parsley.Parsley.atomic
+import parsley.syntax.character.stringLift
+import parsley.token.{Lexer, Basic}
+import parsley.token.descriptions._
 
 object lexer {
+
+    private def isEnglishLetter(c: Char): Boolean =
+        ('a' <= c && c <= 'z') ||
+        ('A' <= c && c <= 'Z') || 
+        (c == '_')
+        
     private val desc = LexicalDesc.plain.copy(
         nameDesc = NameDesc.plain.copy(
             identifierStart  =  Basic(char => isEnglishLetter(char)),

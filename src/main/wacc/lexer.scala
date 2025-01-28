@@ -9,14 +9,14 @@ import parsley.token.descriptions._
 object lexer {
   private def isEnglishLetter(c: Char): Boolean =
     ('a' <= c && c <= 'z') ||
-    ('A' <= c && c <= 'Z') || 
+    ('A' <= c && c <= 'Z') ||
     (c == '_')
-        
+
   private val desc = LexicalDesc.plain.copy(
     nameDesc = NameDesc.plain.copy(
       identifierStart  =  Basic(char => isEnglishLetter(char)),
-      identifierLetter = Basic(char => isEnglishLetter(char) || char.isDigit), 
-    ), 
+      identifierLetter = Basic(char => isEnglishLetter(char) || char.isDigit),
+    ),
     spaceDesc = SpaceDesc.plain.copy(
       lineCommentStart = "#",
     ),
@@ -44,18 +44,20 @@ object lexer {
 
   private val lexer = Lexer(desc)
 
-  val boolLiteral = lexer.lexeme(atomic("true" as true) | atomic("false" as false))
-  val intLiteral = lexer.lexeme.integer.decimal32[BigInt]
-  val stringLiteral = lexer.lexeme.string.ascii
-  val charLiteral = lexer.lexeme.character.ascii
-  val nullLiteral = lexer.lexeme(atomic("null" as null))
-  val ident = lexer.lexeme.names.identifier
+  val boolLiteral = BoolLiteral(lexer.lexeme(atomic("true" as true) | atomic("false" as false)))
+  val intLiteral = IntLiteral(lexer.lexeme.integer.decimal32[BigInt])
+  val stringLiteral = StringLiteral(lexer.lexeme.string.ascii)
+  val charLiteral = CharLiteral(lexer.lexeme.character.ascii)
+  val nullLiteral = lexer.lexeme(atomic("null" as NullLiteral))
+  val skipStmt = lexer.lexeme(atomic("skip" as Skip))
+  val ident = Ident(lexer.lexeme.names.identifier)
   val implicits = lexer.lexeme.symbol.implicits
   val typeParser: Parsley[Type] = lexer.lexeme(
       atomic("int" as IntType)
     | atomic("char" as CharType)
     | atomic("bool" as BoolType)
     | atomic("string" as StringType)
+    //pair and arrays?
   )
 
   def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)

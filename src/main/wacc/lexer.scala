@@ -60,5 +60,10 @@ object lexer {
     //pair and arrays?
   )
 
+  val posParser: Parsley[Pos] = lexer.lexeme(
+      atomic("fst" as Fst)
+    | atomic("snd" as Snd)
+  )
+
   def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
 }

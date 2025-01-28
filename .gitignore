@@ -2,8 +2,5 @@
 .bsp/
 .scala-build/
 .vscode/
-<<<<<<< HEAD
 /wacc-examples
-=======
-/wacc-examples
->>>>>>> origin/master
+/test/wacctest.wacc

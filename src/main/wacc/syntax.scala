@@ -5,33 +5,86 @@ import parsley.Parsley
 import parsley.generic._
 import parsley.ap._
 
-
-case class Prog(funcs: List[Func], main: List[Stmt])
-case class Func(t: Type, ident: Ident, params: List[Param], stmt: Stmt)
-
 sealed trait RValue
 sealed trait LValue
 sealed trait Expr extends RValue
 sealed trait Stmt
 
-case class Ident(identifier: String) extends Expr, LValue, RValue
-case class PairElem(lValue: LValue, fstorsnd: String) extends LValue, RValue
-case class ArrayElem(arrayName: Ident, index: List[Expr]) extends Expr, LValue
+enum Pos{
+  case Fst
+  case Snd
+}
 
-case class ArrayLiter(elems: List[Expr]) extends RValue
-case class NewPair(fst: Expr, snd: Expr) extends RValue
-case class FuncCall(ident: Ident, params: List[Expr]) extends RValue
+// Expressions
 
-//Literals
 case class IntLiteral(int: BigInt) extends Expr
 case class BoolLiteral(bool: Boolean) extends Expr
 case class StringLiteral(string: String) extends Expr
 case class CharLiteral(char: Char) extends Expr
 case object NullLiteral extends Expr
+case class Ident(identifier: String) extends Expr, LValue, RValue
+case class ArrayElem(arrayName: Ident, index: List[Expr]) extends Expr, LValue
 
 
+
+
+
+
+
+
+
+
+// Statements
+
+case class Prog(funcs: List[Func], main: List[Stmt])
+case class Func(t: Type, ident: Ident, params: List[Param], stmt: Stmt)
+case class Call(ident: Ident, args: List[Expr]) extends RValue
 case class Param(t: Type, ident: Ident)
+case class PairElem(lValue: LValue, pos: Pos) extends LValue, RValue // Maybe Change
+case class ArrayLiter(elems: List[Expr]) extends RValue
+case class NewPair(fst: Expr, snd: Expr) extends RValue
 
+case object Skip extends Stmt
+case class Read(lValue: LValue) extends Stmt
+case class Free(expr: Expr) extends Stmt
+case class Return(expr: Expr) extends Stmt
+case class Exit(expr: Expr) extends Stmt
+case class Print(expr: Expr) extends Stmt
+case class Println(expr: Expr) extends Stmt
+case class WhileDo(condition: Expr, stmts: List[Stmt]) extends Stmt
+case class IfElse(condition: Expr, thenStmts: List[Stmt], elseStmts: List[Stmt]) extends Stmt
+case class Assgn(t: Type, identifier: Ident, rValue: RValue) extends Stmt
+case class ReAssgn(lValue: LValue, rValue: RValue) extends Stmt
+ 
+
+// Stmts = Stmt ; Stmt
+// Begin Statement End ( )
+
+//Type Stuff
+
+sealed trait Type extends Expr
+sealed trait PairElemType
+sealed trait BaseType extends Type, PairElemType 
+
+case class PairType(t1: PairElemType, t2: PairElemType) extends Type
+case class ArrayType(t: Type) extends Type, PairElemType
+case object Pair extends PairElemType
+
+case object IntType extends BaseType
+case object BoolType extends BaseType
+case object StringType extends BaseType
+case object CharType extends BaseType
+
+
+
+
+
+
+
+
+
+
+// Operator Stuff
 
 trait BinaryBridge extends ParserBridge2[Expr, Expr, Expr]
 trait UnaryBridge extends ParserBridge1[Expr,Expr]
@@ -73,20 +126,3 @@ object Eq extends BinaryBridge
 object NotEq extends BinaryBridge
 object And extends BinaryBridge
 object Or extends BinaryBridge
-
-
-
-
-
-sealed trait Type extends Expr
-sealed trait PairElemType
-sealed trait BaseType extends Type, PairElemType 
-
-case class PairType(t1: PairElemType, t2: PairElemType) extends Type
-case class ArrayType(t: Type) extends Type, PairElemType
-case object Pair extends PairElemType
-
-case object IntType extends BaseType
-case object BoolType extends BaseType
-case object StringType extends BaseType
-case object CharType extends BaseType

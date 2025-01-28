@@ -57,5 +57,4 @@ object lexer {
     )
 
     def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
-
 }

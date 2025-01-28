@@ -12,7 +12,7 @@ import parsley.token.errors._
 val unaryOps: Ops[Expr, Expr] = Ops(Prefix)(
     ("!"    as (expr => Not(expr))),
     ("-"    as (expr => Neg(expr))),
-    ("len"  as (expr => Len(expr))), // Len takes in a list, doesnt exist yet so made it work for strings for testing
+    ("len"  as (expr => Len(expr))),
     ("ord"  as (expr => Ord(expr))),
     ("char" as (expr => Chr(expr)))
   )

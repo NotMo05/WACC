@@ -19,9 +19,9 @@ object parser {
         | charLiteral.map(CharLiteral.apply(_))
         | intLiteral.map(IntLiteral.apply(_))
         | boolLiteral.map(BoolLiteral.apply(_))
-        | nullLiteral.map(_ => NullLiteral) // What do we do with this?
+        | nullLiteral.map(_ => NullLiteral)
 
-    //Ambiguity. When faced with ident is it just an ident or an array-elem.
+
     private lazy val expr: Parsley[Expr] =
     precedence(
         atoms,
@@ -29,10 +29,4 @@ object parser {
         ident.map(Ident.apply(_)),
         "(" ~> expr <~ ")",
     )(unaryOps, mulDivOps, addSubOps, comparisonOps, equalOps, boolOps)
-
-    // private lazy val param =
-    //     atomic(typeDesc)
 }
-
-// We need to store idents and their values
-// We need to store arrays

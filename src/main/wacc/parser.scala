@@ -8,8 +8,11 @@ import parsley.Parsley.{some}
 import wacc.lexer._
 
 object parser {
-  def parse(input: String): Result[String, Expr] = parser.parse(input)
-  private val parser = fully(expr)
+  def parse(input: String): Result[String, Stmt] = parser.parse(input)
+  private val parser = fully(stmt)
+
+  // def parse(input: String): Result[String, Expr] = parser.parse(input)
+  // private val parser = fully(expr)
 
   private lazy val atoms =
     stringLiteral
@@ -33,10 +36,10 @@ object parser {
   private lazy val ifStmt = IfElse("if" ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
 
   private lazy val arrayElem = ArrayElem(ident, some("[" ~> expr <~ "]"))
-  private lazy val pairElem = PairElem(lValue, posParser)
+  private lazy val pairElem = PairElem(fstOrSnd, lValue)
 
   private lazy val lValue: Parsley[LValue] =
-      arrayElem
+    arrayElem
     | ident
     | pairElem
 
@@ -56,11 +59,11 @@ object parser {
       atoms,
       arrayElem,
       ident,
-      "(" ~> expr <~ ")",
+      "(" ~> expr <~ ")"
     )(unaryOps, mulDivModOps, addSubOps, comparisonOps, equalOps, logicOps)
 
   private lazy val stmt: Parsley[Stmt] =
-      assgn
+    assgn
     | reassgn
     | readStmt
     | freeStmt

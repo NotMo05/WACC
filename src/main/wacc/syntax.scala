@@ -7,8 +7,8 @@ sealed trait Stmt
 sealed trait RValue
 sealed trait LValue
 sealed trait Expr extends RValue
-sealed trait Pos
 
+sealed trait Pos
 case object Fst extends Pos
 case object Snd extends Pos
 
@@ -36,7 +36,7 @@ case class Prog(funcs: List[Func], main: List[Stmt])
 case class Func(t: Type, ident: Ident, params: List[Param], stmt: Stmt)
 case class Call(ident: Ident, args: List[Expr]) extends RValue
 case class Param(t: Type, ident: Ident)
-case class PairElem(lValue: LValue, pos: Pos) extends LValue, RValue
+case class PairElem(fstOrSnd: Pos, lValue: LValue) extends LValue, RValue
 case class ArrayLiter(elems: List[Expr]) extends RValue
 case class NewPair(fst: Expr, snd: Expr) extends RValue
 
@@ -44,7 +44,7 @@ object Prog extends ParserBridge2[List[Func], List[Stmt], Prog]
 object Func extends ParserBridge4[Type, Ident, List[Param], Stmt, Func]
 object Call extends ParserBridge2[Ident, List[Expr], RValue]
 object Param extends ParserBridge2[Type, Ident, Param]
-object PairElem extends ParserBridge2[LValue, Pos, PairElem]
+object PairElem extends ParserBridge2[Pos, LValue, PairElem]
 object ArrayLiter extends ParserBridge1[List[Expr], RValue]
 object NewPair extends ParserBridge2[Expr, Expr, NewPair]
 

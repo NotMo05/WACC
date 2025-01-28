@@ -60,7 +60,7 @@ object lexer {
     //pair and arrays?
   )
 
-  val posParser: Parsley[Pos] = lexer.lexeme(
+  val fstOrSnd: Parsley[Pos] = lexer.lexeme(
       atomic("fst" as Fst)
     | atomic("snd" as Snd)
   )

@@ -78,8 +78,12 @@ sealed trait PairElemType
 sealed trait BaseType extends Type, PairElemType
 
 case class PairType(t1: PairElemType, t2: PairElemType) extends Type
-case class ArrayType(t: Type) extends Type, PairElemType
+case class ArrayType(t: Type, d: Int) extends Type, PairElemType
+object ArrayType extends ParserBridge2[Type, Int, ArrayType]
 case object Pair extends PairElemType
+
+object PairType extends ParserBridge2[PairElemType, PairElemType, PairType]
+
 
 case object IntType extends BaseType
 case object BoolType extends BaseType

@@ -1,7 +1,7 @@
 package wacc
 
 import parsley.Parsley
-import parsley.Parsley.atomic
+import parsley.Parsley.{atomic, some}
 import parsley.syntax.character.stringLift
 import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions._
@@ -55,13 +55,32 @@ object lexer {
   val skipStmt = lexer.lexeme(atomic("skip" as Skip))
   val ident = Ident(lexer.lexeme.names.identifier)
   val implicits = lexer.lexeme.symbol.implicits
-  val typeParser: Parsley[Type] = lexer.lexeme(
-      atomic("int" as IntType)
+
+  lazy val typeParser = lexer.lexeme(
+    atomic(arrayType)
+    | interimTypes
+  )
+
+  lazy val baseType =  lexer.lexeme(
+    atomic("int" as IntType)
     | atomic("char" as CharType)
     | atomic("bool" as BoolType)
     | atomic("string" as StringType)
-    //pair and arrays?
   )
+
+  lazy val interimTypes: Parsley[Type] = lexer.lexeme( 
+    baseType
+    | pairType
+  )
+
+  lazy val pairElemType = 
+    atomic("pair" as Pair)
+    | atomic(arrayType)
+    | baseType
+
+  lazy val pairType = PairType("pair" ~> "(" ~> pairElemType <~ ",", pairElemType <~ ")")
+  
+  lazy val arrayType =  ArrayType(interimTypes, some("[]").map(_.size))
 
   val fstOrSnd: Parsley[Pos] = lexer.lexeme(
       atomic("fst" as Fst)

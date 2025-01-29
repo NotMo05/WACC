@@ -8,11 +8,11 @@ import parsley.Parsley.{atomic, some}
 import wacc.lexer._
 
 object parser {
-  // def parse(input: String): Result[String, Stmt] = parser.parse(input)
-  // private val parser = fully(stmt)
+  def parse(input: String): Result[String, Stmt] = parser.parse(input)
+  private val parser = fully(stmt)
 
-  def parse(input: String): Result[String, Expr] = parser.parse(input)
-  private val parser = fully(expr)
+  // def parse(input: String): Result[String, Expr] = parser.parse(input)
+  // private val parser = fully(expr)
 
   private lazy val atoms =
     stringLiteral
@@ -33,9 +33,9 @@ object parser {
   private lazy val printStmt = Print("print" ~> expr)
   private lazy val whileStmt = WhileDo("while" ~> expr, "do" ~> stmts <~ "done" )
   private lazy val ifStmt = IfElse("if" ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
-
   private lazy val arrayElem = ArrayElem(ident, some("[" ~> expr <~ "]"))
   private lazy val pairElem = PairElem(fstOrSnd, lValue)
+  
 
   private lazy val lValue: Parsley[LValue] =
     atomic(arrayElem)
@@ -55,7 +55,6 @@ object parser {
 
   private lazy val expr: Parsley[Expr] =
     precedence(
-      // Identifiers not being read
       atoms,
       atomic(arrayElem),
       ident,
@@ -76,8 +75,9 @@ object parser {
     | skipStmt
     | "begin" ~> stmt <~ "end"
 
-}
+ // private lazy val pairType = PairType("pair" ~> ???)
 
+}
 
 
 

@@ -1,15 +1,15 @@
 package wacc
 
 import lexer.implicits.implicitSymbol
-import parsley.combinator.{sepBy, sepBy1}
+import parsley.combinator.{sepBy1}
 import parsley.expr.{precedence}
 import parsley.{Parsley, Result}
-import parsley.Parsley.{atomic, some, pure, notFollowedBy}
+import parsley.Parsley.{atomic, some, pure, notFollowedBy, many}
 import wacc.lexer._
 
 object parser {
-  def parse(input: String): Result[String, Prog] = parser.parse(input)
-  private val parser = fully(program)
+def parse(input: String): Result[String, Prog] = parser.parse(input)
+private val parser = fully(program)
 
   // def parse(input: String): Result[String, Stmt] = parser.parse(input)
   // private val parser = fully(stmt)
@@ -17,17 +17,15 @@ object parser {
   // def parse(input: String): Result[String, Expr] = parser.parse(input)
   // private val parser = fully(expr)
   
-  private lazy val program = Prog("begin" ~> funcs, stmts <~ "end")
+  private lazy val program = Prog("begin" ~> many(atomic(func)), stmts <~ "end")
 
-  private lazy val func = atomic(Func(typeParser, ident, "(" ~> (atomic(paramList) | (pure(List.empty[Param]))) <~ ")", "is" ~> stmts))
-
-  private lazy val funcs = sepBy(func, "end")
+  private lazy val func = Func(typeParser, ident, "(" ~> (atomic(paramList) | (pure(List.empty[Param]))) <~ ")", "is" ~> stmts <~ "end")
 
   private lazy val param = atomic(Param(typeParser, ident <~ notFollowedBy("="))) 
 
   private lazy val paramList = sepBy1(param, ",")
 
-
+  lazy val pairType = PairType("pair" ~> "(" ~> pairElemType, "," ~> pairElemType <~ ")")
 
 
 
@@ -46,7 +44,7 @@ object parser {
   private lazy val reassgn = ReAssgn(lValue, "=" ~> rValue)
   private lazy val readStmt = Read("read" ~> lValue)
   private lazy val freeStmt = Free("free" ~> expr)
-  private lazy val returnStmt = Return("return" ~> expr)
+  private lazy val returnStmt = Return("return" ~> expr) ////////////////////////////////////////
   private lazy val exitStmt = Exit("exit" ~> expr)
   private lazy val printlnStmt = Println("println" ~> expr)
   private lazy val printStmt = Print("print" ~> expr)
@@ -68,7 +66,7 @@ object parser {
 
   private lazy val argList: Parsley[List[Expr]] = sepBy1(expr, ",")
   private lazy val arrayLiteral =  ArrayLiter("[" ~> (atomic(argList) | (pure(List.empty[Expr]))) <~ "]")
-  private lazy val newPair = NewPair("(" ~> expr <~ ",", expr <~ ")" )
+  private lazy val newPair = NewPair("newpair" ~> "(" ~> expr <~ ",", expr <~ ")" )
   private lazy val rValue: Parsley[RValue] =
       expr
     | arrayLiteral
@@ -85,7 +83,7 @@ object parser {
     )(unaryOps, mulDivModOps, addSubOps, comparisonOps, equalOps, logicOps)
 
   private lazy val stmt: Parsley[Stmt] =
-    assgn
+    atomic(assgn)
     | reassgn
     | readStmt
     | freeStmt
@@ -96,6 +94,6 @@ object parser {
     | whileStmt
     | ifStmt
     | skipStmt
-    | "begin" ~> stmt <~ "end"
+    | atomic("begin" ~> stmt <~ "end")
 
 }

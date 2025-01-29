@@ -8,7 +8,7 @@ val unaryOps: Ops[Expr, Expr] = Ops(Prefix)(
   ("-"    as (expr => Neg(expr))),
   ("len"  as (expr => Len(expr))),
   ("ord"  as (expr => Ord(expr))),
-  ("char" as (expr => Chr(expr)))
+  ("chr"  as  (expr => Chr(expr)))
 )
 
 val mulDivModOps: Ops[Expr, Expr] = Ops(InfixL)(

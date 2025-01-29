@@ -5,6 +5,7 @@ import parsley.Parsley.{atomic, some}
 import parsley.syntax.character.stringLift
 import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions._
+import wacc.parser.pairType
 
 object lexer {
   val illegalCharacters = Set('\'', '\\', '\"')
@@ -24,7 +25,7 @@ object lexer {
     symbolDesc = SymbolDesc.plain.copy(
       hardKeywords  = Set("read", "exit", "begin", "end", "if", "then", "else", "fi", "skip", "true", "false",
                           "free", "while", "do", "done", "fst", "snd", "newpair", "print", "println", "call",
-                          "int", "bool", "pair", "null", "string", "pair"),
+                          "int", "bool", "char", "null", "string", "pair", "return"),
       hardOperators = Set("*", "/", "%", "+", "-", ">", ">=", "<", "<=",
                           "==", "!=", "&&", "||", "!", "len", "ord", "chr")
     ),
@@ -54,6 +55,7 @@ object lexer {
   val nullLiteral = lexer.lexeme(atomic("null" as NullLiteral))
   val skipStmt = lexer.lexeme(atomic("skip" as Skip))
   val ident = Ident(lexer.lexeme.names.identifier)
+  val comma = lexer.lexeme.symbol.comma
   val implicits = lexer.lexeme.symbol.implicits
 
   lazy val typeParser = lexer.lexeme(
@@ -73,14 +75,14 @@ object lexer {
     | atomic(pairType)
   )
 
-  lazy val pairElemType = 
+  lazy val pairElemType = lexer.lexeme(
     atomic("pair" as Pair)
     | atomic(arrayType)
     | baseType
+  )
 
-  lazy val pairType = PairType("pair" ~> "(" ~> pairElemType <~ ",", pairElemType <~ ")")
   
-  lazy val arrayType =  ArrayType(interimTypes, some("[]").map(_.size))
+  lazy val arrayType = lexer.lexeme(ArrayType(interimTypes, some("[]").map(_.size)))
 
   val fstOrSnd: Parsley[Pos] = lexer.lexeme(
       atomic("fst" as Fst)

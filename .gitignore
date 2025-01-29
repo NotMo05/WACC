@@ -2,5 +2,4 @@
 .bsp/
 .scala-build/
 .vscode/
-/wacc-examples
-/test/wacctest.wacc
+/test/wacc/wacc-examples

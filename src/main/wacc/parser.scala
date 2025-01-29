@@ -1,18 +1,37 @@
 package wacc
 
 import lexer.implicits.implicitSymbol
-import parsley.combinator.{sepBy1, optionalAs}
+import parsley.combinator.{sepBy, sepBy1}
 import parsley.expr.{precedence}
 import parsley.{Parsley, Result}
-import parsley.Parsley.{atomic, some}
+import parsley.Parsley.{atomic, some, pure, notFollowedBy}
 import wacc.lexer._
 
 object parser {
-  def parse(input: String): Result[String, Stmt] = parser.parse(input)
-  private val parser = fully(stmt)
+  def parse(input: String): Result[String, Prog] = parser.parse(input)
+  private val parser = fully(program)
+
+  // def parse(input: String): Result[String, Stmt] = parser.parse(input)
+  // private val parser = fully(stmt)
 
   // def parse(input: String): Result[String, Expr] = parser.parse(input)
   // private val parser = fully(expr)
+  
+  private lazy val program = Prog("begin" ~> funcs, stmts <~ "end")
+
+  private lazy val func = atomic(Func(typeParser, ident, "(" ~> (atomic(paramList) | (pure(List.empty[Param]))) <~ ")", "is" ~> stmts))
+
+  private lazy val funcs = sepBy(func, "end")
+
+  private lazy val param = atomic(Param(typeParser, ident <~ notFollowedBy("="))) 
+
+  private lazy val paramList = sepBy1(param, ",")
+
+
+
+
+
+
 
   private lazy val atoms =
     stringLiteral
@@ -42,9 +61,13 @@ object parser {
     | ident
     | pairElem
 
-  private lazy val call = Call("call" ~> ident, "(" ~> optionalAs(argList, List.empty[Expr]) <~ ")")
+  private lazy val call = Call("call" ~> ident, "(" ~> (atomic(argList) | (pure(List.empty[Expr]))) <~ ")")
+
+
+
+
   private lazy val argList: Parsley[List[Expr]] = sepBy1(expr, ",")
-  private lazy val arrayLiteral = ArrayLiter("[" ~> optionalAs(argList, List.empty[Expr]) <~ "]")
+  private lazy val arrayLiteral =  ArrayLiter("[" ~> (atomic(argList) | (pure(List.empty[Expr]))) <~ "]")
   private lazy val newPair = NewPair("(" ~> expr <~ ",", expr <~ ")" )
   private lazy val rValue: Parsley[RValue] =
       expr
@@ -62,7 +85,7 @@ object parser {
     )(unaryOps, mulDivModOps, addSubOps, comparisonOps, equalOps, logicOps)
 
   private lazy val stmt: Parsley[Stmt] =
-     assgn
+    assgn
     | reassgn
     | readStmt
     | freeStmt
@@ -75,13 +98,4 @@ object parser {
     | skipStmt
     | "begin" ~> stmt <~ "end"
 
- // private lazy val pairType = PairType("pair" ~> ???)
-
 }
-
-
-
-// PairType / ArrayType / PairElemType
-
-// Func //  Params/List
-// Program // Stmt ; Stmt

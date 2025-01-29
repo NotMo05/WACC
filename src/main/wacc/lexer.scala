@@ -70,7 +70,7 @@ object lexer {
 
   lazy val interimTypes: Parsley[Type] = lexer.lexeme( 
     baseType
-    | pairType
+    | atomic(pairType)
   )
 
   lazy val pairElemType = 

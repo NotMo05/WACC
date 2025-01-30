@@ -8,22 +8,23 @@ fi
 
 # Map the provided path to the actual location
 filename=$1
-actual_path=${filename/wacc-examples/src\/test\/wacc/wacc-examples}
 
 # Check if the file exists
-if [ ! -f "$actual_path" ]; then
-  echo "Error: File not found at $actual_path"
+if [ ! -f "$filename" ]; then
+  echo "Error: File not found at $filename"
   exit 1
 fi
 
 # Run the compiler front-end using Scala
-scala . -- "$actual_path"
+scala . -- "$filename"
 result=$?
 
 # Map return codes appropriately
 if [ $result -eq 0 ]; then
+  echo "No Error" 
   exit 0  # Successful compilation
 elif [ $result -eq 100 ]; then
+  echo "Syntax Error"
   exit 100  # Syntax error
 elif [ $result -eq 200 ]; then
   exit 200  # Semantic error

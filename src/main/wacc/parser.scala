@@ -19,7 +19,12 @@ object parser {
   
   private lazy val program = Prog("begin" ~> many(atomic(func)), stmts <~ "end")
 
-  private lazy val func = Func(typeParser, ident, "(" ~> (atomic(paramList) | (pure(List.empty[Param]))) <~ ")", "is" ~> stmts <~ "end")
+  private lazy val func = Func(
+    typeParser,
+    ident,
+    "(" ~> onceOrEmptyList(paramList) <~ ")",
+    "is" ~> stmts.filter(returns(_)) <~ "end"
+  )
 
   private lazy val param = atomic(Param(typeParser, ident <~ notFollowedBy("="))) 
 
@@ -54,10 +59,10 @@ object parser {
     | ident
     | pairElem
 
-  private lazy val call = Call("call" ~> ident, "(" ~> (atomic(argList) | (pure(List.empty[Expr]))) <~ ")")
+  private lazy val call = Call("call" ~> ident, "(" ~> onceOrEmptyList(argList) <~ ")")
 
   private lazy val argList: Parsley[List[Expr]] = sepBy1(expr, ",")
-  private lazy val arrayLiteral =  ArrayLiter("[" ~> (atomic(argList) | (pure(List.empty[Expr]))) <~ "]")
+  private lazy val arrayLiteral =  ArrayLiter("[" ~> onceOrEmptyList(argList) <~ "]")
   private lazy val newPair = NewPair("newpair" ~> "(" ~> expr <~ ",", expr <~ ")" )
   private lazy val rValue: Parsley[RValue] =
       expr
@@ -90,4 +95,17 @@ object parser {
     | skipStmt
     | beginBlock
 
-}
+  def returns(stmts: List[Stmt]): Boolean = return{
+    stmts.last match {
+      case IfElse(_, thenStmts, elseStmts) => returns(thenStmts) && returns(elseStmts)
+      case WhileDo(_, stmts) => returns(stmts)
+      case Scope(stmts) => returns(stmts)
+      case Return(_) => true
+      case Exit(_) => true
+      case _ => false
+    }
+  }
+
+  def onceOrEmptyList[A](structure: Parsley[List[A]]) = (atomic(structure) | pure(List.empty[A]))
+  }
+

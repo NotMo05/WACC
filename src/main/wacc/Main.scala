@@ -24,11 +24,8 @@ def main(args: Array[String]): Unit = {
     val fileContent = Array(Source.fromFile(file).mkString)
     fileContent.headOption match {
       case Some(expr) => parser.parse(expr) match {
-        case Success(x) => println(s"$expr = $x")
-        case Failure(msg) => {
-          println(msg)
-          throw Error("HI")
-        }
+        case Success(x) => sys.exit(0)
+        case Failure(msg) => sys.exit(100)
       }
         case None => println("please enter an expression")
       }

@@ -7,7 +7,7 @@ if [ $# -ne 1 ]; then
 fi
 
 # Map the provided path to the actual location
-filename=$1
+filename=$@
 
 # Check if the file exists
 if [ ! -f "$filename" ]; then
@@ -16,7 +16,7 @@ if [ ! -f "$filename" ]; then
 fi
 
 # Run the compiler front-end using Scala
-scala . -- "$filename"
+./wacc-compiler "$filename"
 result=$?
 
 # Map return codes appropriately
@@ -27,7 +27,8 @@ elif [ $result -eq 100 ]; then
   echo "Syntax Error"
   exit 100  # Syntax error
 elif [ $result -eq 200 ]; then
+  echo "Semantic Error"
   exit 200  # Semantic error
 else
-  exit 1  # Unknown error
+  exit 1
 fi

@@ -13,7 +13,7 @@ def main(args: Array[String]): Unit = {
   // scope/ fails begin stmt end doesnt allow begin stmts end
   // runtimeErr/integerOverflow/ fails  Negation tick, Subtraction tick, negative numbers X
 
-  val directoryPath = "src/test/wacc/wacc-examples/valid/scope/"
+  val directoryPath = "src/test/wacc/wacc-examples/valid/function/simple_functions/"
   val files = new File(directoryPath).listFiles()
   val fileNames = files.filter(_.isFile).map(_.getName).toList
   print(fileNames.toString())
@@ -22,6 +22,7 @@ def main(args: Array[String]): Unit = {
     val filePath = directoryPath + fileName
     val fileContent = Source.fromFile(filePath).mkString
     Source.fromFile(filePath).close()
+
 
     val arguments = if args.isEmpty then Array(fileContent) else args
 

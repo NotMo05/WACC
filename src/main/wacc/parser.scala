@@ -82,6 +82,8 @@ private val parser = fully(program)
       "(" ~> expr <~ ")"
     )(unaryOps, mulDivModOps, addSubOps, comparisonOps, equalOps, logicOps)
 
+  private lazy val beginBlock = Scope("begin" ~> stmts <~ "end")
+
   private lazy val stmt: Parsley[Stmt] =
     atomic(assgn)
     | reassgn
@@ -94,6 +96,6 @@ private val parser = fully(program)
     | whileStmt
     | ifStmt
     | skipStmt
-    | atomic("begin" ~> stmt <~ "end")
+    | beginBlock
 
 }

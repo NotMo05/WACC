@@ -1,9 +1,32 @@
 #!/bin/bash
-# Bash front-end for your compiler.
-# You are free to change the language used for this script,
-# but do *not* change its name.
 
-# feel free to adjust to suit the specific internal flags of your compiler
-./wacc-compiler "$@"
+# Ensure the right number of arguments
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 FILENAME.wacc"
+  exit 1
+fi
 
-exit $?
+# Map the provided path to the actual location
+filename=$1
+actual_path=${filename/wacc-examples/src\/test\/wacc/wacc-examples}
+
+# Check if the file exists
+if [ ! -f "$actual_path" ]; then
+  echo "Error: File not found at $actual_path"
+  exit 1
+fi
+
+# Run the compiler front-end using Scala
+scala . -- "$actual_path"
+result=$?
+
+# Map return codes appropriately
+if [ $result -eq 0 ]; then
+  exit 0  # Successful compilation
+elif [ $result -eq 100 ]; then
+  exit 100  # Syntax error
+elif [ $result -eq 200 ]; then
+  exit 200  # Semantic error
+else
+  exit 1  # Unknown error
+fi

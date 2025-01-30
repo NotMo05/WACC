@@ -7,6 +7,7 @@ import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions._
 import wacc.parser.pairType
 
+
 object lexer {
   val illegalCharacters = Set('\'', '\\', '\"')
   private def isEnglishLetter(c: Char): Boolean =
@@ -41,15 +42,17 @@ object lexer {
           "0" -> 0x00
         )
       ),
-      // Makes sure c is not an illegal character and has unicode code above that of ' '
       graphicCharacter = Basic(c => (c >= ' ' && !illegalCharacters.contains(c)))
     )
   )
 
   private val lexer = Lexer(desc)
 
+  
   val boolLiteral = BoolLiteral(lexer.lexeme(atomic("true" as true) | atomic("false" as false)))
-  val intLiteral = IntLiteral(lexer.lexeme.integer.decimal32[BigInt])
+  val intLiteral: Parsley[Expr] = IntLiteral(lexer.lexeme.integer.decimal32[BigInt]) 
+
+
   val stringLiteral = StringLiteral(lexer.lexeme.string.ascii)
   val charLiteral = CharLiteral(lexer.lexeme.character.ascii)
   val nullLiteral = lexer.lexeme(atomic("null" as NullLiteral))

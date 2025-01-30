@@ -94,8 +94,8 @@ case object CharType extends BaseType
 
 // Operators
 
-trait BinaryBridge extends ParserBridge2[Expr, Expr, Expr]
-trait UnaryBridge extends ParserBridge1[Expr,Expr]
+sealed trait BinaryBridge extends ParserBridge2[Expr, Expr, Expr]
+sealed trait UnaryBridge extends ParserBridge1[Expr,Expr]
 
 case class Neg(x: Expr) extends Expr
 case class Not(x: Expr) extends Expr

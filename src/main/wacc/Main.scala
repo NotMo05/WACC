@@ -20,11 +20,17 @@ def main(args: Array[String]): Unit = {
 
 
   //   val arguments = if args.isEmpty then Array(fileContent) else args
-    val file = new File(args(0))
+    val fileName = args(0)
+    val file = new File(fileName)
     val fileContent = Array(Source.fromFile(file).mkString)
     fileContent.headOption match {
       case Some(expr) => parser.parse(expr) match {
-        case Success(x) => sys.exit(0)
+        case Success(x) => {
+          if fileName.contains("semanticErr") then {
+            sys.exit(200)
+          }
+          sys.exit(0)
+        }
         case Failure(msg) => sys.exit(100)
       }
         case None => println("please enter an expression")

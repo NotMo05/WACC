@@ -13,7 +13,7 @@ object semantic {
     rValue match
       case expr: Expr => getExprType(expr)
       case Call(ident, _) => getExprType(ident)
-      case ArrayLiter(elems) => getExprType(elems.head) // This needs checking to make sure all elems same type
+      case ArrayLiter(elems) => arrayLiterHandle(elems)
       case NewPair(fst, snd) => newPairHandle(fst, snd)
       case Fst(lValue) => pairElemHandle(lValue).t1.asInstanceOf[Type]
       case Snd(lValue) => pairElemHandle(lValue).t2.asInstanceOf[Type]
@@ -30,13 +30,13 @@ object semantic {
   def getExprType(expr: Expr): Type = {
     expr match 
       case op: Operator => validOpArgs(op)
-      case int: IntLiteral => IntType
-      case bool: BoolLiteral => BoolType
-      case string: StringLiteral => StringType
-      case char: CharLiteral => CharType
+      case IntLiteral(_) => IntType
+      case BoolLiteral(_) => BoolType
+      case StringLiteral(_) => StringType
+      case CharLiteral(_) => CharType
       case ArrayElem(arrayName, _) => getExprType(arrayName)
       case Ident(name) => symbolTable.getOrElse(name, throw new Exception(s"Undeclared identifier: $name"))
-      case NullLiteral => ??? // Error?
+      case NullLiteral => ??? // This should be PairType(AnyType, AnyType)
   }
 
 
@@ -68,7 +68,7 @@ object semantic {
       case Neg(x) if getExprType(x) == IntType  => IntType
       case Ord(x) if getExprType(x) == CharType => IntType
       case Len(ArrayLiter(_))  => IntType
-      case _ => ??? //Error
+      case _ => ??? //Error?  
   }
 
   def validStmtArgs(stmt: Stmt): Boolean = {
@@ -81,8 +81,8 @@ object semantic {
       case Exit(expr) => getExprType(expr) == IntType
       case Assgn(t, _, rValue) => getRValueType(rValue) == t
       case ReAssgn(lValue, rValue) => getLValueType(lValue) == getRValueType(rValue)
-      case WhileDo(_, stmts) => stmts.forall(validStmtArgs(_))
-      case IfElse(_, thenStmts, elseStmts) => thenStmts.forall(validStmtArgs(_)) & elseStmts.forall(validStmtArgs(_))
+      case WhileDo(cond, stmts) => getExprType(cond) == BoolType & stmts.forall(validStmtArgs(_))
+      case IfElse(cond, thenStmts, elseStmts) => getExprType(cond) == BoolType & thenStmts.forall(validStmtArgs(_)) & elseStmts.forall(validStmtArgs(_))
       case Scope(stmts) => stmts.forall(validStmtArgs(_))
       case Return(expr) => ??? // Need to check function
       case Print(expr) => true // Might just be true?
@@ -91,16 +91,16 @@ object semantic {
   }
 
   def newPairHandle(fst: Expr, snd: Expr) = {
-        val fstType = getExprType(fst) match {
-          case PairType(_, _) => Pair
-          case otherType => otherType
-        }
-        val sndType = getExprType(snd) match {
-          case PairType(_, _) => Pair
-          case otherType => otherType
-        }
-        PairType(fstType.asInstanceOf[PairElemType], sndType.asInstanceOf[PairElemType])
-      }
+    val fstType = getExprType(fst) match {
+      case PairType(_, _) => Pair
+      case otherType => otherType
+    }
+    val sndType = getExprType(snd) match {
+      case PairType(_, _) => Pair
+      case otherType => otherType
+    }
+    PairType(fstType.asInstanceOf[PairElemType], sndType.asInstanceOf[PairElemType])
+  }
 
   def pairElemHandle(lValue: LValue): PairType = {
     lValue match
@@ -111,6 +111,14 @@ object semantic {
       case ArrayElem(arrayName, index) => ??? // Error?
       case wacc.Fst(_) => ??? // Check otherside
       case wacc.Snd(_) => ??? // Check otherside
+  }
+
+  def arrayLiterHandle(elems: List[Expr]) = {
+    val arrayTypes = elems.map(getExprType(_)).distinct
+    if arrayTypes.size == 1 then arrayTypes.head match
+      case ArrayType(t, d) => ArrayType(t, d+1)
+      case litOrPairType => ArrayType(litOrPairType, 1)   
+    else ??? // Error?
   }
 }
 

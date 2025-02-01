@@ -15,7 +15,7 @@ def main(args: Array[String]): Unit = {
 
   // for (fileName <- fileNames) {
   //   val filePath = directoryPath + fileName
-  // val fileContent = Source.fromFile(filePath).mkString
+  //   val fileContent = Source.fromFile(filePath).mkString
   //   Source.fromFile(filePath).close()
 
 

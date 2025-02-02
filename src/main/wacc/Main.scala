@@ -24,8 +24,11 @@ def main(args: Array[String]): Unit = {
     val file = new File(fileName)
     val fileContent = Array(Source.fromFile(file).mkString)
     fileContent.headOption match {
-      case Some(expr) => parser.parse(expr) match {
-        case Success(x) => {
+      // Parse and conduct syntax analysis on the program string
+      case Some(progString) => parser.parse(progString) match {
+        case Success(ast) => {
+          // Conduct semantic analysis on the AST produced by syntax analysis
+          semantic.analyse(ast)
           if fileName.contains("semanticErr") then {
             sys.exit(200)
           }

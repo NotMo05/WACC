@@ -7,6 +7,10 @@ import scala.collection.mutable
 
 object semantic {
 
+  def analyse(prog: Prog) = {
+    
+  }
+
   val symbolTable: mutable.Map[String, Type] = mutable.Map()
 
   def getRValueType(rValue: RValue): Type = {

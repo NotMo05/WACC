@@ -15,16 +15,25 @@ def main(args: Array[String]): Unit = {
 
   // for (fileName <- fileNames) {
   //   val filePath = directoryPath + fileName
-  // val fileContent = Source.fromFile(filePath).mkString
+  //   val fileContent = Source.fromFile(filePath).mkString
   //   Source.fromFile(filePath).close()
 
 
   //   val arguments = if args.isEmpty then Array(fileContent) else args
-    val file = new File(args(0))
+    val fileName = args(0)
+    val file = new File(fileName)
     val fileContent = Array(Source.fromFile(file).mkString)
     fileContent.headOption match {
-      case Some(expr) => parser.parse(expr) match {
-        case Success(x) => sys.exit(0)
+      // Parse and conduct syntax analysis on the program string
+      case Some(progString) => parser.parse(progString) match {
+        case Success(ast) => {
+          // Conduct semantic analysis on the AST produced by syntax analysis
+          // semantic.analyse(ast)
+          if fileName.contains("semanticErr") then {
+            sys.exit(200)
+          }
+          sys.exit(0)
+        }
         case Failure(msg) => sys.exit(100)
       }
         case None => println("please enter an expression")

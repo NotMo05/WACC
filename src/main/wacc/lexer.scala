@@ -87,10 +87,5 @@ object lexer {
   
   lazy val arrayType = lexer.lexeme(ArrayType(interimTypes, some("[]").map(_.size)))
 
-  val fstOrSnd: Parsley[Pos] = lexer.lexeme(
-      atomic("fst" as Fst)
-    | atomic("snd" as Snd)
-  )
-
   def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
 }

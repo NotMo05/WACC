@@ -52,7 +52,7 @@ object parser {
   private lazy val whileStmt = WhileDo("while" ~> expr, "do" ~> stmts <~ "done" )
   private lazy val ifStmt = IfElse("if" ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
   private lazy val arrayElem = ArrayElem(ident, some("[" ~> expr <~ "]"))
-  private lazy val pairElem = PairElem(fstOrSnd, lValue)
+  private lazy val pairElem = Fst("fst" ~> lValue) | Snd("snd" ~> lValue)
   
   private lazy val lValue: Parsley[LValue] =
     atomic(arrayElem)

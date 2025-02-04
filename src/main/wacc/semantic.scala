@@ -1,6 +1,4 @@
-
 package wacc
-import scala.collection.mutable
 // def semParse(prog: Prog) = {
 //   validSemFuncs(prog.funcs) && validSemStmts(prog.main)
 
@@ -8,10 +6,8 @@ import scala.collection.mutable
 object semantic {
 
   def analyse(prog: Prog) = {
-    
+    prog.main.forall(validStmtArgs(_))
   }
-
-  val symbolTable: mutable.Map[String, Type] = mutable.Map()
 
   def getRValueType(rValue: RValue): Type = {
     rValue match
@@ -26,21 +22,27 @@ object semantic {
   def getLValueType(lValue: LValue): Type = {
     lValue match
       case ident: Ident => getExprType(ident)
-      case ArrayElem(arrayName, index) =>  ??? // This changes based on length of index
-      case Fst(lValue) => pairElemHandle(lValue).t1.asInstanceOf[Type]
-      case Snd(lValue) => pairElemHandle(lValue).t2.asInstanceOf[Type]
+      case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index.size)
+      case Fst(lValue) => pairElemHandle(lValue).t1 match
+        case t: Type => t
+        case Pair => ??? //Check otherside, as long as its a pairType, trust it even if its wrong
+      case Snd(lValue) => pairElemHandle(lValue).t2 match
+        case t: Type => t
+        case Pair => ??? //Check otherside, as long as its a pairType, trust it even if its wrong
   }
 
   def getExprType(expr: Expr): Type = {
     expr match 
+      case qn: QualifiedName => qn.t
       case op: Operator => validOpArgs(op)
       case IntLiteral(_) => IntType
       case BoolLiteral(_) => BoolType
       case StringLiteral(_) => StringType
       case CharLiteral(_) => CharType
-      case ArrayElem(arrayName, _) => getExprType(arrayName)
-      case Ident(name) => symbolTable.getOrElse(name, throw new Exception(s"Undeclared identifier: $name"))
-      case NullLiteral => ??? // This should be PairType(AnyType, AnyType)
+      case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index.size)
+      case NullLiteral => ??? // Not an Error, This should be PairType(AnyType, AnyType)
+      case wacc.Ident(_) => ??? // Error, should've been turned into QualifiedName, shouldn't ever happen invalid code or not
+
   }
 
 
@@ -71,7 +73,7 @@ object semantic {
       case Chr(x) if getExprType(x) == IntType  => CharType
       case Neg(x) if getExprType(x) == IntType  => IntType
       case Ord(x) if getExprType(x) == CharType => IntType
-      case Len(ArrayLiter(_))  => IntType
+      case Len(x) if getExprType(x).isInstanceOf[ArrayType] => IntType
       case _ => ??? //Error?  
   }
 
@@ -86,7 +88,10 @@ object semantic {
       case Assgn(t, _, rValue) => getRValueType(rValue) == t
       case ReAssgn(lValue, rValue) => getLValueType(lValue) == getRValueType(rValue)
       case WhileDo(cond, stmts) => getExprType(cond) == BoolType & stmts.forall(validStmtArgs(_))
-      case IfElse(cond, thenStmts, elseStmts) => getExprType(cond) == BoolType & thenStmts.forall(validStmtArgs(_)) & elseStmts.forall(validStmtArgs(_))
+      case IfElse(cond, thenStmts, elseStmts) => 
+        getExprType(cond) == BoolType
+        & thenStmts.forall(validStmtArgs(_)) 
+        & elseStmts.forall(validStmtArgs(_))
       case Scope(stmts) => stmts.forall(validStmtArgs(_))
       case Return(expr) => ??? // Need to check function
       case Print(expr) => true // Might just be true?
@@ -108,13 +113,24 @@ object semantic {
 
   def pairElemHandle(lValue: LValue): PairType = {
     lValue match
-      case ident: Ident => getExprType(ident) match
-        case PairType(Pair, Pair) => ??? // Check otherside
-        case PairType(fstType, sndType) => PairType(fstType,sndType)
-        case _ => ??? // Error?
-      case ArrayElem(arrayName, index) => ??? // Error?
-      case wacc.Fst(_) => ??? // Check otherside
-      case wacc.Snd(_) => ??? // Check otherside
+      case ident: Ident => 
+        getExprType(ident) match
+          case pairType: PairType => pairType
+          case _ => ??? // Error?
+
+      case ArrayElem(arrayName, index) => 
+        arrayElemHandle(arrayName, index.size) match
+          case pairType: PairType => pairType
+          case _ => ??? // Error?
+      case wacc.Fst(lValue) => pairElemHandle(lValue) match
+        case PairType(Pair, _) => ??? /// AnyType?
+        case _ => ??? // Error, called fst twice at this point so should atleast be a pair with a pair inside
+        
+      
+      
+      case wacc.Snd(lValue) => pairElemHandle(lValue) match
+        case PairType(_, Pair) => ??? /// AnyType?
+        case _ => ??? // Error, called fst twice at this point so should atleast be a pair with a pair inside
   }
 
   def arrayLiterHandle(elems: List[Expr]) = {
@@ -122,7 +138,16 @@ object semantic {
     if arrayTypes.size == 1 then arrayTypes.head match
       case ArrayType(t, d) => ArrayType(t, d+1)
       case litOrPairType => ArrayType(litOrPairType, 1)   
-    else ??? // Error?
+    else ??? // Error, Array has multiple types inside
+  }
+
+  def arrayElemHandle(arrayName: Ident, dimensionAccess: Int) = {
+    getExprType(arrayName) match
+      case ArrayType(t, 1) if dimensionAccess == 1 => t 
+      case ArrayType(t, d) if dimensionAccess == d => t
+      case ArrayType(t, d) if dimensionAccess < d-1 => ArrayType(t, d-1)
+      case ArrayType(t, d) if dimensionAccess > d => ??? // Error, ( doing x[1][1][1][1] on a dimension 1 array for example)
+      case _ => ??? // Error, the array mentioned in arrayName should have type ArrayType Error
   }
 }
 

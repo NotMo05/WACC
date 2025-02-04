@@ -3,8 +3,7 @@ package wacc
 
 import scala.collection.mutable
 
-class QualifiedName(name: String, num: Int, t:Type) extends Ident(name) {
-  override def toString: String = s"QualifiedName($name, $num, $t)"
+class QualifiedName(name: String, num: Int, val t:Type) extends Ident(name) {
 }
 
 

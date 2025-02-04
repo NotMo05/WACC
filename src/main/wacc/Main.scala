@@ -28,13 +28,12 @@ def main(args: Array[String]): Unit = {
       case Some(progString) => parser.parse(progString) match {
         case Success(ast) => {
           // Conduct semantic analysis on the AST produced by syntax analysis
-          // semantic.analyse(ast)
-          if fileName.contains("semanticErr") then {
-            sys.exit(200)
+          if !semantic.analyse(ast) then {
+            print("Semantic Error") //sys.exit(200)
           }
-          sys.exit(0)
+          print("No Error") //sys.exit(0)
         }
-        case Failure(msg) => sys.exit(100)
+        case Failure(msg) => print("Syntax Error") // sys.exit(100)
       }
         case None => println("please enter an expression")
       }

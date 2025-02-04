@@ -28,7 +28,7 @@ def main(args: Array[String]): Unit = {
       case Some(progString) => parser.parse(progString) match {
         case Success(ast) => {
           // Conduct semantic analysis on the AST produced by syntax analysis
-          // semantic.analyse(ast)
+           semantic.analyse(ast)
           if fileName.contains("semanticErr") then {
             sys.exit(200)
           }

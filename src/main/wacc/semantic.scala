@@ -7,9 +7,6 @@ package wacc
 // secondary parameter list to each of the case classes)
 object semantic {
   val semErrors = List.newBuilder[String]
-  
-  enum VarScope:
-    case VAR_DECLARED, VAR_UNDECLARED
 
   def analyse(prog: Prog): List[String] = {
     prog.funcs.foreach(validFunction)
@@ -64,7 +61,7 @@ object semantic {
       case CharLiteral(_) => Some(CharType)
       case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index.size)
       case NullLiteral => ??? // Not an Error, This should be PairType(AnyType, AnyType)
-      case wacc.Ident(_) => ??? // Error, should've been turned into QualifiedName, shouldn't ever happen invalid code or not
+      case wacc.Ident(_) => (???) // Error, should've been turned into QualifiedName, shouldn't ever happen invalid code or not
 
   }
 
@@ -234,9 +231,11 @@ object semantic {
       
       case Print(expr) => getExprType(expr) match
         case None => semErrors += "error: undeclared variable"
+        case _ => ()
       
       case Println(expr) => getExprType(expr) match
-        case None => semErrors += "error: undeclared variable" 
+        case None => semErrors += "error: undeclared variable"
+        case _ => ()
       
       case Skip => ???
   }

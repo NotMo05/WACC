@@ -9,8 +9,8 @@ class QualifiedName(name: String, num: Int, val t:Type) extends Ident(name) {
 
 val globalNumbering: mutable.Map[String, Int] = mutable.Map()
 
-def rename(prog: Prog) : List[Stmt] = {
-  return scopeHandler(prog.main, Map.empty[String, QualifiedName])
+def rename(prog: Prog) : Prog = {
+  return Prog(prog.funcs, scopeHandler(prog.main, Map.empty[String, QualifiedName]))
 }
 
 

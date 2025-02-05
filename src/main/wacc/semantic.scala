@@ -134,12 +134,12 @@ object semantic {
       }
 
       case And(l, r) => exprsMatchType(l, r, BoolType) match
-        case Some(true) => Some(IntType)
+        case Some(true) => Some(BoolType)
         case Some(_) => semErrors += "error: incompatible types for operator"; None
         case _ => None
 
       case Or(l, r) => exprsMatchType(l, r, BoolType) match
-        case Some(true) => Some(IntType)
+        case Some(true) => Some(BoolType)
         case Some(_) => semErrors += "error: incompatible types for operator"; None
         case _ => None
 

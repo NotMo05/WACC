@@ -5,7 +5,7 @@ object semantic {
   val semErrors = List.newBuilder[String]
 
   def analyse(prog: Prog): List[String] = {
-    prog.funcs.foreach(validFunction)
+    prog.funcs.foreach(validFunction(_))
     prog.main.foreach(validStmtArgs(_))
     semErrors.result()
   }
@@ -21,10 +21,10 @@ object semantic {
         case t => t
 
       // need to do Args list and function check?
-//       case Call(ident, args) => funcTypes.get(ident.identifier) match
-//         case None => semErrors += s"error: function ${ident.identifier} has not been defined"; None
-//         case t => {}
-//         // Check right num and type of arguments
+      case Call(ident, args) => ident match
+        case qn: QualifiedFunc if qn.paramNum == args.size && qn.paramTypes == args.map(getExprType(_)) => Some(qn.t)
+        case _ => None
+        // Check right num and type of arguments
 
 // //  wrong number of arguments provided to function x
 // //   unexpected 0 arguments
@@ -193,7 +193,8 @@ object semantic {
       // rValue needs to be compatible with t but does it need to BE t? Can it be a subtype of t? Do subtypes of t even exist?
       // NEED SCOPING/SYMBOL TABLE/RENAMING/QUALIFICATION FOR THIS TO CHECK MULTIPLE ASSIGNMENTS
       case Assgn(t, _, rValue) => getRValueType(rValue) match
-        case Some(x) => if (t != x) then semErrors += "error: incompatible types in assignment"
+        case Some(x) => {
+          if (t != x) then semErrors += "error: incompatible types in assignment"}
         case _ => ()
       // rValue needs to be compatible with lValue but does it need to BE lValue? Can it be a subtype of lValue? Do subtypes of lValue even exist?
       // should consider adding string weakening char[] thingy
@@ -211,15 +212,15 @@ object semantic {
           case Some(BoolType) => ()
           case None => ()
           case _ => semErrors += "error: `while` constructs must have condition of type `bool`"
-        stmts.foreach(validStmtArgs(_))
+        stmts.foreach(validStmtArgs(_, funcType))
       }
       case IfElse(cond, thenStmts, elseStmts) => {
         getExprType(cond) match
           case Some(BoolType) => ()
           case None => ()
           case _ => semErrors += "error: `if` constructs must have condition of type `bool`"
-        thenStmts.foreach(validStmtArgs(_))
-        elseStmts.foreach(validStmtArgs(_))
+        thenStmts.foreach(validStmtArgs(_, funcType))
+        elseStmts.foreach(validStmtArgs(_, funcType))
       }
       case Scope(stmts) => stmts.foreach(validStmtArgs(_))
 

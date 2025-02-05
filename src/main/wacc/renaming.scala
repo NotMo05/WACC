@@ -8,7 +8,7 @@ class QualifiedName(val name: String, val num: Int, val t:Type) extends Ident(na
   override def toString() = {s"QualifiedName(name=$name, num=$num, t=$t)"}
 }
 
-class QualifiedFunc(t: Type, funcName: String, paramNum: Int, paramTypes: List[Type]) extends Ident(funcName) {
+class QualifiedFunc(val t: Type, funcName: String, val paramNum: Int, val paramTypes: List[Type]) extends Ident(funcName) {
   override def toString() = {s"QualifiedFunc(t=$t, funcName=$funcName, paramNum=$paramNum, paramTypes=$paramTypes)"}
 }
 
@@ -54,7 +54,7 @@ def funcHandler(func: Func): Func = {
   val params = func.params
   val paramScope = params.reverse.map(paramHandler(_)).distinctBy(_._1).toMap[String, QualifiedName]
   val qParam = paramScope.map((_,qn) => Param(qn.t, qn)).toList
-  println(funcTypes)
+  // println(funcTypes)
   Func(func.t, funcTypes(name), qParam, scopeHandler(func.stmts, paramScope))
 }
 

@@ -194,7 +194,7 @@ object semantic {
       // NEED SCOPING/SYMBOL TABLE/RENAMING/QUALIFICATION FOR THIS TO CHECK MULTIPLE ASSIGNMENTS
       case Assgn(t, _, rValue) => getRValueType(rValue) match
         case Some(x) => {
-          if (t != x) then semErrors += "error: incompatible types in assignment"}
+          if !(t weakensTo x) then semErrors += "error: incompatible types in assignment"}
         case _ => ()
       // rValue needs to be compatible with lValue but does it need to BE lValue? Can it be a subtype of lValue? Do subtypes of lValue even exist?
       // should consider adding string weakening char[] thingy

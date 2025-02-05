@@ -3,21 +3,62 @@ package wacc
 
 import scala.collection.mutable
 
-class QualifiedName(name: String, num: Int, val t:Type) extends Ident(name) {
+class QualifiedName(val name: String, val num: Int, val t:Type) extends Ident(name) {
+  override def toString() = { s"QualifiedName(name=$name, num=$num, t=$t)"}
 }
 
+class QualifiedFunc(funcName: String, paramNum: Int, paramTypes: List[Type])
+
+//Undefined Variables
+//Assigned previously in currentScope
+
+val funcTypes: mutable.Map[String, Type] = mutable.Map()
 
 val globalNumbering: mutable.Map[String, Int] = mutable.Map()
+
+val scopeErrors = List.newBuilder[String]
+
+def globalNumberingUpdate(name: String): Option[Int] = {
+  globalNumbering.updateWith(name) {
+    case Some(n) => Some(n + 1)
+    case None => Some(0)
+  }
+}
+
+class QualifiedNameF(funcName: String, paramNum: Int, paramTypes: List[Type])
+
 
 def rename(prog: Prog) : Prog = {
   return Prog(prog.funcs, scopeHandler(prog.main, Map.empty[String, QualifiedName]))
 }
 
+// case class Func(t: Type, identifier: Ident, params: List[Param], stmts: List[Stmt])
 
+def funcHandler(t: Type, funcName: Ident, params: List[Param], stmts: List[Stmt]) = {
+  val uniqueNames = mutable.Set[String]()
+  def paramHandler(param: Param) = {
+    val paramName = param.identifier.identifier
+    if uniqueNames.contains(paramName) then {
+      scopeErrors += s"Scope error: Illegal redeclaration of variable $paramName"
+    }
+    uniqueNames.add(paramName)
+    globalNumberingUpdate(paramName)
+    (paramName, QualifiedName(paramName, globalNumbering(paramName), param.t))
+  }
+
+  val name = funcName.identifier
+  if funcTypes.contains(name) then scopeErrors += s"Illegal redefinition of function $name" //TODO: COME BACK TO THIS
+  funcTypes(name) = t
+  val paramScope = params.reverse.map(paramHandler(_)).distinctBy(_._1).toMap[String, QualifiedName]
+  scopeErrors.result.foreach(println(_))
+  println(paramScope)
+  println("Done")
+  // scopeHandler(stmts, paramScope)
+}
 
 def lValueHandler(
-  lValue: LValue, 
-  current: mutable.Map[String, QualifiedName], 
+  lValue: LValue,
+  current: mutable.Map[String, QualifiedName],
   parent: Map[String, QualifiedName]
   ): LValue = {
   lValue match
@@ -38,11 +79,11 @@ def lValueString(
 }
 
 def renameReAssgn(lValue: LValue, rValue: RValue,
-  current: mutable.Map[String, QualifiedName], 
+  current: mutable.Map[String, QualifiedName],
   parent: Map[String, QualifiedName]
  ) = {
   val baseIdent = lValueString(lValue)
-  if !(current.contains(baseIdent) || parent.contains(baseIdent)) then ??? // Error
+  if !(current.contains(baseIdent) || parent.contains(baseIdent)) then scopeErrors += s"Variable $baseIdent has not been declared in scope" //???
   ReAssgn(lValueHandler(lValue, current, parent), rValueHandler(rValue, current, parent))
 }
 
@@ -60,13 +101,17 @@ def rValueHandler(
       case NewPair(fst, snd) => NewPair(exprHandler(fst, current, parent), exprHandler(snd, current, parent))
   }
 
+
+// Call(Ident(x))
+// Call(QualifiedName(blah))
+
 def renameStmt(
-  stmt: Stmt, 
-  current: mutable.Map[String, QualifiedName], 
+  stmt: Stmt,
+  current: mutable.Map[String, QualifiedName],
   parent: Map[String, QualifiedName]
 ): Stmt = {
   stmt match
-    case Skip => Skip 
+    case Skip => Skip
     case Assgn(t, Ident(name), rValue) => renameAssign(t, name, rValue, current)
     case ReAssgn(lValue, rValue) => renameReAssgn(lValue, rValue, current, parent)
     case Read(lValue) => Read(lValueHandler(lValue, current, parent))
@@ -76,7 +121,7 @@ def renameStmt(
     case Print(expr) => Print(exprHandler(expr, current, parent))
     case Println(expr) => Println(exprHandler(expr, current, parent))
     case WhileDo(condition, stmts) => WhileDo(
-      exprHandler(condition, current, parent), 
+      exprHandler(condition, current, parent),
       scopeHandler(stmts, parent ++ current.toMap)
     )
     case IfElse(condition, thenStmts, elseStmts) => IfElse(
@@ -92,17 +137,14 @@ def scopeHandler(
   parent: Map[String, QualifiedName]
 ): List[Stmt] = {
   val current = mutable.Map.empty[String, QualifiedName]
-  
+
   return stmts.map(renameStmt(_, current, parent))
 }
 
 def renameAssign(t: Type, name: String, rValue: RValue, current: mutable.Map[String, QualifiedName]): Stmt= {
-  if current.contains(name) then ??? // Error
+  if current.contains(name) then scopeErrors += s"Illegal redeclaration of variable $name" //???
 
-  globalNumbering.updateWith(name) {
-    case Some(n) => Some(n + 1)
-    case None => Some(0)
-  }
+  globalNumberingUpdate(name)
 
   val newName = QualifiedName(name, globalNumbering(name), t)
   current(name) = newName
@@ -110,14 +152,14 @@ def renameAssign(t: Type, name: String, rValue: RValue, current: mutable.Map[Str
 }
 
 def exprHandler(
-  expr: Expr, 
-  current: mutable.Map[String, QualifiedName], 
+  expr: Expr,
+  current: mutable.Map[String, QualifiedName],
   parent: Map[String, QualifiedName]
 ): Expr = {
   expr match
     case Ident(name) => renameIdent(name, current, parent)
     case ArrayElem(Ident(arrayName), index) => ArrayElem(
-      renameIdent(arrayName, current, parent), 
+      renameIdent(arrayName, current, parent),
       index.map(exprHandler(_, current, parent))
     )
     case Neg(x) => Neg(exprHandler(x, current, parent))
@@ -142,17 +184,16 @@ def exprHandler(
 }
 
 def renameIdent(
-  name: String, 
-  current: mutable.Map[String, QualifiedName], 
+  name: String,
+  current: mutable.Map[String, QualifiedName],
   parent: Map[String, QualifiedName]
 ): QualifiedName = {
   if current.contains(name) then {
     return current(name)
   }
   if parent.contains(name) then {
-    return parent(name) 
+    return parent(name)
   }
-  ??? //TODO: Error
+  scopeErrors += s"Variable $name has not been declared in scope"
+  ???
 }
-
- 

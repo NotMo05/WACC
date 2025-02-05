@@ -28,16 +28,21 @@ def main(args: Array[String]): Unit = {
       case Some(progString) => parser.parse(progString) match {
         case Success(ast) => {
           // Conduct semantic analysis on the AST produced by syntax analysis
-          if !semantic.analyse(rename(ast)).isEmpty then {
-            println("Semantic Errors:") 
-            semantic.analyse(rename(ast)).foreach(println(_))
-            //sys.exit(200)
+          val (newProg, errors) = rename(ast)
+          if !semantic.analyse(newProg).isEmpty then {
+            println("Semantic Errors:")
+            semantic.analyse(newProg).foreach(println(_))
+            sys.exit(200)
           } else
-          print("No Error") //sys.exit(0)
+          print("No Error")
+          sys.exit(0)
+          // println(newProg)
+          errors.foreach(println(_))
         }
-        case Failure(msg) => print("Syntax Error") // sys.exit(100)
+        case Failure(msg) => {
+          print("Syntax Error")
+          sys.exit(100)}
       }
         case None => println("please enter an expression")
       }
     }
-

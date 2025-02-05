@@ -239,8 +239,13 @@ object semantic {
         case None => ()
         case _ => ()
 
-      case Skip => ???
+      case Skip => ()
   }
+//   2.3.4 Sequentialisation and No-ops
+// The ‘skip’ statement has no effect on the program when executed. Given ‘𝑆1 ; 𝑆2’, first, the statement
+// 𝑆1 is executed, and then the statement 𝑆2 is executed, observing any changes that 𝑆1 may have made
+// during execution. Note that ‘skip ; 𝑆’ and ‘𝑆 ; skip’ MUST both be semantically equivalent to ‘𝑆’.
+// The ‘skip’ statement can be used to ignore unused branches of conditional statements, for instance
 
   def validRead(lValue: Any) = {
     val lValueType = getLValueType(lValue)

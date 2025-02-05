@@ -1,18 +1,18 @@
-
 package wacc
 
 import scala.collection.mutable
 
+// UNDEFINED FUNCS AND UNDEFINEDTYPES
+
 class QualifiedName(val name: String, val num: Int, val t:Type) extends Ident(name) {
-  override def toString() = { s"QualifiedName(name=$name, num=$num, t=$t)"}
+  override def toString() = {s"QualifiedName(name=$name, num=$num, t=$t)"}
 }
 
-class QualifiedFunc(funcName: String, paramNum: Int, paramTypes: List[Type])
+class QualifiedFunc(t: Type, funcName: String, paramNum: Int, paramTypes: List[Type]) extends Ident(funcName) {
+  override def toString() = {s"QualifiedFunc(t=$t, funcName=$funcName, paramNum=$paramNum, paramTypes=$paramTypes)"}
+}
 
-//Undefined Variables
-//Assigned previously in currentScope
-
-val funcTypes: mutable.Map[String, Type] = mutable.Map()
+val funcTypes: mutable.Map[String, QualifiedFunc] = mutable.Map()
 
 val globalNumbering: mutable.Map[String, Int] = mutable.Map()
 
@@ -25,16 +25,20 @@ def globalNumberingUpdate(name: String): Option[Int] = {
   }
 }
 
-class QualifiedNameF(funcName: String, paramNum: Int, paramTypes: List[Type])
-
-
-def rename(prog: Prog) : Prog = {
-  return Prog(prog.funcs, scopeHandler(prog.main, Map.empty[String, QualifiedName]))
+def rename(prog: Prog) : (Prog, List[String]) = {
+  funcFirstPass(prog.funcs)
+  return (Prog(prog.funcs.map(funcHandler(_)), scopeHandler(prog.main, Map.empty[String, QualifiedName])), scopeErrors.result())
 }
 
-// case class Func(t: Type, identifier: Ident, params: List[Param], stmts: List[Stmt])
+def funcFirstPass(funcs: List[Func]) = {
+  for (func <- funcs) {
+    val name = func.identifier.identifier
+    if funcTypes.contains(name) then scopeErrors += s"Illegal redefinition of function $name" //TODO: COME BACK TO THIS
+    funcTypes(name) = QualifiedFunc(func.t, name, func.params.size, func.params.map(_.t))
+  }
+}
 
-def funcHandler(t: Type, funcName: Ident, params: List[Param], stmts: List[Stmt]) = {
+def funcHandler(func: Func): Func = {
   val uniqueNames = mutable.Set[String]()
   def paramHandler(param: Param) = {
     val paramName = param.identifier.identifier
@@ -46,14 +50,12 @@ def funcHandler(t: Type, funcName: Ident, params: List[Param], stmts: List[Stmt]
     (paramName, QualifiedName(paramName, globalNumbering(paramName), param.t))
   }
 
-  val name = funcName.identifier
-  if funcTypes.contains(name) then scopeErrors += s"Illegal redefinition of function $name" //TODO: COME BACK TO THIS
-  funcTypes(name) = t
+  val name = func.identifier.identifier
+  val params = func.params
   val paramScope = params.reverse.map(paramHandler(_)).distinctBy(_._1).toMap[String, QualifiedName]
-  scopeErrors.result.foreach(println(_))
-  println(paramScope)
-  println("Done")
-  // scopeHandler(stmts, paramScope)
+  val qParam = paramScope.map((_,qn) => Param(qn.t, qn)).toList
+  println(funcTypes)
+  Func(func.t, funcTypes(name), qParam, scopeHandler(func.stmts, paramScope))
 }
 
 def lValueHandler(
@@ -69,8 +71,7 @@ def lValueHandler(
 }
 
 
-def lValueString(
-  lValue: LValue): String = {
+def lValueString(lValue: LValue): String = {
   lValue match
     case Ident(identifier) => identifier
     case ArrayElem(arrayName, index) => arrayName.identifier
@@ -83,7 +84,6 @@ def renameReAssgn(lValue: LValue, rValue: RValue,
   parent: Map[String, QualifiedName]
  ) = {
   val baseIdent = lValueString(lValue)
-  if !(current.contains(baseIdent) || parent.contains(baseIdent)) then scopeErrors += s"Variable $baseIdent has not been declared in scope" //???
   ReAssgn(lValueHandler(lValue, current, parent), rValueHandler(rValue, current, parent))
 }
 
@@ -94,16 +94,16 @@ def rValueHandler(
   ): RValue = {
     rValue match
       case expr: Expr => exprHandler(expr, current, parent)
-      case Call(ident, args) => ??? //function stuff
+      case Call(ident, args) if funcTypes.contains(ident.identifier) => {
+
+        Call(funcTypes(ident.identifier), args.map(exprHandler(_, current, parent)))
+      }
       case Fst(lValue) => Fst(lValueHandler(lValue, current, parent))
       case Snd(lValue) => Snd(lValueHandler(lValue, current, parent))
       case ArrayLiter(elems) => ArrayLiter(elems.map(exprHandler(_, current, parent)))
       case NewPair(fst, snd) => NewPair(exprHandler(fst, current, parent), exprHandler(snd, current, parent))
+      case c: Call => {scopeErrors += s"Function ${c.ident} has not been defined"; c} //UndefinedFunc Type thing in QualifiedFunc thing
   }
-
-
-// Call(Ident(x))
-// Call(QualifiedName(blah))
 
 def renameStmt(
   stmt: Stmt,
@@ -112,7 +112,7 @@ def renameStmt(
 ): Stmt = {
   stmt match
     case Skip => Skip
-    case Assgn(t, Ident(name), rValue) => renameAssign(t, name, rValue, current)
+    case Assgn(t, Ident(name), rValue) => renameAssign(t, name, rValue, current, parent)
     case ReAssgn(lValue, rValue) => renameReAssgn(lValue, rValue, current, parent)
     case Read(lValue) => Read(lValueHandler(lValue, current, parent))
     case Free(expr) => Free(exprHandler(expr, current, parent))
@@ -141,14 +141,21 @@ def scopeHandler(
   return stmts.map(renameStmt(_, current, parent))
 }
 
-def renameAssign(t: Type, name: String, rValue: RValue, current: mutable.Map[String, QualifiedName]): Stmt= {
+def renameAssign(
+  t: Type,
+  name: String,
+  rValue: RValue,
+  current: mutable.Map[String,
+  QualifiedName],
+  parent: Map[String, QualifiedName]
+  ): Stmt = {
   if current.contains(name) then scopeErrors += s"Illegal redeclaration of variable $name" //???
 
   globalNumberingUpdate(name)
 
   val newName = QualifiedName(name, globalNumbering(name), t)
   current(name) = newName
-  return Assgn(t, newName, rValue)
+  return Assgn(t, newName, rValueHandler(rValue, current, parent))
 }
 
 def exprHandler(
@@ -195,5 +202,5 @@ def renameIdent(
     return parent(name)
   }
   scopeErrors += s"Variable $name has not been declared in scope"
-  ???
+  return QualifiedName("h",5,IntType) //What do we return? None
 }

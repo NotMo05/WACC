@@ -64,7 +64,7 @@ object semantic {
       case StringLiteral(_) => Some(StringType)
       case CharLiteral(_) => Some(CharType)
       case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index.size)
-      case NullLiteral => ??? // Not an Error, This should be PairType(AnyType, AnyType)
+      case NullLiteral => Some(PairType(AnyType, AnyType))
   }
 
 
@@ -164,7 +164,7 @@ object semantic {
         case _ => None
 
       case Len(x)  => getExprType(x) match
-        case Some(ArrayLiter(_)) => Some(IntType)
+        case Some(ArrayType(_,_)) => Some(IntType)
         case Some(_) => semErrors += "error: incompatible type for operator"; None
         case _ => None
       case _ => None
@@ -305,13 +305,8 @@ object semantic {
     // get the distinct list of the types of the expressions in the list
     // Likely need to be doing this in a for loop like below so that we have
     // access to each Expr's position info
-    val arrayTypesBuilder = List.newBuilder[Option[Type]]
 
-    for (expr <- elems) {
-      val exprType = getExprType(expr)
-      arrayTypesBuilder += exprType
-    }
-    val potentialArrayTypes: List[Option[Type]] = arrayTypesBuilder.result()
+    val potentialArrayTypes: List[Option[Type]] = elems.map(getExprType(_)).toList
 
     // Means that array liter had undeclared variable(s)
     if (potentialArrayTypes.contains(None)) {
@@ -323,28 +318,39 @@ object semantic {
       // Unwrap any remaining Some(Type)s
       val distinctArrayTypes: List[Type] = distinctPotentialArrayTypes.flatten
       // Means that array liter was empty
-      if (distinctArrayTypes.isEmpty) {
-        Some(ArrayType(AnyType, 1))
-      }
-      // Means that array liter had element(s) of 1 type
-      else if (distinctArrayTypes.size == 1) {
-        val arrayType = distinctArrayTypes.head
-        arrayType match
-          case ArrayType(t, d) => Some(ArrayType(t, d + 1))
-          case baseOrPairType => Some(ArrayType(baseOrPairType, 1))
-      }
-      // Means array liter had elements of different types
-      else {
-        semErrors += "error: literal contains mix of different types"
-        None
+      print(distinctArrayTypes.size)
+      distinctArrayTypes.size match
+        case 0 => Some(ArrayType(AnyType, 1))
+        case 1 => {
+          val arrayType = distinctArrayTypes.head
+          arrayType match
+            case ArrayType(t, d) => Some(ArrayType(t, d + 1))
+            case baseOrPairType => Some(ArrayType(baseOrPairType, 1))
+        }
+        case 2 => {
+          val t1 = distinctArrayTypes(0)
+          val t2 = distinctArrayTypes(1)
+          (t1, t2) match {
+            case (ArrayType(_,d1), ArrayType(_,d2)) => {
+              if t1 weakensTo t2 then Some((ArrayType(t1, d1 + 1)))
+              else if t2 weakensTo t1 then Some((ArrayType(t2, d1 + 1)))
+              else None
+            }
+            case (_, _) => {
+              if t1 weakensTo t2 then Some((ArrayType(t1, 1)))
+              else if t2 weakensTo t1 then Some((ArrayType(t2, 1)))
+              else None
+            }
+          }
+        }
+        case _ => semErrors += "error: literal contains mix of different types"; None
       }
     }
-  }
 
   def arrayElemHandle(arrayName: Ident, dimensionAccess: Int) = {
     getExprType(arrayName) match
       case Some(ArrayType(t, d)) if dimensionAccess == d => Some(t)
-      case Some(ArrayType(t, d)) if dimensionAccess < d-1 => Some(ArrayType(t, d-dimensionAccess))
+      case Some(ArrayType(t, d)) if dimensionAccess < d => Some(ArrayType(t, d-dimensionAccess))
       case _ => {
         semErrors += s"Expected $dimensionAccess-dimensional Array"
         None

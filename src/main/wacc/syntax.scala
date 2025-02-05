@@ -78,9 +78,9 @@ sealed trait Type {
   infix def weakensTo(t:Type): Boolean = {
     (this, t) match {
       case (_, AnyType) => true
-      case (ArrayType(CharType, 1), StringType) => true
+      case (StringType, ArrayType(CharType, 1)) => true
       // Add pair case
-      case (ArrayType(x, _), ArrayType(y, _)) => x weakensTo y
+      case (ArrayType(t1, d1), ArrayType(t2, d2)) if d1 == d2 => t1 weakensTo t2
       case _ => this == t
     }
   }
@@ -88,7 +88,7 @@ sealed trait Type {
 sealed trait PairElemType
 sealed trait BaseType extends Type, PairElemType
 
-case object AnyType extends Type
+case object AnyType extends Type, PairElemType
 case class PairType(t1: PairElemType, t2: PairElemType) extends Type
 case class ArrayType(t: Type, d: Int) extends Type, PairElemType
 object ArrayType extends ParserBridge2[Type, Int, ArrayType]

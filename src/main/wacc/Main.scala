@@ -32,6 +32,8 @@ def main(args: Array[String]): Unit = {
           if !semantic.analyse(newProg).isEmpty then {
             println("Semantic Errors:")
             semantic.analyse(newProg).foreach(println(_))
+            // newProg.main.foreach(println(_))
+            // newProg.funcs.foreach(_.stmts.foreach(println(_)))
             sys.exit(200)
           } else
           print("No Error")
@@ -46,3 +48,4 @@ def main(args: Array[String]): Unit = {
         case None => println("please enter an expression")
       }
     }
+

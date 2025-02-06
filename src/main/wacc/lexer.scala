@@ -26,9 +26,9 @@ object lexer {
     symbolDesc = SymbolDesc.plain.copy(
       hardKeywords  = Set("read", "exit", "begin", "end", "if", "then", "else", "fi", "skip", "true", "false",
                           "free", "while", "do", "done", "fst", "snd", "newpair", "print", "println", "call",
-                          "int", "bool", "char", "null", "string", "pair", "return"),
+                          "int", "bool", "char", "null", "string", "pair", "return", "len", "ord", "chr"),
       hardOperators = Set("*", "/", "%", "+", "-", ">", ">=", "<", "<=",
-                          "==", "!=", "&&", "||", "!", "len", "ord", "chr")
+                          "==", "!=", "&&", "||", "!")
     ),
     textDesc = TextDesc.plain.copy(
       escapeSequences = EscapeDesc.plain.copy(
@@ -48,9 +48,9 @@ object lexer {
 
   private val lexer = Lexer(desc)
 
-  
+
   val boolLiteral = BoolLiteral(lexer.lexeme(atomic("true" as true) | atomic("false" as false)))
-  val intLiteral: Parsley[Expr] = IntLiteral(lexer.lexeme.integer.decimal32[BigInt]) 
+  val intLiteral: Parsley[Expr] = IntLiteral(lexer.lexeme.integer.decimal32[BigInt])
 
 
   val stringLiteral = StringLiteral(lexer.lexeme.string.ascii)
@@ -73,7 +73,7 @@ object lexer {
     | atomic("string" as StringType)
   )
 
-  lazy val interimTypes: Parsley[Type] = lexer.lexeme( 
+  lazy val interimTypes: Parsley[Type] = lexer.lexeme(
     baseType
     | atomic(pairType)
   )
@@ -84,7 +84,7 @@ object lexer {
     | baseType
   )
 
-  
+
   lazy val arrayType = lexer.lexeme(ArrayType(interimTypes, some("[]").map(_.size)))
 
   def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)

@@ -6,8 +6,8 @@ import parsley.{Success, Failure}
 import scala.io.Source
 import java.io.File
 
-class invalidProgramSyntaxTest extends AnyFlatSpec {
-  val directoryPath = "src/test/wacc/wacc-examples/invalid/syntaxErr"
+class invalidProgramSemanticTest extends AnyFlatSpec {
+  val directoryPath = "src/test/wacc/wacc-examples/invalid/semanticErr"
   val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
 
   for (file <- files) {
@@ -19,7 +19,10 @@ class invalidProgramSyntaxTest extends AnyFlatSpec {
     it should s"fail to parse $fileName" in {
       parser.parse(fileContent) match {
         case Failure(_) =>
-        case Success(_) => fail(s"This should fail")
+        case Success(ast) => {
+          val (newProg, errors) = rename(ast)
+          assert(!(errors.isEmpty && semantic.analyse(newProg).isEmpty))
+        }
       }
     }
   }

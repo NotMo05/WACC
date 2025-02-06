@@ -15,24 +15,19 @@ object semantic {
     func.stmts.foreach(validStmtArgs(_, Some(func.t)))
   }
 
-  private def caseClassTypeToSourceString(t: Type): String = t match {
-    case PairType(t1, t2) => {
-      getExprType(t1) match
-        case Some(x) => getExprType(t2) match
-          case Some(y) => s"pair($x, $y)"
-          case None => s"pair($x, any type)"
-        case None => getExprType(t2) match
-          case Some(y) => s"pair(any type, $y)" 
-          case None => s"pair(any type, any type)"
-    }
-    // I think this is only called on arrays when we know that t is valid?
-    case ArrayType(t, d) => s"${caseClassTypeToSourceString(t)}${"[]" * d}"
+  private def typeToString(t: Type): String = t match 
+    case PairType(t1, t2) => 
+      (t1,t2) match
+        case (Pair, Pair) => "pair(pair, pair)"
+        case (x, Pair) => s"pair(${typeToString(x.asInstanceOf[Type])}, pair)"
+        case (Pair, x) => s"pair(pair, ${typeToString(x.asInstanceOf[Type])})"
+        case (x,y) => s"pair(${typeToString(x.asInstanceOf[Type])}, ${typeToString(y.asInstanceOf[Type])})"
+    case ArrayType(t, d) => s"${typeToString(t.asInstanceOf[Type])}${"[]" * d}"
     case IntType => "int"
     case BoolType => "bool"
     case StringType => "string"
     case CharType => "char"
-  }
-
+  
   def getRValueType(rValue: Any): Option[Type] = {
     rValue match
       case expr: Expr => getExprType(expr) match
@@ -58,7 +53,7 @@ object semantic {
   def getLValueType(lValue: Any): Option[Type] = {
     lValue match
       case ident: Ident => getExprType(ident)
-      case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index.size)
+      case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index)
       case Fst(lValue) => pairElemHandle(lValue) match
         case None => ???
         case Some(value) => value.t1 match
@@ -72,7 +67,7 @@ object semantic {
           case Pair => ??? //Check otherside, as long as its a pairType, trust it even if its wrong
   }
 
-  def getExprType(expr: Any): Option[Type] = {
+  def getExprType(expr: Expr): Option[Type] = {
     expr match
       case qn: QualifiedName => qn.t match
         case x => Some(x) // NEED TO MAKE A UNDECLARED TYPE TO MATCH HERE
@@ -82,7 +77,7 @@ object semantic {
       case BoolLiteral(_) => Some(BoolType)
       case StringLiteral(_) => Some(StringType)
       case CharLiteral(_) => Some(CharType)
-      case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index.size)
+      case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index)
       case NullLiteral => Some(PairType(AnyType, AnyType))
   }
 
@@ -96,15 +91,15 @@ object semantic {
         // expr2 also matches target type
         case Some(y) if y == t => Some(true)
         // expr2 has type that doesn't match target
-        case Some(y) => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(y)} expected ${caseClassTypeToSourceString(t)}"; Some(false)
+        case Some(y) => semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(t)}"; Some(false)
         // expr2 has no type (e.g., undeclared variables)
         case _ => None
       // expr1 has type that doesn't match target
       case Some(x) => expr2Type match
         // expr2 matches target type
-        case Some(y) if y == t => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(x)} expected ${caseClassTypeToSourceString(t)}"; Some(false)
+        case Some(y) if y == t => semErrors += s"Type error: unexpected ${typeToString(x)} expected ${typeToString(t)}"; Some(false)
         // expr2 also has type that doesn't match target
-        case Some(y) => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(x)} and ${caseClassTypeToSourceString(y)} expected '${caseClassTypeToSourceString(t)}'s"; Some(false)
+        case Some(y) => semErrors += s"Type error: unexpected ${typeToString(x)} and ${typeToString(y)} expected '${typeToString(t)}'s"; Some(false)
         // expr2 has no type (e.g., undeclared variables)
         case _ => None
       // expr1 has no type (e.g., undeclared variables)
@@ -116,7 +111,7 @@ object semantic {
     exprType match
       case Some(x) => (x == t) match
         case true => Some(true) 
-        case false => semErrors += s"Type error: unexpectedDDDD ${caseClassTypeToSourceString(x)} expected ${caseClassTypeToSourceString(t)}"; Some(false)
+        case false => semErrors += s"Type error: unexpectedDDDD ${typeToString(x)} expected ${typeToString(t)}"; Some(false)
       case _ => None
   }
 
@@ -129,15 +124,15 @@ object semantic {
         // expr2 also matches same target
         case Some(y) if (y == x) => Some(true)
         // expr2 has type that doesn't match the same target
-        case Some(y) => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(y)} expected ${caseClassTypeToSourceString(x)}"; Some(false)
+        case Some(y) => semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)}"; Some(false)
         // expr2 has no type (e.g., undeclared variables)
         case _ => None
       // expr1 has type that doesn't match one of targets
       case Some(x) => expr2Type match
         // expr2 matches one of target types
-        case Some(y) if (y == t1 || y == t2) => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(x)} expected ${caseClassTypeToSourceString(y)}"; Some(false)
+        case Some(y) if (y == t1 || y == t2) => semErrors += s"Type error: unexpected ${typeToString(x)} expected ${typeToString(y)}"; Some(false)
         // expr2 also has type that doesn't match one of targets
-        case Some(y) => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(x)} and ${caseClassTypeToSourceString(y)} expected to be both ${caseClassTypeToSourceString(t1)} or both ${caseClassTypeToSourceString(t2)}"; Some(false)
+        case Some(y) => semErrors += s"Type error: unexpected ${typeToString(x)} and ${typeToString(y)} expected to be both ${typeToString(t1)} or both ${typeToString(t2)}"; Some(false)
         // expr2 has no type (e.g., undeclared variables)
         case _ => None
       // expr1 has no type (e.g., undeclared variables)
@@ -150,7 +145,7 @@ object semantic {
     expr1Type match
       case Some(x) => expr2Type match
         case Some(y) if (y == x) => Some(true)
-        case Some(y) => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(y)} expected ${caseClassTypeToSourceString(x)}"; Some(false)
+        case Some(y) => semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)}"; Some(false)
         case _ => None
       case _ => None
   }
@@ -255,7 +250,7 @@ object semantic {
       // NEED SCOPING/SYMBOL TABLE/RENAMING/QUALIFICATION FOR THIS TO CHECK MULTIPLE ASSIGNMENTS
       case Assgn(t, _, rValue) => getRValueType(rValue) match
         case Some(x) => {
-          if !(t weakensTo x) then semErrors += "Type error: unexpected ${caseClassTypeToSourceString(x)} expected ${caseClassTypeToSourceString(t)} in assignment"}
+          if !(t weakensTo x) then semErrors += "Type error: unexpected ${typeToString(x)} expected ${typeToString(t)} in assignment"}
         case _ => ()
       // rValue needs to be compatible with lValue but does it need to BE lValue? Can it be a subtype of lValue? Do subtypes of lValue even exist?
       // should consider adding string weakening char[] thingy
@@ -264,7 +259,7 @@ object semantic {
         val rType = getRValueType(rValue)
         lType match
           case Some(x) => rType match
-            case Some(y) => if (x != y) then semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(y)} expected ${caseClassTypeToSourceString(x)} in reassign"
+            case Some(y) => if (x != y) then semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)} in reassign"
             case _ => ()
           case _ => ()
       }
@@ -288,7 +283,7 @@ object semantic {
       case Return(expr) => funcType match
         case Some(x) => getExprType(expr) match
           case Some(y) if x == y => ()
-          case Some(z) => semErrors += s"error: ${caseClassTypeToSourceString(z)} `return` is incompatible with enclosing ${caseClassTypeToSourceString(x)} function"
+          case Some(z) => semErrors += s"error: ${typeToString(z)} `return` is incompatible with enclosing ${typeToString(x)} function"
           case None => ()
         case _ => semErrors += "error: `return` cannot be called outside function/in main body of program"
 
@@ -348,7 +343,7 @@ object semantic {
           case _ => ??? // Error?
 
       case ArrayElem(arrayName, index) =>
-        arrayElemHandle(arrayName, index.size) match
+        arrayElemHandle(arrayName, index) match
           case Some(pairType: PairType)=> Some(pairType)
           case _ => ??? // Error?
       case wacc.Fst(lValue) => pairElemHandle(lValue) match
@@ -376,9 +371,7 @@ object semantic {
     }
     else {
       // get rid of duplicate Option[Type]s
-      val distinctPotentialArrayTypes: List[Option[Type]] = potentialArrayTypes.distinct
-      // Unwrap any remaining Some(Type)s
-      val distinctArrayTypes: List[Type] = distinctPotentialArrayTypes.flatten
+      val distinctArrayTypes: List[Type] = potentialArrayTypes.distinct.flatten
       // Means that array liter was empty
       distinctArrayTypes.size match
         case 0 => Some(ArrayType(AnyType, 1))
@@ -408,7 +401,18 @@ object semantic {
       }
     }
 
-  def arrayElemHandle(arrayName: Ident, dimensionAccess: Int) = {
+  def arrayElemHandle(arrayName: Ident, index: List[Expr]) = {
+    val indexTypes = index.map(getExprType(_)).distinct.flatten
+    if indexTypes.size != 1 then {
+      val errorIndexTypes = indexTypes.filter(_ != IntType)
+      errorIndexTypes.foreach(t => semErrors += s"Type error: unexpected ${t} expected int")
+      None
+    }
+    if !indexTypes.contains(IntType) then {
+      semErrors += s"Type error: unexpected ${indexTypes.head} expected int"
+      None
+    }
+    val dimensionAccess = index.size
     getExprType(arrayName) match
       case Some(ArrayType(t, d)) if dimensionAccess == d => Some(t)
       case Some(ArrayType(t, d)) if dimensionAccess < d => Some(ArrayType(t, d-dimensionAccess))

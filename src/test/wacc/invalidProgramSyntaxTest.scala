@@ -19,7 +19,7 @@ class invalidProgramSyntaxTest extends AnyFlatSpec {
     it should s"fail to parse $fileName" in {
       parser.parse(fileContent) match {
         case Failure(_) =>
-        case Success(_) => fail(s"This should fail")
+        case Success(ast) => fail(s"Incorrect AST: $ast")
       }
     }
   }

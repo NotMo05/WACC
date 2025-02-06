@@ -22,6 +22,7 @@ class invalidProgramSemanticTest extends AnyFlatSpec {
         case Success(ast) => {
           val (newProg, errors) = rename(ast)
           assert(!(errors.isEmpty && semantic.analyse(newProg).isEmpty))
+          println(s"The new (incorrect) AST is: $newProg")
         }
       }
     }

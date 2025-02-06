@@ -8,7 +8,7 @@ import java.io.File
 
 class validProgramRenameTest extends AnyFlatSpec {
   val directoryPath = "wacc-examples/valid/"
-  val files = listAllFiles(new File(directoryPath)).filter(_.isFile)
+  val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
 
   for (file <- files) {
     val fileName = file.getPath
@@ -24,19 +24,6 @@ class validProgramRenameTest extends AnyFlatSpec {
         }
         case Failure(msg) => fail(s"$msg?")
       }
-    }
-  }
-
-
-  def listAllFiles(dir: File): List[File] = {
-    val files = dir.listFiles()
-    if (files != null) {
-      files.toList.flatMap { file =>
-        if (file.isDirectory) listAllFiles(file)
-        else List(file)
-      }
-    } else {
-      List.empty
     }
   }
 }

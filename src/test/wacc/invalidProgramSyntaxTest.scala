@@ -8,7 +8,7 @@ import java.io.File
 
 class invalidProgramSyntaxTest extends AnyFlatSpec {
   val directoryPath = "wacc-examples/invalid/syntaxErr"
-  val files = listAllFiles(new File(directoryPath)).filter(_.isFile)
+  val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
 
   for (file <- files) {
     val fileName = file.getPath
@@ -21,18 +21,6 @@ class invalidProgramSyntaxTest extends AnyFlatSpec {
         case Failure(_) =>
         case Success(_) => fail(s"This should fail")
       }
-    }
-  }
-
-  def listAllFiles(dir: File): List[File] = {
-    val files = dir.listFiles()
-    if (files != null) {
-      files.toList.flatMap { file =>
-        if (file.isDirectory) listAllFiles(file)
-        else List(file)
-      }
-    } else {
-      List.empty
     }
   }
 }

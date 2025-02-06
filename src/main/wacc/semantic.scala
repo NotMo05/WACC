@@ -6,6 +6,7 @@ object semantic {
   val semErrors = List.newBuilder[String]
 
   def analyse(prog: Prog): List[String] = {
+    semErrors.clear()
     prog.funcs.foreach(validFunction)
     prog.main.foreach(validStmtArgs(_))
     semErrors.result()
@@ -13,6 +14,24 @@ object semantic {
 
   def validFunction(func: Func) = {
     func.stmts.foreach(validStmtArgs(_, Some(func.t)))
+  }
+
+  private def caseClassTypeToSourceString(t: Type): String = t match {
+    case PairType(t1, t2) => {
+      getExprType(t1) match
+        case Some(x) => getExprType(t2) match
+          case Some(y) => s"pair($x, $y)"
+          case None => s"pair($x, any type)"
+        case None => getExprType(t2) match
+          case Some(y) => s"pair(any type, $y)" 
+          case None => s"pair(any type, any type)"
+    }
+    // I think this is only called on arrays when we know that t is valid?
+    case ArrayType(t, d) => s"${caseClassTypeToSourceString(t)}${"[]" * d}"
+    case IntType => "int"
+    case BoolType => "bool"
+    case StringType => "string"
+    case CharType => "char"
   }
 
   def getRValueType(rValue: Any): Option[Type] = {
@@ -68,107 +87,149 @@ object semantic {
       case NullLiteral => ??? // Not an Error, This should be PairType(AnyType, AnyType)
   }
 
-
+  // Perhaps use weakening here?
   private def exprsMatchType(expr1: Expr, expr2: Expr, t: Type): Option[Boolean] = {
     val expr1Type = getExprType(expr1)
     val expr2Type = getExprType(expr2)
     expr1Type match
+      // expr1 matches target type
+      case Some(x) if x == t => expr2Type match
+        // expr2 also matches target type
+        case Some(y) if y == t => Some(true)
+        // expr2 has type that doesn't match target
+        case Some(y) => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(y)} expected ${caseClassTypeToSourceString(t)}"; Some(false)
+        // expr2 has no type (e.g., undeclared variables)
+        case _ => None
+      // expr1 has type that doesn't match target
       case Some(x) => expr2Type match
-        case Some(y) => Some(x == t & y == t)
+        // expr2 matches target type
+        case Some(y) if y == t => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(x)} expected ${caseClassTypeToSourceString(t)}"; Some(false)
+        // expr2 also has type that doesn't match target
+        case Some(y) => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(x)} and ${caseClassTypeToSourceString(y)} expected '${caseClassTypeToSourceString(t)}'s"; Some(false)
+        // expr2 has no type (e.g., undeclared variables)
+        case _ => None
+      // expr1 has no type (e.g., undeclared variables)
+      case None => None
+  }
+
+  private def exprMatchType(expr: Expr, t: Type): Option[Boolean] = {
+    val exprType = getExprType(expr)
+    exprType match
+      case Some(x) => (x == t) match
+        case true => Some(true) 
+        case false => semErrors += s"Type error: unexpectedDDDD ${caseClassTypeToSourceString(x)} expected ${caseClassTypeToSourceString(t)}"; Some(false)
+      case _ => None
+  }
+
+  private def exprsMatchOneOfTypes(expr1: Expr, expr2: Expr, t1: Type, t2: Type): Option[Boolean] = {
+    val expr1Type = getExprType(expr1)
+    val expr2Type = getExprType(expr2)
+    expr1Type match
+      // expr1 matches one of target types
+      case Some(x) if (x == t1 || x == t2) => expr2Type match
+        // expr2 also matches same target
+        case Some(y) if (y == x) => Some(true)
+        // expr2 has type that doesn't match the same target
+        case Some(y) => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(y)} expected ${caseClassTypeToSourceString(x)}"; Some(false)
+        // expr2 has no type (e.g., undeclared variables)
+        case _ => None
+      // expr1 has type that doesn't match one of targets
+      case Some(x) => expr2Type match
+        // expr2 matches one of target types
+        case Some(y) if (y == t1 || y == t2) => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(x)} expected ${caseClassTypeToSourceString(y)}"; Some(false)
+        // expr2 also has type that doesn't match one of targets
+        case Some(y) => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(x)} and ${caseClassTypeToSourceString(y)} expected to be both ${caseClassTypeToSourceString(t1)} or both ${caseClassTypeToSourceString(t2)}"; Some(false)
+        // expr2 has no type (e.g., undeclared variables)
+        case _ => None
+      // expr1 has no type (e.g., undeclared variables)
+      case None => None
+  }
+
+  private def exprsAreOfSameType(expr1: Expr, expr2: Expr): Option[Boolean] = {
+    val expr1Type = getExprType(expr1)
+    val expr2Type = getExprType(expr2)
+    expr1Type match
+      case Some(x) => expr2Type match
+        case Some(y) if (y == x) => Some(true)
+        case Some(y) => semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(y)} expected ${caseClassTypeToSourceString(x)}"; Some(false)
         case _ => None
       case _ => None
   }
 
-  def getOperType(op: Any): Option[BaseType] = {
+  def getOperType(op: Operator): Option[BaseType] = {
+    
     op match
       case Mul(l,r) => exprsMatchType(l, r, IntType) match
         case Some(true) => Some(IntType)
-        case Some(_) => semErrors += "error: incompatible types for operator"; None
         case _ => None
 
       case Div(l,r) => exprsMatchType(l, r, IntType) match
         case Some(true) => Some(IntType)
-        case Some(_) => semErrors += "error: incompatible types for operator"; None
         case _ => None
 
       case Mod(l,r) => exprsMatchType(l, r, IntType) match
         case Some(true) => Some(IntType)
-        case Some(_) => semErrors += "error: incompatible types for operator"; None
         case _ => None
 
       case Add(l,r) => exprsMatchType(l, r, IntType) match
         case Some(true) => Some(IntType)
-        case Some(_) => semErrors += "error: incompatible types for operator"; None
         case _ => None
 
       case Sub(l,r) => exprsMatchType(l, r, IntType) match
         case Some(true) => Some(IntType)
-        case Some(_) => semErrors += "error: incompatible types for operator"; None
         case _ => None
-
-
-      // NEED TO DO THE SAME FOR THESE SOMEHOW
-      case Greater(l, r)  if exprsMatchType(l, r, IntType) == Some(true) || exprsMatchType(l, r, CharType) == Some(true) => Some(BoolType)
-      case GreaterE(l, r) if exprsMatchType(l, r, IntType) == Some(true) || exprsMatchType(l, r, CharType) == Some(true) => Some(BoolType)
-      case Less(l, r)     if exprsMatchType(l, r, IntType) == Some(true) || exprsMatchType(l, r, CharType) == Some(true) => Some(BoolType)
-      case LessE(l, r)    if exprsMatchType(l, r, IntType) == Some(true) || exprsMatchType(l, r, CharType) == Some(true) => Some(BoolType)
-
-      case Eq(l, r)   => {
-        val lType = getExprType(l)
-        val rType = getExprType(r)
-        lType match
-          case Some(x) => rType match
-            case Some(y) if (x == y) => Some(BoolType)
-            case Some(_) => semErrors += "error: incompatible types for operator"; None
-            case _ => None
-          case None => None
-      }
-      case NotEq(l, r) => {
-        val lType = getExprType(l)
-        val rType = getExprType(r)
-        lType match
-          case Some(x) => rType match
-            case Some(y) if (x == y) => Some(BoolType)
-            case Some(_) => semErrors += "error: incompatible types for operator"; None
-            case _ => None
-          case None => None
-      }
 
       case And(l, r) => exprsMatchType(l, r, BoolType) match
         case Some(true) => Some(IntType)
-        case Some(_) => semErrors += "error: incompatible types for operator"; None
         case _ => None
 
       case Or(l, r) => exprsMatchType(l, r, BoolType) match
         case Some(true) => Some(IntType)
-        case Some(_) => semErrors += "error: incompatible types for operator"; None
         case _ => None
 
-      case Not(x) => getExprType(x) match
-        case Some(BoolType) => Some(BoolType)
-        case Some(_) => semErrors += "error: incompatible type for operator"; None
+      case Not(x) => exprMatchType(x, BoolType) match
+        case Some(true) => Some(BoolType)
+        case _ => None 
+
+      case Chr(x) => exprMatchType(x, IntType) match
+        case Some(true) => Some(CharType)
         case _ => None
 
-      case Chr(x) => getExprType(x) match
-        case Some(IntType) => Some(CharType)
-        case Some(_) => semErrors += "error: incompatible type for operator"; None
+      case Neg(x) => exprMatchType(x, IntType) match
+        case Some(true) => Some(IntType)
         case _ => None
 
-      case Neg(x) => getExprType(x) match
-        case Some(IntType) => Some(IntType)
-        case Some(_) => semErrors += "error: incompatible type for operator"; None
-        case _ => None
-
-      case Ord(x) => getExprType(x) match
-        case Some(CharType) => Some(IntType)
-        case Some(_) => semErrors += "error: incompatible type for operator"; None
+      case Ord(x) => exprMatchType(x, CharType) match
+        case Some(true) => Some(IntType)
         case _ => None
 
       case Len(x)  => getExprType(x) match
-        case Some(ArrayLiter(_)) => Some(IntType)
-        case Some(_) => semErrors += "error: incompatible type for operator"; None
+        case Some(ArrayType(_, _)) => Some(IntType)
         case _ => None
-      case _ => None
+        
+      case Greater(l, r) => exprsMatchOneOfTypes(l, r, IntType, CharType) match
+        case Some(true) => Some(BoolType)
+        case _ => None
+      
+      case GreaterE(l, r) => exprsMatchOneOfTypes(l, r, IntType, CharType) match
+        case Some(true) => Some(BoolType)
+        case _ => None
+
+      case Less(l, r) => exprsMatchOneOfTypes(l, r, IntType, CharType) match
+        case Some(true) => Some(BoolType)
+        case _ => None
+
+      case LessE(l, r) => exprsMatchOneOfTypes(l, r, IntType, CharType) match
+        case Some(true) => Some(BoolType)
+        case _ => None
+
+      case Eq(l, r) => exprsAreOfSameType(l, r) match
+        case Some(true) => Some(BoolType)
+        case _ => None 
+      
+      case NotEq(l, r) => exprsAreOfSameType(l, r) match
+        case Some(true) => Some(BoolType)
+        case _ => None 
   }
 
   // Errors for rtypes for array literals (and perhaps pairs) will be tricky
@@ -194,7 +255,7 @@ object semantic {
       // rValue needs to be compatible with t but does it need to BE t? Can it be a subtype of t? Do subtypes of t even exist?
       // NEED SCOPING/SYMBOL TABLE/RENAMING/QUALIFICATION FOR THIS TO CHECK MULTIPLE ASSIGNMENTS
       case Assgn(t, _, rValue) => getRValueType(rValue) match
-        case Some(x) => if (t != x) then semErrors += "error: incompatible types in assignment"
+        case Some(x) => if (t != x) then semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(x)} expected ${caseClassTypeToSourceString(t)} in assignment"
         case _ => ()
       // rValue needs to be compatible with lValue but does it need to BE lValue? Can it be a subtype of lValue? Do subtypes of lValue even exist?
       // should consider adding string weakening char[] thingy
@@ -203,7 +264,7 @@ object semantic {
         val rType = getRValueType(rValue)
         lType match
           case Some(x) => rType match
-            case Some(y) => if (x != y) then semErrors += "error: incompatible types in reassignment"
+            case Some(y) => if (x != y) then semErrors += s"Type error: unexpected ${caseClassTypeToSourceString(y)} expected ${caseClassTypeToSourceString(x)} in reassign"
             case _ => ()
           case _ => ()
       }
@@ -227,8 +288,8 @@ object semantic {
       case Return(expr) => funcType match
         case Some(x) => getExprType(expr) match
           case Some(y) if x == y => ()
+          case Some(z) => semErrors += s"error: ${caseClassTypeToSourceString(z)} `return` is incompatible with enclosing ${caseClassTypeToSourceString(x)} function"
           case None => ()
-          case _ => semErrors += "error: type of given `return` expression is incompatible with enclosing function `return` type"
         case _ => semErrors += "error: `return` cannot be called outside function/in main body of program"
 
       case Print(expr) => getExprType(expr) match
@@ -247,7 +308,7 @@ object semantic {
 // during execution. Note that ‘skip ; 𝑆’ and ‘𝑆 ; skip’ MUST both be semantically equivalent to ‘𝑆’.
 // The ‘skip’ statement can be used to ignore unused branches of conditional statements, for instance
 
-  def validRead(lValue: Any) = {
+  def validRead(lValue: LValue) = {
     val lValueType = getLValueType(lValue)
     lValueType match
       case Some(IntType) => ()
@@ -301,6 +362,7 @@ object semantic {
         case _ => ??? // Error, called fst twice at this point so should atleast be a pair with a pair inside
   }
 
+  // Need to move error outside this function and potentially return list of different types in array
   def arrayLiterHandle(elems: List[Expr]): Option[ArrayType] = {
     // get the distinct list of the types of the expressions in the list
     // Likely need to be doing this in a for loop like below so that we have
@@ -335,6 +397,7 @@ object semantic {
       }
       // Means array liter had elements of different types
       else {
+        // Perhaps state the types
         semErrors += "error: literal contains mix of different types"
         None
       }

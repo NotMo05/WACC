@@ -6,46 +6,34 @@ import java.io.File
 
 def main(args: Array[String]): Unit = {
   println("hello WACC!")
-  // runtimeErr/integerOverflow/ fails  Negation tick, Subtraction tick, negative numbers X
 
-  // val directoryPath = "src/test/wacc/wacc-examples/valid/runtimeErr/integerOverflow/"
-  // val files = new File(directoryPath).listFiles()
-  // val fileNames = files.filter(_.isFile).map(_.getName).toList
-  // print(fileNames.toString())
+  val fileName = args(0)
+  val file = new File(fileName)
+  val fileContent = Array(Source.fromFile(file).mkString)
+  fileContent.headOption match {
+    // Parse and conduct syntax analysis on the program string
+    case Some(progString) => parser.parse(progString) match {
+      case Success(ast) => {
+        // Conduct semantic analysis on the AST produced by syntax analysis
+        val (newProg, errors) = rename(ast)
 
-  // for (fileName <- fileNames) {
-  //   val filePath = directoryPath + fileName
-  //   val fileContent = Source.fromFile(filePath).mkString
-  //   Source.fromFile(filePath).close()
-
-
-  //   val arguments = if args.isEmpty then Array(fileContent) else args
-    val fileName = args(0)
-    val file = new File(fileName)
-    val fileContent = Array(Source.fromFile(file).mkString)
-    fileContent.headOption match {
-      // Parse and conduct syntax analysis on the program string
-      case Some(progString) => parser.parse(progString) match {
-        case Success(ast) => {
-          // Conduct semantic analysis on the AST produced by syntax analysis
-          val (newProg, errors) = rename(ast)
-          if !semantic.analyse(newProg).isEmpty then {
-            println("Semantic Errors:")
-            semantic.analyse(newProg).foreach(println(_))
-            // newProg.main.foreach(println(_))
-            // newProg.funcs.foreach(_.stmts.foreach(println(_)))
-            sys.exit(200)
-          } else
-          print("No Error")
-          sys.exit(0)
-          // println(newProg)
+        if !(errors.isEmpty && semantic.analyse(newProg).isEmpty) then {
+          println("Semantic Errors:")
           errors.foreach(println(_))
-        }
-        case Failure(msg) => {
-          print("Syntax Error")
-          sys.exit(100)}
+          semantic.analyse(newProg).foreach(println(_))
+          // newProg.main.foreach(println(_))
+          // newProg.funcs.foreach(_.stmts.foreach(println(_)))
+          // println(newProg)
+          sys.exit(200)
+        } else
+        print("No Error")
+        sys.exit(0)
       }
-        case None => println("please enter an expression")
-      }
+      case Failure(msg) => {
+        print("Syntax Error")
+        sys.exit(100)}
     }
+      case None => println("please enter an expression")
+    }
+  }
 

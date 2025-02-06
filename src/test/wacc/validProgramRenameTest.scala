@@ -7,7 +7,7 @@ import scala.io.Source
 import java.io.File
 
 class validProgramRenameTest extends AnyFlatSpec {
-  val directoryPath = "wacc-examples/valid/"
+  val directoryPath = "src/test/wacc/wacc-examples/valid/"
   val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
 
   for (file <- files) {
@@ -21,6 +21,7 @@ class validProgramRenameTest extends AnyFlatSpec {
         case Success(ast) => {
           val (_, errors) = rename(ast)
           assert(errors.isEmpty)
+          assert(semantic.analyse(ast).isEmpty)
         }
         case Failure(msg) => fail(s"$msg?")
       }

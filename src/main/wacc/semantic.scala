@@ -5,6 +5,7 @@ object semantic {
   val semErrors = List.newBuilder[String]
 
   def analyse(prog: Prog): List[String] = {
+    semErrors.clear()
     prog.funcs.foreach(validFunction(_))
     prog.main.foreach(validStmtArgs(_))
     semErrors.result()

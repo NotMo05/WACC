@@ -7,7 +7,7 @@ import scala.io.Source
 import java.io.File
 
 class invalidProgramSyntaxTest extends AnyFlatSpec {
-  val directoryPath = "wacc-examples/invalid/syntaxErr"
+  val directoryPath = "src/test/wacc/wacc-examples/invalid/syntaxErr"
   val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
 
   for (file <- files) {

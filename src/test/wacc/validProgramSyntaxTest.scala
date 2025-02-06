@@ -7,7 +7,7 @@ import scala.io.Source
 import java.io.File
 
 class validProgramSyntaxTest extends AnyFlatSpec {
-  val directoryPath = "wacc-examples/valid/"
+  val directoryPath = "src/test/wacc/wacc-examples/valid/"
   val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
 
   for (file <- files) {

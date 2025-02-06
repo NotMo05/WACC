@@ -24,6 +24,9 @@ def globalNumberingUpdate(name: String): Option[Int] = {
 }
 
 def rename(prog: Prog) : (Prog, List[String]) = {
+  scopeErrors.clear()
+  globalNumbering.clear()
+  funcTypes.clear()
   funcFirstPass(prog.funcs)
   return (Prog(prog.funcs.map(funcHandler(_)), scopeHandler(prog.main, Map.empty[String, QualifiedName])), scopeErrors.result())
 }
@@ -150,7 +153,7 @@ def renameAssign(
   parent: Map[String, QualifiedName]
   ): Stmt = {
   if current.contains(name) then {
-    scopeErrors += s"Illegal redeclaration of variable $name" 
+    scopeErrors += s"Illegal redeclaration of variable $name"
     val newName = QualifiedName("", 0, Undefined)
     Assgn(Undefined, newName, rValueHandler(rValue, current, parent))
   }

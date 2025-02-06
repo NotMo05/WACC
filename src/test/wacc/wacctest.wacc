@@ -1,11 +1,14 @@
-# a char[] can fit into a string[]
-# Thanks to Iurii Zamiatin for finding this
+# ensures that pairs can be unpacked directly from arrays
 
 # Output:
+# 3
+#
 
 # Program:
 
 begin
-    char[] testArr = ['a', 'b', 'c'];
-    string[] arr = [testArr, "box", "foo", "bar"]
+  pair(pair, pair) p = null ;
+  println p ;
+  p = null ;
+  println p
 end

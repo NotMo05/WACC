@@ -22,9 +22,14 @@ class invalidProgramSemanticTest extends AnyFlatSpec {
         case Success(ast) => {
           val (newProg, errors) = rename(ast)
           assert(!(errors.isEmpty && semantic.analyse(newProg).isEmpty))
-          println(s"The new (incorrect) AST is: $newProg")
         }
       }
     }
   }
 }
+
+
+// - should fail to parse src/test/wacc/wacc-examples/invalid/semanticErr/function/functionOverArgs.wacc *** FAILED ***
+// - should fail to parse src/test/wacc/wacc-examples/invalid/semanticErr/function/functionBadParam.wacc *** FAILED ***
+// - should fail to parse src/test/wacc/wacc-examples/invalid/semanticErr/function/functionUnderArgs.wacc *** FAILED ***
+// - should fail to parse src/test/wacc/wacc-examples/invalid/semanticErr/function/functionSwapArgs.wacc *** FAILED ***

@@ -22,8 +22,7 @@ class validProgramSemanticTest extends AnyFlatSpec {
       parser.parse(fileContent) match {
         case Success(ast) => {
           val (newProg, errors) = rename(ast)
-          assert(errors.isEmpty)
-          // assert(semantic.analyse(newProg).isEmpty)
+          assert(errors.isEmpty && semantic.analyse(newProg).isEmpty)
         }
         case Failure(msg) => fail(s"$msg?")
       }

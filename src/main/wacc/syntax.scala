@@ -88,6 +88,7 @@ sealed trait Type {
 sealed trait PairElemType
 sealed trait BaseType extends Type, PairElemType
 
+case object Undefined extends Type
 case object AnyType extends Type, PairElemType
 case class PairType(t1: PairElemType, t2: PairElemType) extends Type
 case class ArrayType(t: Type, d: Int) extends Type, PairElemType

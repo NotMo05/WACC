@@ -2,16 +2,14 @@ package wacc
 
 import lexer.implicits.implicitSymbol
 import parsley.expr.{Ops, Prefix, InfixL, InfixN, InfixR}
-
-def handleNegation(expr: Expr): Expr = expr match {
-  case IntLiteral(value) => IntLiteral(-value)
-  case Neg(x)            => x
-  case other             => Neg(other)
-}
+import parsley.combinator.{ifS}
+import parsley.Parsley.{empty, atomic, pure}
+import wacc.lexer.integer
 
 val unaryOps: Ops[Expr, Expr] = Ops(Prefix)(
   ("!"   as (expr => Not(expr))),
-  ("-"   as (expr => handleNegation(expr))),
+  (atomic(ifS(atomic(integer) ~> pure(true)
+  | pure(false), empty, "-" as (expr => Neg(expr))))),
   ("len" as (expr => Len(expr))),
   ("ord" as (expr => Ord(expr))),
   ("chr" as (expr => Chr(expr)))

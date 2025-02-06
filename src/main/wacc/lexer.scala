@@ -50,7 +50,8 @@ object lexer {
 
 
   val boolLiteral = BoolLiteral(lexer.lexeme(atomic("true" as true) | atomic("false" as false)))
-  val intLiteral: Parsley[Expr] = IntLiteral(lexer.lexeme.integer.decimal32[BigInt])
+  val integer = lexer.lexeme.integer.decimal32[BigInt]
+  val intLiteral: Parsley[Expr] = IntLiteral(integer)
 
 
   val stringLiteral = StringLiteral(lexer.lexeme.string.ascii)

@@ -5,7 +5,7 @@ object semantic {
   val semErrors = List.newBuilder[String]
 
   def analyse(prog: Prog): List[String] = {
-    prog.funcs.foreach(validFunction)
+    prog.funcs.foreach(validFunction(_))
     prog.main.foreach(validStmtArgs(_))
     semErrors.result()
   }
@@ -21,10 +21,10 @@ object semantic {
         case t => t
 
       // need to do Args list and function check?
-//       case Call(ident, args) => funcTypes.get(ident.identifier) match
-//         case None => semErrors += s"error: function ${ident.identifier} has not been defined"; None
-//         case t => {}
-//         // Check right num and type of arguments
+      case Call(ident, args) => ident match
+        case qn: QualifiedFunc if qn.paramNum == args.size && qn.paramTypes == args.map(getExprType(_)) => Some(qn.t)
+        case _ => None
+        // Check right num and type of arguments
 
 // //  wrong number of arguments provided to function x
 // //   unexpected 0 arguments
@@ -64,7 +64,7 @@ object semantic {
       case StringLiteral(_) => Some(StringType)
       case CharLiteral(_) => Some(CharType)
       case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index.size)
-      case NullLiteral => ??? // Not an Error, This should be PairType(AnyType, AnyType)
+      case NullLiteral => Some(PairType(AnyType, AnyType))
   }
 
 
@@ -134,12 +134,12 @@ object semantic {
       }
 
       case And(l, r) => exprsMatchType(l, r, BoolType) match
-        case Some(true) => Some(IntType)
+        case Some(true) => Some(BoolType)
         case Some(_) => semErrors += "error: incompatible types for operator"; None
         case _ => None
 
       case Or(l, r) => exprsMatchType(l, r, BoolType) match
-        case Some(true) => Some(IntType)
+        case Some(true) => Some(BoolType)
         case Some(_) => semErrors += "error: incompatible types for operator"; None
         case _ => None
 
@@ -164,7 +164,7 @@ object semantic {
         case _ => None
 
       case Len(x)  => getExprType(x) match
-        case Some(ArrayLiter(_)) => Some(IntType)
+        case Some(ArrayType(_,_)) => Some(IntType)
         case Some(_) => semErrors += "error: incompatible type for operator"; None
         case _ => None
       case _ => None
@@ -193,7 +193,8 @@ object semantic {
       // rValue needs to be compatible with t but does it need to BE t? Can it be a subtype of t? Do subtypes of t even exist?
       // NEED SCOPING/SYMBOL TABLE/RENAMING/QUALIFICATION FOR THIS TO CHECK MULTIPLE ASSIGNMENTS
       case Assgn(t, _, rValue) => getRValueType(rValue) match
-        case Some(x) => if (t != x) then semErrors += "error: incompatible types in assignment"
+        case Some(x) => {
+          if !(t weakensTo x) then semErrors += "error: incompatible types in assignment"}
         case _ => ()
       // rValue needs to be compatible with lValue but does it need to BE lValue? Can it be a subtype of lValue? Do subtypes of lValue even exist?
       // should consider adding string weakening char[] thingy
@@ -211,15 +212,15 @@ object semantic {
           case Some(BoolType) => ()
           case None => ()
           case _ => semErrors += "error: `while` constructs must have condition of type `bool`"
-        stmts.foreach(validStmtArgs(_))
+        stmts.foreach(validStmtArgs(_, funcType))
       }
       case IfElse(cond, thenStmts, elseStmts) => {
         getExprType(cond) match
           case Some(BoolType) => ()
           case None => ()
           case _ => semErrors += "error: `if` constructs must have condition of type `bool`"
-        thenStmts.foreach(validStmtArgs(_))
-        elseStmts.foreach(validStmtArgs(_))
+        thenStmts.foreach(validStmtArgs(_, funcType))
+        elseStmts.foreach(validStmtArgs(_, funcType))
       }
       case Scope(stmts) => stmts.foreach(validStmtArgs(_))
 
@@ -304,13 +305,8 @@ object semantic {
     // get the distinct list of the types of the expressions in the list
     // Likely need to be doing this in a for loop like below so that we have
     // access to each Expr's position info
-    val arrayTypesBuilder = List.newBuilder[Option[Type]]
 
-    for (expr <- elems) {
-      val exprType = getExprType(expr)
-      arrayTypesBuilder += exprType
-    }
-    val potentialArrayTypes: List[Option[Type]] = arrayTypesBuilder.result()
+    val potentialArrayTypes: List[Option[Type]] = elems.map(getExprType(_)).toList
 
     // Means that array liter had undeclared variable(s)
     if (potentialArrayTypes.contains(None)) {
@@ -322,28 +318,39 @@ object semantic {
       // Unwrap any remaining Some(Type)s
       val distinctArrayTypes: List[Type] = distinctPotentialArrayTypes.flatten
       // Means that array liter was empty
-      if (distinctArrayTypes.isEmpty) {
-        Some(ArrayType(AnyType, 1))
-      }
-      // Means that array liter had element(s) of 1 type
-      else if (distinctArrayTypes.size == 1) {
-        val arrayType = distinctArrayTypes.head
-        arrayType match
-          case ArrayType(t, d) => Some(ArrayType(t, d + 1))
-          case baseOrPairType => Some(ArrayType(baseOrPairType, 1))
-      }
-      // Means array liter had elements of different types
-      else {
-        semErrors += "error: literal contains mix of different types"
-        None
+      print(distinctArrayTypes.size)
+      distinctArrayTypes.size match
+        case 0 => Some(ArrayType(AnyType, 1))
+        case 1 => {
+          val arrayType = distinctArrayTypes.head
+          arrayType match
+            case ArrayType(t, d) => Some(ArrayType(t, d + 1))
+            case baseOrPairType => Some(ArrayType(baseOrPairType, 1))
+        }
+        case 2 => {
+          val t1 = distinctArrayTypes(0)
+          val t2 = distinctArrayTypes(1)
+          (t1, t2) match {
+            case (ArrayType(_,d1), ArrayType(_,d2)) => {
+              if t1 weakensTo t2 then Some((ArrayType(t1, d1 + 1)))
+              else if t2 weakensTo t1 then Some((ArrayType(t2, d1 + 1)))
+              else None
+            }
+            case (_, _) => {
+              if t1 weakensTo t2 then Some((ArrayType(t1, 1)))
+              else if t2 weakensTo t1 then Some((ArrayType(t2, 1)))
+              else None
+            }
+          }
+        }
+        case _ => semErrors += "error: literal contains mix of different types"; None
       }
     }
-  }
 
   def arrayElemHandle(arrayName: Ident, dimensionAccess: Int) = {
     getExprType(arrayName) match
       case Some(ArrayType(t, d)) if dimensionAccess == d => Some(t)
-      case Some(ArrayType(t, d)) if dimensionAccess < d-1 => Some(ArrayType(t, d-dimensionAccess))
+      case Some(ArrayType(t, d)) if dimensionAccess < d => Some(ArrayType(t, d-dimensionAccess))
       case _ => {
         semErrors += s"Expected $dimensionAccess-dimensional Array"
         None

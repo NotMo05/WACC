@@ -1,5 +1,4 @@
 package wacc
-
 // We need the AST from syntax analysis to include position information (as a
 // secondary parameter list to each of the case classes)
 object semantic {

@@ -78,11 +78,19 @@ object Scope extends ParserBridge1[List[Stmt], Stmt]
 sealed trait TypeOrPairElemType {
   infix def weakensTo(t:TypeOrPairElemType): Boolean = {
     (this, t) match {
+      case (AnyType,AnyType) => false
       case (_, AnyType) => true
       case (AnyType, _) => true
       case (StringType, ArrayType(CharType, 1)) => true
       // case (ArrayType(CharType, 1), StringType) => true
-      case (PairType(a1, b1), PairType(a2, b2)) => (a1 weakensTo a2) && (b1 weakensTo b2 )
+      case (PairType(AnyType, AnyType), PairType(_, _)) => true
+      case (PairType(_, _), PairType(AnyType, AnyType)) => true
+      case (PairType(AnyType, b1), PairType(_, b2)) => b1 == b2
+      case (PairType(a1, AnyType), PairType(a2, _)) => a1 == a2
+      case (PairType(_, b1), PairType(AnyType, b2)) => b1 == b2
+      case (PairType(a1, _), PairType(a2, AnyType)) => a1 == a2
+      case (PairType(a1, b1), PairType(a2, b2)) => (a1 == a2) && (b1 == b2)
+
       case (ArrayType(t1, d1), ArrayType(t2, d2)) if d1 == d2 => t1 weakensTo t2
       case _ => this == t
     }

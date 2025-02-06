@@ -9,8 +9,6 @@ import java.io.File
 class validProgramSemanticTest extends AnyFlatSpec {
   val directoryPath = "src/test/wacc/wacc-examples/valid/"
   val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
-  println(files.size)
-  print(files.distinct.size)
 
   for (file <- files) {
     val fileName = file.getPath

@@ -38,19 +38,20 @@ object semantic {
       // need to do Args list and function check?
       case Call(ident, args) => ident match
         case qn: QualifiedFunc if qn.t == Undefined => None
-        case qn: QualifiedFunc if qn.paramNum == args.size && qn.paramTypes == args.map(getExprType(_)).flatten => Some(qn.t)
-        case _ => semErrors += "issue with parameters"; None
+        case qn: QualifiedFunc if qn.paramNum == args.size && qn.paramTypes.zip(args.map(getExprType(_)).flatten).forall((a,b) => a weakensTo b) => Some(qn.t)
+        case _ => 
+          semErrors += "issue with parameters"; None
         // Check right num and type of arguments
 
       case ArrayLiter(elems) => arrayLiterHandle(elems)
       case NewPair(fst, snd) => newPairHandle(fst, snd)
       case Fst(lValue) => pairElemHandle(lValue) match
         case None => semErrors += "SOMETHING";None
-        case Some(PairType(Pair, _)) => Some(AnyType)
+        case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType))
         case Some(PairType(t1, _)) => Some(t1.asInstanceOf[Type])
       case Snd(lValue) => pairElemHandle(lValue) match
         case None => semErrors += "SOMETHING";None
-        case Some(PairType(Pair, _)) => Some(AnyType)
+        case Some(PairType(_, Pair)) => Some(PairType(AnyType, AnyType))
         case Some(PairType(_, t2)) => Some(t2.asInstanceOf[Type])
   }
 
@@ -60,11 +61,11 @@ object semantic {
       case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index)
       case Fst(lValue) => pairElemHandle(lValue) match
         case None => semErrors += "SOMETHING";None
-        case Some(PairType(Pair, _)) => Some(AnyType)
+        case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType))
         case Some(PairType(t1, _)) => Some(t1.asInstanceOf[Type])
       case Snd(lValue) => pairElemHandle(lValue) match
         case None => semErrors += "SOMETHING";None
-        case Some(PairType(Pair, _)) => Some(AnyType)
+        case Some(PairType(_, Pair)) => Some(PairType(AnyType, AnyType))
         case Some(PairType(_, t2)) => Some(t2.asInstanceOf[Type])
   }
 
@@ -136,8 +137,8 @@ object semantic {
     val expr2Type = getExprType(expr2)
     expr1Type match
       case Some(x) => expr2Type match
-        case Some(y) if (y == x) => Some(true)
-        case Some(y) => semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)}"; Some(false)
+        case Some(y) if (x weakensTo y) => Some(true)
+        case Some(y) => semErrors += s"TypeK error: unexpected ${typeToString(y)} expected ${typeToString(x)}"; Some(false)
         case None => None
       case None => None
   }
@@ -240,7 +241,8 @@ object semantic {
         case _ => semErrors += "error: `exit` statement must be provided with an exit code of type `int`"
       // rValue needs to be compatible with t but does it need to BE t? Can it be a subtype of t? Do subtypes of t even exist?
       // NEED SCOPING/SYMBOL TABLE/RENAMING/QUALIFICATION FOR THIS TO CHECK MULTIPLE ASSIGNMENTS
-      case Assgn(t, _, rValue) => getRValueType(rValue) match
+      case Assgn(t, _, rValue) => 
+        getRValueType(rValue) match
         case Some(x) => {
           if !(t weakensTo x) then semErrors += s"Type error: unexpected ${typeToString(x)} expected ${typeToString(t)} in assignment"}
         case None => ()
@@ -251,7 +253,8 @@ object semantic {
         val rType = getRValueType(rValue)
         lType match
           case Some(x) => rType match
-            case Some(y) => if !(x weakensTo y) then semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)} in reassign"
+            case Some(y) => 
+              if !(x weakensTo y) then semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)} in reassign"
             case None => ()
           case None => ()
       }
@@ -274,7 +277,7 @@ object semantic {
 
       case Return(expr) => funcType match
         case Some(x) => getExprType(expr) match
-          case Some(y) if x == y => ()
+          case Some(y) if x weakensTo y => ()
           case Some(z) => semErrors += s"error: ${typeToString(z)} `return` is incompatible with enclosing ${typeToString(x)} function"
           case None => ()
         case None => semErrors += "error: `return` cannot be called outside function/in main body of program"
@@ -335,13 +338,13 @@ object semantic {
           case Some(pairType: PairType)=> Some(pairType)
           case _ => semErrors += "SOMETHING"; None // Error?
       case Fst(lValue) => pairElemHandle(lValue) match
-        case Some(PairType(Pair, other)) => Some(PairType(AnyType, other)) /// AnyType?
+        case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType)) /// AnyType?
         case _ => semErrors += "SOMETHING"; None // Error, called fst twice at this point so should atleast be a pair with a pair inside
 
 
 
       case Snd(lValue) => pairElemHandle(lValue) match
-        case Some(PairType(other, Pair)) => Some(PairType(other, AnyType))
+        case Some(PairType(_, Pair)) => Some(PairType(AnyType, AnyType))
         case _ => semErrors += "SOMETHING"; None // Error, called fst twice at this point so should atleast be a pair with a pair inside
   }
 

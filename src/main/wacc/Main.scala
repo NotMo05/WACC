@@ -15,25 +15,26 @@ def main(args: Array[String]): Unit = {
     case Some(progString) => parser.parse(progString) match {
       case Success(ast) => {
         // Conduct semantic analysis on the AST produced by syntax analysis
+        // ast.main.foreach(println(_))
         val (newProg, errors) = rename(ast)
-
         if !(errors.isEmpty && semantic.analyse(newProg).isEmpty) then {
           println("Semantic Errors:")
-          errors.foreach(println(_))
+          // errors.foreach(println(_))
           semantic.analyse(newProg).foreach(println(_))
-          // newProg.main.foreach(println(_))
+          newProg.main.foreach(println(_))
           // newProg.funcs.foreach(_.stmts.foreach(println(_)))
           // println(newProg)
           sys.exit(200)
-        } else
-        print("No Error")
-        sys.exit(0)
+        } else {
+          print("No Error")
+          sys.exit(0)
+        }
       }
       case Failure(msg) => {
         print("Syntax Error")
+        print(msg)
         sys.exit(100)}
     }
       case None => println("please enter an expression")
     }
   }
-

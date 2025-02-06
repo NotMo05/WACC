@@ -74,18 +74,22 @@ object Scope extends ParserBridge1[List[Stmt], Stmt]
 //Types
 
 // Need to deal with Pairs too
-sealed trait Type {
-  infix def weakensTo(t:Type): Boolean = {
+
+sealed trait TypeOrPairElemType {
+  infix def weakensTo(t:TypeOrPairElemType): Boolean = {
     (this, t) match {
       case (_, AnyType) => true
+      case (AnyType, _) => true
       case (StringType, ArrayType(CharType, 1)) => true
-      // Add pair case
+      // case (ArrayType(CharType, 1), StringType) => true
+      case (PairType(a1, b1), PairType(a2, b2)) => (a1 weakensTo a2) && (b1 weakensTo b2 )
       case (ArrayType(t1, d1), ArrayType(t2, d2)) if d1 == d2 => t1 weakensTo t2
       case _ => this == t
     }
   }
-} 
-sealed trait PairElemType
+}
+sealed trait Type extends TypeOrPairElemType
+sealed trait PairElemType extends TypeOrPairElemType
 sealed trait BaseType extends Type, PairElemType
 
 case object Undefined extends Type

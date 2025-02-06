@@ -16,7 +16,7 @@ object parser {
 
   // def parse(input: String): Result[String, Expr] = parser.parse(input)
   // private val parser = fully(expr)
-  
+
   private lazy val program = Prog("begin" ~> many(atomic(func)), stmts <~ "end")
 
   private lazy val func = Func(
@@ -26,7 +26,7 @@ object parser {
     "is" ~> stmts.filter(returns(_)) <~ "end"
   )
 
-  private lazy val param = atomic(Param(typeParser, ident <~ notFollowedBy("="))) 
+  private lazy val param = (Param(typeParser, ident <~ notFollowedBy("=")))
 
   private lazy val paramList = sepBy1(param, ",")
 
@@ -45,7 +45,7 @@ object parser {
   private lazy val reassgn = ReAssgn(lValue, "=" ~> rValue)
   private lazy val readStmt = Read("read" ~> lValue)
   private lazy val freeStmt = Free("free" ~> expr)
-  private lazy val returnStmt = Return("return" ~> expr) 
+  private lazy val returnStmt = Return("return" ~> expr)
   private lazy val exitStmt = Exit("exit" ~> expr)
   private lazy val printlnStmt = Println("println" ~> expr)
   private lazy val printStmt = Print("print" ~> expr)
@@ -53,7 +53,7 @@ object parser {
   private lazy val ifStmt = IfElse("if" ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
   private lazy val arrayElem = ArrayElem(ident, some("[" ~> expr <~ "]"))
   private lazy val pairElem = Fst("fst" ~> lValue) | Snd("snd" ~> lValue)
-  
+
   private lazy val lValue: Parsley[LValue] =
     atomic(arrayElem)
     | ident
@@ -106,6 +106,5 @@ object parser {
     }
   }
 
-  def onceOrEmptyList[A](structure: Parsley[List[A]]) = (atomic(structure) | pure(List.empty[A]))
+  def onceOrEmptyList[A](structure: Parsley[List[A]]) = ((structure) | pure(List.empty[A]))
   }
-

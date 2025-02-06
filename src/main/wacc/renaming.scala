@@ -55,7 +55,6 @@ def funcHandler(func: Func): Func = {
   val params = func.params
   val paramScope = params.reverse.map(paramHandler(_)).distinctBy(_._1).toMap[String, QualifiedName]
   val qParam = paramScope.map((_,qn) => Param(qn.t, qn)).toList
-  // println(funcTypes)
   Func(func.t, funcTypes(name), qParam, scopeHandler(func.stmts, paramScope))
 }
 
@@ -67,8 +66,8 @@ def lValueHandler(
   lValue match
     case Ident(identifier) => renameIdent(identifier, current, parent)
     case arrayElem: ArrayElem => exprHandler(arrayElem, current, parent).asInstanceOf[LValue]
-    case Fst(lValue) => lValueHandler(lValue, current, parent)
-    case Snd(lValue) => lValueHandler(lValue, current, parent)
+    case Fst(lValue) => Fst(lValueHandler(lValue, current, parent))
+    case Snd(lValue) => Snd(lValueHandler(lValue, current, parent))
 }
 
 

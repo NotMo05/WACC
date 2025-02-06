@@ -1,11 +1,12 @@
 package wacc
 
 import parsley.Parsley
-import parsley.Parsley.{atomic, some}
-import parsley.syntax.character.stringLift
+import parsley.Parsley.{atomic, some, notFollowedBy}
+// import parsley.syntax.character.stringLift
 import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions._
 import wacc.parser.pairType
+import parsley.character.string
 
 
 object lexer {
@@ -49,15 +50,15 @@ object lexer {
   private val lexer = Lexer(desc)
 
 
-  val boolLiteral = BoolLiteral(lexer.lexeme(atomic("true" as true) | atomic("false" as false)))
+  val boolLiteral = BoolLiteral(lexer.lexeme(atomic(string("true") as true) | atomic(string("false") as false)))
   val integer = lexer.lexeme.integer.decimal32[BigInt]
   val intLiteral: Parsley[Expr] = IntLiteral(integer)
 
 
   val stringLiteral = StringLiteral(lexer.lexeme.string.ascii)
   val charLiteral = CharLiteral(lexer.lexeme.character.ascii)
-  val nullLiteral = lexer.lexeme(atomic("null" as NullLiteral))
-  val skipStmt = lexer.lexeme(atomic("skip" as Skip))
+  val nullLiteral = lexer.lexeme(atomic(string("null") as NullLiteral))
+  val skipStmt = lexer.lexeme((string("skip") as Skip))
   val ident = Ident(lexer.lexeme.names.identifier)
   val comma = lexer.lexeme.symbol.comma
   val implicits = lexer.lexeme.symbol.implicits
@@ -67,26 +68,25 @@ object lexer {
     | interimTypes
   )
 
-  lazy val baseType =  lexer.lexeme(
-    atomic("int" as IntType)
-    | atomic("char" as CharType)
-    | atomic("bool" as BoolType)
-    | atomic("string" as StringType)
-  )
+  lazy val baseType =
+    (string("int") as IntType)
+    | (string("char") as CharType)
+    | (string("bool") as BoolType)
+    | (string("string") as StringType)
 
-  lazy val interimTypes: Parsley[Type] = lexer.lexeme(
+  lazy val interimTypes: Parsley[Type] =
     baseType
-    | atomic(pairType)
-  )
+    | pairType
 
-  lazy val pairElemType = lexer.lexeme(
-    atomic("pair" as Pair)
+  lazy val pairElemType =
+    (string("pair") as Pair)
     | atomic(arrayType)
     | baseType
-  )
 
 
-  lazy val arrayType = lexer.lexeme(ArrayType(interimTypes, some("[]").map(_.size)))
+
+  lazy val arrayType = ArrayType(interimTypes, some(string("[]")).map(_.size))
+
 
   def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
 }

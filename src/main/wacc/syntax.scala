@@ -72,9 +72,7 @@ object Assgn extends ParserBridge3[Type, Ident, RValue, Stmt]
 object ReAssgn extends ParserBridge2[LValue, RValue, Stmt]
 object Scope extends ParserBridge1[List[Stmt], Stmt]
 
-//Types
-
-// Need to deal with Pairs too
+// Types
 
 /**
  * Trait representing types or pair element types in the WACC language.
@@ -94,13 +92,9 @@ sealed trait TypeOrPairElemType {
       case (AnyType, _) => true
       case (StringType, ArrayType(CharType, 1)) => true
       // case (ArrayType(CharType, 1), StringType) => true
-      case (PairType(AnyType, AnyType), PairType(_, _)) => true
-      case (PairType(_, _), PairType(AnyType, AnyType)) => true
-      case (PairType(AnyType, b1), PairType(_, b2)) => b1 == b2
-      case (PairType(a1, AnyType), PairType(a2, _)) => a1 == a2
-      case (PairType(_, b1), PairType(AnyType, b2)) => b1 == b2
-      case (PairType(a1, _), PairType(a2, AnyType)) => a1 == a2
-      case (PairType(a1, b1), PairType(a2, b2)) => (a1 == a2) && (b1 == b2)
+      case (PairType(a1, b1), PairType(a2, b2)) =>
+      (a1 == AnyType || a2 == AnyType || a1 == a2) &&
+      (b1 == AnyType || b2 == AnyType || b1 == b2)
 
       case (ArrayType(t1, d1), ArrayType(t2, d2)) if d1 == d2 => t1 weakensTo t2
       case _ => this == t
@@ -130,11 +124,6 @@ case object CharType extends BaseType
 
 /**
  * Trait representing a binary operator bridge.
-/**
- * Trait representing an operator in the WACC language.
- * Operators are expressions that perform operations on one or more operands.
- */
-sealed trait Operator extends Expr
  */
 sealed trait BinaryBridge extends ParserBridge2[Expr, Expr, Expr]
 

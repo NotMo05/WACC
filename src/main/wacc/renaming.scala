@@ -28,7 +28,11 @@ def rename(prog: Prog) : (Prog, List[String]) = {
   globalNumbering.clear()
   funcTypes.clear()
   funcFirstPass(prog.funcs)
-  return (Prog(prog.funcs.map(funcHandler(_)), scopeHandler(prog.main, Map.empty[String, QualifiedName])), scopeErrors.result())
+  return (
+    Prog(prog.funcs.map(funcHandler(_)),
+    scopeHandler(prog.main, Map.empty[String, QualifiedName])),
+    scopeErrors.result()
+    )
 }
 
 def funcFirstPass(funcs: List[Func]) = {
@@ -79,13 +83,6 @@ def lValueString(lValue: LValue): String = {
     case Snd(lValue) => lValueString(lValue)
 }
 
-def renameReAssgn(lValue: LValue, rValue: RValue,
-  current: mutable.Map[String, QualifiedName],
-  parent: Map[String, QualifiedName]
- ) = {
-  ReAssgn(lValueHandler(lValue, current, parent), rValueHandler(rValue, current, parent))
-}
-
 def rValueHandler(
   rValue: RValue,
   current: mutable.Map[String, QualifiedName],
@@ -93,14 +90,14 @@ def rValueHandler(
   ): RValue = {
     rValue match
       case expr: Expr => exprHandler(expr, current, parent)
-      case Call(ident, args) if funcTypes.contains(ident.identifier) => {
-
+      case Call(ident, args) if funcTypes.contains(ident.identifier) => 
         Call(funcTypes(ident.identifier), args.map(exprHandler(_, current, parent)))
-      }
+
       case Fst(lValue) => Fst(lValueHandler(lValue, current, parent))
       case Snd(lValue) => Snd(lValueHandler(lValue, current, parent))
       case ArrayLiter(elems) => ArrayLiter(elems.map(exprHandler(_, current, parent)))
-      case NewPair(fst, snd) => NewPair(exprHandler(fst, current, parent), exprHandler(snd, current, parent))
+      case NewPair(fst, snd) =>
+        NewPair(exprHandler(fst, current, parent), exprHandler(snd, current, parent))
       case c: Call => {
         scopeErrors += s"Function ${c.ident} has not been defined"
         Call(QualifiedFunc(Undefined, "", 0, List()), List())
@@ -115,7 +112,8 @@ def renameStmt(
   stmt match
     case Skip => Skip
     case Assgn(t, Ident(name), rValue) => renameAssign(t, name, rValue, current, parent)
-    case ReAssgn(lValue, rValue) => renameReAssgn(lValue, rValue, current, parent)
+    case ReAssgn(lValue, rValue) =>
+      ReAssgn(lValueHandler(lValue, current, parent), rValueHandler(rValue, current, parent))
     case Read(lValue) => Read(lValueHandler(lValue, current, parent))
     case Free(expr) => Free(exprHandler(expr, current, parent))
     case Return(expr) => Return(exprHandler(expr, current, parent))

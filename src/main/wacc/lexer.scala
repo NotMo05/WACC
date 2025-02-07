@@ -1,11 +1,10 @@
 package wacc
 
 import parsley.Parsley
-import parsley.Parsley.{atomic, some, notFollowedBy}
+import parsley.Parsley.atomic
 // import parsley.syntax.character.stringLift
 import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions._
-import wacc.parser.pairType
 import parsley.character.string
 
 
@@ -19,7 +18,7 @@ object lexer {
   private val desc = LexicalDesc.plain.copy(
     nameDesc = NameDesc.plain.copy(
       identifierStart  =  Basic(char => isEnglishLetter(char)),
-      identifierLetter = Basic(char => isEnglishLetter(char) || char.isDigit),
+      identifierLetter = Basic(char => isEnglishLetter(char) || char.isDigit)
     ),
     spaceDesc = SpaceDesc.plain.copy(
       lineCommentStart = "#",
@@ -43,7 +42,7 @@ object lexer {
           "0" -> 0x00
         )
       ),
-      graphicCharacter = Basic(c => (c >= ' ' && !illegalCharacters.contains(c)))
+      graphicCharacter = Basic(c => c >= ' ' && !illegalCharacters.contains(c))
     )
   )
 

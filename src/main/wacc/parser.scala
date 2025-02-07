@@ -105,16 +105,15 @@ object parser {
     | skipStmt
     | beginBlock
 
-  def returns(stmts: List[Stmt]): Boolean = return{
-    stmts.last match {
+  def returns(stmts: List[Stmt]): Boolean =
+    stmts.last match
       case IfElse(_, thenStmts, elseStmts) => returns(thenStmts) && returns(elseStmts)
       case WhileDo(_, stmts) => returns(stmts)
       case Scope(stmts) => returns(stmts)
       case Return(_) => true
       case Exit(_) => true
       case _ => false
-    }
-  }
+
 
   def onceOrEmptyList[A](structure: Parsley[List[A]]) = ((structure) | pure(List.empty[A]))
   }

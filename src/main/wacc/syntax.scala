@@ -14,7 +14,8 @@ case class IntLiteral(int: BigInt) extends Expr
 case class BoolLiteral(bool: Boolean) extends Expr
 case class StringLiteral(string: String) extends Expr
 case class CharLiteral(char: Char) extends Expr
-case class Ident(identifier: String) extends Expr, LValue, RValue
+trait IdentTrait extends Expr with LValue with RValue
+case class Ident(identifier: String) extends IdentTrait
 case class ArrayElem(arrayName: Ident, index: List[Expr]) extends Expr, LValue
 
 object IntLiteral extends ParserBridge1[BigInt, IntLiteral]
@@ -75,8 +76,18 @@ object Scope extends ParserBridge1[List[Stmt], Stmt]
 
 // Need to deal with Pairs too
 
+/**
+ * Trait representing types or pair element types in the WACC language.
+ * This trait provides a method to check if one type can be weakened to another.
+ */
 sealed trait TypeOrPairElemType {
-  infix def weakensTo(t:TypeOrPairElemType): Boolean = {
+  /**
+   * Checks if this type can be weakened to another type.
+   *
+   * @param t the target type to weaken to
+   * @return true if this type can be weakened to the target type, false otherwise
+   */
+  infix def weakensTo(t: TypeOrPairElemType): Boolean = {
     (this, t) match {
       case (AnyType,AnyType) => false
       case (_, AnyType) => true
@@ -117,7 +128,20 @@ case object CharType extends BaseType
 
 // Operators
 
+/**
+ * Trait representing a binary operator bridge.
+/**
+ * Trait representing an operator in the WACC language.
+ * Operators are expressions that perform operations on one or more operands.
+ */
+sealed trait Operator extends Expr
+ */
 sealed trait BinaryBridge extends ParserBridge2[Expr, Expr, Expr]
+
+/**
+ * Trait representing a unary operator bridge.
+ * This trait extends `ParserBridge1` to parse unary operators with one expression.
+ */
 sealed trait UnaryBridge extends ParserBridge1[Expr,Expr]
 sealed trait Operator extends Expr
 

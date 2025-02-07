@@ -11,6 +11,7 @@ object semantic {
     semErrors.result()
   }
 
+  // Validates a function by checking the types of its statements.
   def validFunction(func: Func) = {
     func.stmts.foreach(validStmtArgs(_, Some(func.t)))
   }
@@ -28,6 +29,7 @@ object semantic {
     case StringType => "string"
     case CharType => "char"
     case AnyType => "any type"
+    case Undefined => "undefined"
 
   def getRValueType(rValue: Any): Option[Type] = {
     rValue match
@@ -38,8 +40,11 @@ object semantic {
       // need to do Args list and function check?
       case Call(ident, args) => ident match
         case qn: QualifiedFunc if qn.t == Undefined => None
-        case qn: QualifiedFunc if qn.paramNum == args.size && qn.paramTypes.zip(args.map(getExprType(_)).flatten).forall((a,b) => a weakensTo b) => Some(qn.t)
-        case _ => 
+        case qn: QualifiedFunc if
+          qn.paramNum == args.size &&
+          qn.paramTypes.zip(args.map(getExprType(_)).flatten).forall((a,b) =>
+            a weakensTo b) => Some(qn.t)
+        case _ =>
           semErrors += "issue with parameters"; None
         // Check right num and type of arguments
 
@@ -72,7 +77,7 @@ object semantic {
   def getExprType(expr: Expr): Option[Type] = {
     expr match
       case qn: QualifiedName => qn.t match
-        case Undefined => /* semErrors += "SOMETHING" ; */None // NEED TO MAKE A UNDECLARED TYPE TO MATCH HERE
+        case Undefined => None // NEED TO MAKE A UNDECLARED TYPE TO MATCH HERE
         case t => Some(t)
       case op: Operator => getOperType(op)
       case IntLiteral(_) => Some(IntType)
@@ -81,6 +86,7 @@ object semantic {
       case CharLiteral(_) => Some(CharType)
       case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index)
       case NullLiteral => Some(PairType(AnyType, AnyType))
+      case Ident(_) => None // Ident should have a type by now
   }
 
   // Perhaps use weakening here?
@@ -99,9 +105,11 @@ object semantic {
       // expr1 has type that doesn't match target
       case Some(x) => expr2Type match
         // expr2 matches target type
-        case Some(y) if y == t => semErrors += s"Type error: unexpected ${typeToString(x)} expected ${typeToString(t)}"; Some(false)
+        case Some(y) if y == t => semErrors +=
+          s"Type error: unexpected ${typeToString(x)} expected ${typeToString(t)}"; Some(false)
         // expr2 also has type that doesn't match target
-        case Some(y) => semErrors += s"Type error: unexpected ${typeToString(x)} and ${typeToString(y)} expected '${typeToString(t)}'s"; Some(false)
+        case Some(y) => semErrors +=
+          s"Type error: unexpected ${typeToString(x)} and ${typeToString(y)} expected '${typeToString(t)}'s"; Some(false)
         // expr2 has no type (e.g., undeclared variables)
         case None => None
       // expr1 has no type (e.g., undeclared variables)
@@ -123,9 +131,14 @@ object semantic {
       // expr1 has type that doesn't match one of targets
       case Some(x) => expr2Type match
         // expr2 matches one of target types
-        case Some(y) if (y == t1 || y == t2) => semErrors += s"Type error: unexpected ${typeToString(x)} expected ${typeToString(y)}"; Some(false)
+        case Some(y) if (y == t1 || y == t2) => semErrors +=
+          s"Type error: unexpected ${typeToString(x)} expected ${typeToString(y)}"; Some(false)
         // expr2 also has type that doesn't match one of targets
-        case Some(y) => semErrors += s"Type error: unexpected ${typeToString(x)} and ${typeToString(y)} expected to be both ${typeToString(t1)} or both ${typeToString(t2)}"; Some(false)
+        case Some(y) => {
+          semErrors +=
+          s"Type error: unexpected ${typeToString(x)} and ${typeToString(y)} expected to be both ${typeToString(t1)} or both ${typeToString(t2)}"
+          Some(false)
+        }
         // expr2 has no type (e.g., undeclared variables)
         case None => None
       // expr1 has no type (e.g., undeclared variables)
@@ -241,10 +254,11 @@ object semantic {
         case _ => semErrors += "error: `exit` statement must be provided with an exit code of type `int`"
       // rValue needs to be compatible with t but does it need to BE t? Can it be a subtype of t? Do subtypes of t even exist?
       // NEED SCOPING/SYMBOL TABLE/RENAMING/QUALIFICATION FOR THIS TO CHECK MULTIPLE ASSIGNMENTS
-      case Assgn(t, _, rValue) => 
+      case Assgn(t, _, rValue) =>
         getRValueType(rValue) match
-        case Some(x) => {
-          if !(t weakensTo x) then semErrors += s"Type error: unexpected ${typeToString(x)} expected ${typeToString(t)} in assignment"}
+        case Some(x) =>
+          if !(t weakensTo x) then
+            semErrors += s"Type error: unexpected ${typeToString(x)} expected ${typeToString(t)} in assignment"
         case None => ()
       // rValue needs to be compatible with lValue but does it need to BE lValue? Can it be a subtype of lValue? Do subtypes of lValue even exist?
       // should consider adding string weakening char[] thingy
@@ -253,8 +267,9 @@ object semantic {
         val rType = getRValueType(rValue)
         lType match
           case Some(x) => rType match
-            case Some(y) => 
-              if !(x weakensTo y) then semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)} in reassign"
+            case Some(y) =>
+              if !(x weakensTo y) then
+                semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)} in reassign"
             case None => ()
           case None => ()
       }
@@ -278,7 +293,8 @@ object semantic {
       case Return(expr) => funcType match
         case Some(x) => getExprType(expr) match
           case Some(y) if x weakensTo y => ()
-          case Some(z) => semErrors += s"error: ${typeToString(z)} `return` is incompatible with enclosing ${typeToString(x)} function"
+          case Some(z) => semErrors +=
+            s"error: ${typeToString(z)} `return` is incompatible with enclosing ${typeToString(x)} function"
           case None => ()
         case None => semErrors += "error: `return` cannot be called outside function/in main body of program"
 

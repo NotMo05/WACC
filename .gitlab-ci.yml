@@ -6,11 +6,13 @@ compile:
   stage: compile
   script:
     - scala compile .
-
+  artifacts:
+    paths:
+      - .scala-build/
 
 test:
   stage: test
   script:
     - scala test .
-
-
+  dependencies:
+    - compile

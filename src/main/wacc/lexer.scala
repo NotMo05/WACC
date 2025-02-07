@@ -69,10 +69,10 @@ object lexer {
   )
 
   lazy val baseType =
-    (string("int") as IntType)
-    | (string("char") as CharType)
-    | (string("bool") as BoolType)
-    | (string("string") as StringType)
+    (lexer.lexeme.symbol("int") as IntType)
+    | (lexer.lexeme.symbol("char") as CharType)
+    | (lexer.lexeme.symbol("bool") as BoolType)
+    | (lexer.lexeme.symbol("string") as StringType)
 
   lazy val interimTypes: Parsley[Type] =
     baseType

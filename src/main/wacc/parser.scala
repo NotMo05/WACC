@@ -11,12 +11,6 @@ object parser {
   def parse(input: String): Result[String, Prog] = parser.parse(input)
   private val parser = fully(program)
 
-  // def parse(input: String): Result[String, Stmt] = parser.parse(input)
-  // private val parser = fully(stmt)
-
-  // def parse(input: String): Result[String, Expr] = parser.parse(input)
-  // private val parser = fully(expr)
-
   private lazy val program = Prog("begin" ~> many(atomic(func)), stmts <~ "end")
 
   private lazy val func = Func(
@@ -53,6 +47,28 @@ object parser {
   private lazy val ifStmt = IfElse("if" ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
   private lazy val arrayElem = ArrayElem(ident, some("[" ~> expr <~ "]"))
   private lazy val pairElem = Fst("fst" ~> lValue) | Snd("snd" ~> lValue)
+
+  private lazy val typeParser = (
+    atomic(arrayType)
+    | interimTypes
+  )
+
+  private lazy val baseType =
+    (("int") as IntType)
+    | (("char") as CharType)
+    | (("bool") as BoolType)
+    | (("string") as StringType)
+
+  private lazy val interimTypes: Parsley[Type] =
+    baseType
+    | pairType
+
+  private lazy val pairElemType =
+    (("pair") as Pair)
+    | atomic(arrayType)
+    | baseType
+
+  private lazy val arrayType = ArrayType(interimTypes, some(("[]")).map(_.size))
 
   private lazy val lValue: Parsley[LValue] =
     atomic(arrayElem)

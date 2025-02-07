@@ -63,30 +63,6 @@ object lexer {
   val comma = lexer.lexeme.symbol.comma
   val implicits = lexer.lexeme.symbol.implicits
 
-  lazy val typeParser = lexer.lexeme(
-    atomic(arrayType)
-    | interimTypes
-  )
-
-  lazy val baseType =
-    (lexer.lexeme.symbol("int") as IntType)
-    | (lexer.lexeme.symbol("char") as CharType)
-    | (lexer.lexeme.symbol("bool") as BoolType)
-    | (lexer.lexeme.symbol("string") as StringType)
-
-  lazy val interimTypes: Parsley[Type] =
-    baseType
-    | pairType
-
-  lazy val pairElemType =
-    (string("pair") as Pair)
-    | atomic(arrayType)
-    | baseType
-
-
-
-  lazy val arrayType = ArrayType(interimTypes, some(string("[]")).map(_.size))
-
 
   def fully[A](p: Parsley[A]): Parsley[A] = lexer.fully(p)
 }

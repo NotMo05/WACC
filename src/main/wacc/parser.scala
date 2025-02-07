@@ -1,7 +1,7 @@
 package wacc
 
 import lexer.implicits.implicitSymbol
-import parsley.combinator.{sepBy1}
+import parsley.combinator.{sepBy1, countSome}
 import parsley.expr.{precedence}
 import parsley.{Parsley, Result}
 import parsley.Parsley.{atomic, some, pure, notFollowedBy, many}
@@ -12,19 +12,16 @@ object parser {
   private val parser = fully(program)
 
   private lazy val program = Prog("begin" ~> many(atomic(func)), stmts <~ "end")
-
   private lazy val func = Func(
-    typeParser,
+  typeParser,
     ident,
     "(" ~> onceOrEmptyList(paramList) <~ ")",
     "is" ~> stmts.filter(returns(_)) <~ "end"
   )
 
   private lazy val param = (Param(typeParser, ident <~ notFollowedBy("=")))
-
   private lazy val paramList = sepBy1(param, ",")
-
-  lazy val pairType = PairType("pair" ~> "(" ~> pairElemType, "," ~> pairElemType <~ ")")
+  private lazy val pairType = PairType("pair" ~> "(" ~> pairElemType, "," ~> pairElemType <~ ")")
 
   private lazy val atoms =
     stringLiteral
@@ -48,16 +45,13 @@ object parser {
   private lazy val arrayElem = ArrayElem(ident, some("[" ~> expr <~ "]"))
   private lazy val pairElem = Fst("fst" ~> lValue) | Snd("snd" ~> lValue)
 
-  private lazy val typeParser = (
-    atomic(arrayType)
-    | interimTypes
-  )
+  private lazy val typeParser = atomic(arrayType) | interimTypes
 
   private lazy val baseType =
-    (("int") as IntType)
-    | (("char") as CharType)
-    | (("bool") as BoolType)
-    | (("string") as StringType)
+    ("int" as IntType)
+    | ("char" as CharType)
+    | ("bool" as BoolType)
+    | ("string" as StringType)
 
   private lazy val interimTypes: Parsley[Type] =
     baseType
@@ -68,7 +62,7 @@ object parser {
     | atomic(arrayType)
     | baseType
 
-  private lazy val arrayType = ArrayType(interimTypes, some(("[]")).map(_.size))
+  private lazy val arrayType = ArrayType(interimTypes, countSome("[]"))
 
   private lazy val lValue: Parsley[LValue] =
     atomic(arrayElem)

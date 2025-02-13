@@ -1,7 +1,6 @@
-package wacc
+package wacc.back_end
 
 sealed trait Instr
-
 
 case class ADD(op1: Reg | MemAddr, op2: Reg | Imm | MemAddr) extends Instr
 case class SUB(op1: Reg | MemAddr, op2: Reg | Imm | MemAddr) extends Instr

@@ -14,4 +14,26 @@ object FileUtils {
       List.empty
     }
   }
+
+  def formatString(input: String): String = {
+  val indentStep = "  "  // Define the indentation step
+  var indentLevel = 0     // Track the current indentation level
+
+  input.foldLeft("") { (formattedString, char) =>
+    char match {
+      case '(' =>
+        indentLevel += 1
+        formattedString + "(\n" + " " * (indentLevel * indentStep.length)
+      case ')' =>
+        indentLevel -= 1
+        formattedString + "\n" + " " * (indentLevel * indentStep.length) + ")"
+      case ',' =>
+        formattedString + ",\n" + " " * (indentLevel * indentStep.length)
+      case ' ' =>
+        formattedString
+      case _ =>
+        formattedString + char
+    }
+  }
+}
 }

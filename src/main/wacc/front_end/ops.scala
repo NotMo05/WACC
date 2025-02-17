@@ -1,10 +1,10 @@
-package wacc
+package wacc.front_end
 
 import lexer.implicits.implicitSymbol
 import parsley.expr.{Ops, Prefix, InfixL, InfixN, InfixR}
 import parsley.combinator.{ifS}
 import parsley.Parsley.{empty, atomic, pure}
-import wacc.lexer.integer
+import wacc.front_end.lexer.integer
 
 val unaryOps: Ops[Expr, Expr] = Ops(Prefix)(
   ("!"   as (expr => Not(expr))),

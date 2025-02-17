@@ -1,4 +1,4 @@
-package wacc
+package wacc.front_end
 // We need the AST from syntax analysis to include position information (as a
 // secondary parameter list to each of the case classes)
 object semantic {

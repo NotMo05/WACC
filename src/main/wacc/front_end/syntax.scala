@@ -1,4 +1,4 @@
-package wacc
+package wacc.front_end
 
 import scala.language.implicitConversions
 import parsley.generic.{ParserBridge1, ParserBridge2, ParserBridge3, ParserBridge4}

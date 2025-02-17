@@ -1,11 +1,11 @@
-package wacc
+package wacc.front_end
 
 import lexer.implicits.implicitSymbol
 import parsley.combinator.{sepBy1, countSome}
 import parsley.expr.{precedence}
 import parsley.{Parsley, Result}
 import parsley.Parsley.{atomic, some, pure, notFollowedBy, many}
-import wacc.lexer._
+import wacc.front_end.lexer._
 
 object parser {
   def parse(input: String): Result[String, Prog] = parser.parse(input)

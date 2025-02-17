@@ -1,4 +1,4 @@
-package wacc
+package wacc.front_end
 
 import parsley.Parsley
 import parsley.Parsley.atomic

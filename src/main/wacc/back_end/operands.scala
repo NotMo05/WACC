@@ -9,12 +9,13 @@ enum DataWidth:
 enum MemOpModifier:
   case BytePtr, WordPtr, DWordPtr, QWordPtr
 
-sealed trait Operands
-case class Reg(num: RegName, dataWidth: DataWidth) extends Operands
-case class Imm(value: Int) extends Operands
-case class Label(name: String) extends Operands
+sealed trait Operand
+sealed trait Location extends Operand
+case class Reg(num: RegName, dataWidth: DataWidth = DataWidth.QWord) extends Location
+case class Imm(value: BigInt) extends Operand
+case class Label(name: String) extends Operand
 
-sealed trait MemAddr extends Operands
+sealed trait MemAddr extends Location
 case class BaseAddr(modifer: Option[MemOpModifier], reg: Reg) extends MemAddr
 case class IndexedAddr(modifer: Option[MemOpModifier], reg1: Reg, reg2: Reg) extends MemAddr
 case class DisplAddr(modifer: Option[MemOpModifier], reg1: Reg, disp: Int) extends MemAddr

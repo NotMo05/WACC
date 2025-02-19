@@ -8,6 +8,10 @@ import ExprGen._
 // .intel_syntax noprefix
 // .globl main
 object IR {
+
+  def generateIR(prog: Prog): (List[Section], List[LabelDef]) = {
+    ???
+  }
   val sections = List.newBuilder[Section] // each section is .rodata (read only)
                                           // what follows is .text
   val labelDefs = List.newBuilder[LabelDef] // each function may contain labels/jumping points (ie for loops)

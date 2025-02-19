@@ -3,6 +3,7 @@ package wacc.back_end
 import wacc.front_end._
 import RegName._
 import DataWidth._
+import ExprGen._
 // At the start of each assembly file
 // .intel_syntax noprefix
 // .globl main
@@ -26,7 +27,7 @@ object IR {
   }
 
   def stmtGen(stmt: Stmt): List[Instr] = stmt match {
-    case Skip => ???
+    case Skip => Nil
     case Read(lValue) => ???
     case Free(expr) => ???
     case Return(expr) => ???
@@ -34,17 +35,28 @@ object IR {
       List(
         PUSH(Reg(Rbp, DWord)),
         PUSH(Reg(Rbx, DWord)),
-        MOV(Reg(Rbp, DWord), Reg(Rsp, DWord)),
-        MOV(Reg(Rdi, DWord), Imm(???)), //TODO MUST EVAL EXPR
+        MOV(Reg(Rbp, DWord), Reg(Rsp, DWord))) ++
+        exprGen(expr) ++
+        List(MOV(Reg(Rdi, DWord), Reg(R10)))
         // CALL(Label())
-      )
+
     case Print(expr) => ???
     case Println(expr) => ???
     case WhileDo(condition, stmts) => ???
     case IfElse(condition, thenStmts, elseStmts) => ???
-    case Assgn(t, identifier, rValue) => ???
+    case Assgn(t, identifier: QualifiedName, rValue) => assgnGen(t, identifier, rValue)
     case ReAssgn(lValue, rValue) => ???
     case Scope(stmts) => ???
+  }
+
+  def assgnGen(t: Type, identifier: QualifiedName, rValue: RValue) : List[Instr] = {
+    rValue match
+      case expr: Expr => ???
+      case Call(ident, args) => ???
+      case ArrayLiter(elems) => ???
+      case NewPair(fst, snd) => ??? 
+      case Fst(lValue) => ???
+      case Snd(lValue) => ???
   }
 
 

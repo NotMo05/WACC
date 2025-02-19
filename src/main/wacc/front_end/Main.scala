@@ -4,9 +4,11 @@ import scala.io.Source
 import parsley.{Success, Failure}
 import java.io.File
 
-def main(args: Array[String]): Unit = {
-  println("hello WACC!")
+val SUCCESS = 0
+val SYNTAX_ERR = 100
+val SEMANTIC_ERR = 200
 
+def main(args: Array[String]): Unit = {
   val fileName = args(0)
   val file = new File(fileName)
   val fileContent = Array(Source.fromFile(file).mkString)
@@ -18,18 +20,18 @@ def main(args: Array[String]): Unit = {
         if !(errors.isEmpty && semantic.analyse(newProg).isEmpty) then {
           println("Semantic Errors:")
           semantic.analyse(newProg).foreach(println(_))
-          newProg.main.foreach(println(_))
-          sys.exit(200)
+          sys.exit(SEMANTIC_ERR)
         } else {
+          // Code Generation goes here
           print("No Error")
-          sys.exit(0)
+          sys.exit(SUCCESS)
         }
       }
       case Failure(msg) => {
         print("Syntax Error")
         print(msg)
-        sys.exit(100)}
+        sys.exit(SYNTAX_ERR)}
     }
-      case None => println("please enter an expression")
+      case None => println("Please enter an expression")
     }
   }

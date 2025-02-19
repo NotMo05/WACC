@@ -1,4 +1,4 @@
-package wacc
+package wacc.front_end
 
 import scala.collection.mutable
 

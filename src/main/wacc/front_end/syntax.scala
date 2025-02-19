@@ -14,8 +14,7 @@ case class IntLiteral(int: BigInt) extends Expr
 case class BoolLiteral(bool: Boolean) extends Expr
 case class StringLiteral(string: String) extends Expr
 case class CharLiteral(char: Char) extends Expr
-trait IdentTrait extends Expr with LValue with RValue
-case class Ident(identifier: String) extends IdentTrait
+case class Ident(identifier: String) extends Expr, LValue, RValue
 case class ArrayElem(arrayName: Ident, index: List[Expr]) extends Expr, LValue
 
 object IntLiteral extends ParserBridge1[BigInt, IntLiteral]

@@ -2,7 +2,6 @@ package wacc.front_end
 
 import parsley.Parsley
 import parsley.Parsley.atomic
-// import parsley.syntax.character.stringLift
 import parsley.token.{Lexer, Basic}
 import parsley.token.descriptions._
 import parsley.character.string

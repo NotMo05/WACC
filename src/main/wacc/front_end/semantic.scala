@@ -1,6 +1,5 @@
 package wacc.front_end
-// We need the AST from syntax analysis to include position information (as a
-// secondary parameter list to each of the case classes)
+
 object semantic {
   val semErrors = List.newBuilder[String]
 
@@ -37,7 +36,7 @@ object semantic {
         case None => None
         case t => t
 
-      // need to do Args list and function check?
+      // Check right num and types of arguments in function call
       case Call(ident, args) => ident match
         case qn: QualifiedFunc if qn.t == Undefined => None
         case qn: QualifiedFunc if
@@ -45,17 +44,16 @@ object semantic {
           qn.paramTypes.zip(args.map(getExprType(_)).flatten).forall((a,b) =>
             a weakensTo b) => Some(qn.t)
         case _ =>
-          semErrors += "issue with parameters"; None
-        // Check right num and type of arguments
+          semErrors += "Unexpected issue with parameters, incorrect number of args or types don't match"; None
 
       case ArrayLiter(elems) => arrayLiterHandle(elems)
       case NewPair(fst, snd) => newPairHandle(fst, snd)
       case Fst(lValue) => pairElemHandle(lValue) match
-        case None => semErrors += "SOMETHING";None
+        case None => semErrors += "Expected a valid type here in pair first";None
         case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType))
         case Some(PairType(t1, _)) => Some(t1.asInstanceOf[Type])
       case Snd(lValue) => pairElemHandle(lValue) match
-        case None => semErrors += "SOMETHING";None
+        case None => semErrors += "Expected a valid type here in pair second";None
         case Some(PairType(_, Pair)) => Some(PairType(AnyType, AnyType))
         case Some(PairType(_, t2)) => Some(t2.asInstanceOf[Type])
   }
@@ -65,11 +63,11 @@ object semantic {
       case ident: Ident => getExprType(ident)
       case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index)
       case Fst(lValue) => pairElemHandle(lValue) match
-        case None => semErrors += "SOMETHING";None
+        case None => semErrors += "Expected a valid type here in pair first";None
         case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType))
         case Some(PairType(t1, _)) => Some(t1.asInstanceOf[Type])
       case Snd(lValue) => pairElemHandle(lValue) match
-        case None => semErrors += "SOMETHING";None
+        case None => semErrors += "Expected a valid type here in pair second";None
         case Some(PairType(_, Pair)) => Some(PairType(AnyType, AnyType))
         case Some(PairType(_, t2)) => Some(t2.asInstanceOf[Type])
   }
@@ -77,7 +75,7 @@ object semantic {
   def getExprType(expr: Expr): Option[Type] = {
     expr match
       case qn: QualifiedName => qn.t match
-        case Undefined => None // NEED TO MAKE A UNDECLARED TYPE TO MATCH HERE
+        case Undefined => None 
         case t => Some(t)
       case op: Operator => getOperType(op)
       case IntLiteral(_) => Some(IntType)
@@ -86,33 +84,23 @@ object semantic {
       case CharLiteral(_) => Some(CharType)
       case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index)
       case NullLiteral => Some(PairType(AnyType, AnyType))
-      case Ident(_) => None // Ident should have a type by now
+      case Ident(_) => None
   }
 
-  // Perhaps use weakening here?
   private def exprsMatchType(expr1: Expr, expr2: Expr, t: Type): Option[Boolean] = {
     val expr1Type = getExprType(expr1)
     val expr2Type = getExprType(expr2)
     expr1Type match
-      // expr1 matches target type
       case Some(x) if x == t => expr2Type match
-        // expr2 also matches target type
         case Some(y) if y == t => Some(true)
-        // expr2 has type that doesn't match target
         case Some(y) => semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(t)}"; Some(false)
-        // expr2 has no type (e.g., undeclared variables)
         case _ => None
-      // expr1 has type that doesn't match target
       case Some(x) => expr2Type match
-        // expr2 matches target type
         case Some(y) if y == t => semErrors +=
           s"Type error: unexpected ${typeToString(x)} expected ${typeToString(t)}"; Some(false)
-        // expr2 also has type that doesn't match target
         case Some(y) => semErrors +=
           s"Type error: unexpected ${typeToString(x)} and ${typeToString(y)} expected '${typeToString(t)}'s"; Some(false)
-        // expr2 has no type (e.g., undeclared variables)
         case None => None
-      // expr1 has no type (e.g., undeclared variables)
       case None => None
   }
 
@@ -120,28 +108,19 @@ object semantic {
     val expr1Type = getExprType(expr1)
     val expr2Type = getExprType(expr2)
     expr1Type match
-      // expr1 matches one of target types
       case Some(x) if (x == t1 || x == t2) => expr2Type match
-        // expr2 also matches same target
         case Some(y) if (y == x) => Some(true)
-        // expr2 has type that doesn't match the same target
         case Some(y) => semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)}"; Some(false)
-        // expr2 has no type (e.g., undeclared variables)
         case None => None
-      // expr1 has type that doesn't match one of targets
       case Some(x) => expr2Type match
-        // expr2 matches one of target types
         case Some(y) if (y == t1 || y == t2) => semErrors +=
           s"Type error: unexpected ${typeToString(x)} expected ${typeToString(y)}"; Some(false)
-        // expr2 also has type that doesn't match one of targets
         case Some(y) => {
           semErrors +=
           s"Type error: unexpected ${typeToString(x)} and ${typeToString(y)} expected to be both ${typeToString(t1)} or both ${typeToString(t2)}"
           Some(false)
         }
-        // expr2 has no type (e.g., undeclared variables)
         case None => None
-      // expr1 has no type (e.g., undeclared variables)
       case None => None
   }
 
@@ -232,11 +211,6 @@ object semantic {
         case _ => None
   }
 
-  // Errors for rtypes for array literals (and perhaps pairs) will be tricky
-  // because of needing to collect all the different types for the errors where
-  // the array liter contains different types (at least that's what the
-  // reference compiler appears to do) and in general we need a way to get the
-  // line itself printed out in the errors.
   def validStmtArgs(stmt: Any, funcType: Option[Type] = None): Unit = {
     stmt match
       case Read(lValue) => getLValueType(lValue) match
@@ -252,16 +226,12 @@ object semantic {
       case Exit(expr) => getExprType(expr) match
         case Some(IntType) => ()
         case _ => semErrors += "error: `exit` statement must be provided with an exit code of type `int`"
-      // rValue needs to be compatible with t but does it need to BE t? Can it be a subtype of t? Do subtypes of t even exist?
-      // NEED SCOPING/SYMBOL TABLE/RENAMING/QUALIFICATION FOR THIS TO CHECK MULTIPLE ASSIGNMENTS
       case Assgn(t, _, rValue) =>
         getRValueType(rValue) match
         case Some(x) =>
           if !(t weakensTo x) then
             semErrors += s"Type error: unexpected ${typeToString(x)} expected ${typeToString(t)} in assignment"
         case None => ()
-      // rValue needs to be compatible with lValue but does it need to BE lValue? Can it be a subtype of lValue? Do subtypes of lValue even exist?
-      // should consider adding string weakening char[] thingy
       case ReAssgn(lValue, rValue) => {
         val lType = getLValueType(lValue)
         val rType = getRValueType(rValue)
@@ -304,12 +274,10 @@ object semantic {
 
       case Skip => ()
   }
-//   2.3.4 Sequentialisation and No-ops
-// The ‘skip’ statement has no effect on the program when executed. Given ‘𝑆1 ; 𝑆2’, first, the statement
-// 𝑆1 is executed, and then the statement 𝑆2 is executed, observing any changes that 𝑆1 may have made
-// during execution. Note that ‘skip ; 𝑆’ and ‘𝑆 ; skip’ MUST both be semantically equivalent to ‘𝑆’.
-// The ‘skip’ statement can be used to ignore unused branches of conditional statements, for instance
 
+/* Ensures that reading is defined properly with types
+ * Builds on errors if incorrect type encountered
+ */
   def validRead(lValue: LValue) = {
     val lValueType = getLValueType(lValue)
     lValueType match
@@ -317,6 +285,14 @@ object semantic {
       case Some(CharType) => ()
       case _ => semErrors += "error: `read` must be followed by an `int` or `char`"
   }
+
+  /**
+   * Creates a new PairType from two given expressions if both expressions have valid types.
+   *
+   * @param fst The first expression to be paired.
+   * @param snd The second expression to be paired.
+   * @return An Option containing the PairType if both expressions have valid types, otherwise None.
+   */
 
   def newPairHandle(fst: Expr, snd: Expr): Option[PairType] = {
     val fstType = getExprType(fst) match
@@ -347,67 +323,71 @@ object semantic {
       case ident: Ident =>
         getExprType(ident) match
           case Some(pairType: PairType)=> Some(pairType)
-          case _ => semErrors += "SOMETHING"; None  // Error?
+          case _ => semErrors += s"Expected pair type here, this var is ${getExprType(ident)}"; None
 
       case ArrayElem(arrayName, index) =>
         arrayElemHandle(arrayName, index) match
           case Some(pairType: PairType)=> Some(pairType)
-          case _ => semErrors += "SOMETHING"; None // Error?
+          case _ => semErrors += s"Expected pair type here, instead found ${arrayElemHandle(arrayName, index)}"; None
       case Fst(lValue) => pairElemHandle(lValue) match
-        case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType)) /// AnyType?
-        case _ => semErrors += "SOMETHING"; None // Error, called fst twice at this point so should atleast be a pair with a pair inside
-
-
-
+        case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType))
+        case _ => semErrors += s"Calling fst on a non-pair type, found ${pairElemHandle(lValue)}"; None
       case Snd(lValue) => pairElemHandle(lValue) match
         case Some(PairType(_, Pair)) => Some(PairType(AnyType, AnyType))
-        case _ => semErrors += "SOMETHING"; None // Error, called fst twice at this point so should atleast be a pair with a pair inside
+        case _ => semErrors += s"Calling snd on a non-pair type, found ${pairElemHandle(lValue)}"; None
   }
 
   // Need to move error outside this function and potentially return list of different types in array
-  def arrayLiterHandle(elems: List[Expr]): Option[ArrayType] = {
-    // get the distinct list of the types of the expressions in the list
-    // Likely need to be doing this in a for loop like below so that we have
-    // access to each Expr's position info
 
+  /**
+   * Handles the creation of an ArrayType from a list of expressions.
+   * It checks the types of the expressions in the list and determines the appropriate ArrayType.
+   *
+   * @param elems The list of expressions to be converted into an ArrayType.
+   * @return An Option containing the ArrayType if the expressions have valid types, otherwise None.
+   */
+  def arrayLiterHandle(elems: List[Expr]): Option[ArrayType] = {
+    // Get the list of the types of the expressions in the list
     val potentialArrayTypes: List[Option[Type]] = elems.map(getExprType(_)).toList
 
-    // Means that array liter had undeclared variable(s)
+    // Means that array literal had undeclared variable(s)
     if (potentialArrayTypes.contains(None)) {
       None
-    }
-    else {
-      // get rid of duplicate Option[Type]s
+    } else {
+      // Get rid of duplicate Option[Type]s
       val distinctArrayTypes: List[Type] = potentialArrayTypes.distinct.flatten
-      // Means that array liter was empty
+
+      // Means that array literal was empty
       distinctArrayTypes.size match
         case 0 => Some(ArrayType(AnyType, 1))
-        case 1 => {
+        case 1 =>
           val arrayType = distinctArrayTypes.head
           arrayType match
             case ArrayType(t, d) => Some(ArrayType(t, d + 1))
             case baseOrPairType => Some(ArrayType(baseOrPairType, 1))
-        }
-        case 2 => {
+        case 2 =>
           val t1 = distinctArrayTypes(0)
           val t2 = distinctArrayTypes(1)
-          (t1, t2) match {
-            case (ArrayType(_,d1), ArrayType(_,d2)) => {
-              if t1 weakensTo t2 then Some((ArrayType(t1, d1 + 1)))
-              else if t2 weakensTo t1 then Some((ArrayType(t2, d1 + 1)))
+          (t1, t2) match
+            case (ArrayType(_, d1), ArrayType(_, d2)) =>
+              if t1 weakensTo t2 then Some(ArrayType(t1, d1 + 1))
+              else if t2 weakensTo t1 then Some(ArrayType(t2, d1 + 1))
               else None
-            }
-            case (_, _) => {
-              if t1 weakensTo t2 then Some((ArrayType(t1, 1)))
-              else if t2 weakensTo t1 then Some((ArrayType(t2, 1)))
+            case (_, _) =>
+              if t1 weakensTo t2 then Some(ArrayType(t1, 1))
+              else if t2 weakensTo t1 then Some(ArrayType(t2, 1))
               else None
-            }
-          }
-        }
-        case _ => semErrors += "error: literal contains mix of different types"; None
-      }
+        case _ =>
+          semErrors += "error: literal contains mix of different types"
+          None
     }
+  }
 
+  /** Handling for referencing an elem in a handle
+   * @param arrayName name of the array
+   * @param index position of the element in the array
+   * @return The type of the element
+   */
   def arrayElemHandle(arrayName: Ident, index: List[Expr]): Option[Type] = {
     val indexTypes = index.map(getExprType(_)).distinct.flatten
     if indexTypes.size != 1 then {

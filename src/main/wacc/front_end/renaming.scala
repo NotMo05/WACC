@@ -72,7 +72,6 @@ def lValueHandler(
     case arrayElem: ArrayElem => exprHandler(arrayElem, current, parent).asInstanceOf[LValue]
     case Fst(lValue) => Fst(lValueHandler(lValue, current, parent))
     case Snd(lValue) => Snd(lValueHandler(lValue, current, parent))
-    case identTrait: IdentTrait => throw new IllegalArgumentException(s"Unexpected IdentTrait: $identTrait")
 }
 
 
@@ -82,7 +81,6 @@ def lValueString(lValue: LValue): String = {
     case ArrayElem(arrayName, index) => arrayName.identifier
     case Fst(lValue) => lValueString(lValue)
     case Snd(lValue) => lValueString(lValue)
-    case identTrait: IdentTrait => throw new IllegalArgumentException(s"Unexpected IdentTrait: $identTrait")
 }
 
 def rValueHandler(

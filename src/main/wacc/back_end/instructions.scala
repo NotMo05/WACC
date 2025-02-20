@@ -7,23 +7,28 @@ enum Cond {
   case E, NE, L, LE, G, GE, A, AE, B, BE, S, NS, O, NO, P, NP
 }
 
-case class ADD(op1: Location, op2: Operand) extends Instr
-case class SUB(op1: Location, op2: Operand) extends Instr
-case class DIV(op1: Location, op2: Operand) extends Instr
-case class MUL(op1: Location, op2: Operand) extends Instr
+case class ADD(ops: (Reg, Location) | (Location, Reg) | (Location, Imm)) extends Instr
+case class SUB(ops: (Reg, Location) | (Location, Reg) | (Location, Imm)) extends Instr
+case class DIV(ops: (Reg, Location) | (Location, Reg) | (Location, Imm)) extends Instr
+case class MUL(ops: (Reg, Location)) extends Instr
 
-case class AND(op1: Location, op2: Operand) extends Instr
-case class OR(op1: Location, op2: Operand) extends Instr
-case class XOR(op1: Location, op2: Operand) extends Instr
+case class AND(ops: (Reg, Location) | (Location, Reg) | (Location, Imm)) extends Instr
+case class OR(ops: (Reg, Location) | (Location, Reg) | (Location, Imm)) extends Instr
+case class XOR(ops: (Reg, Location) | (Location, Reg) | (Location, Imm)) extends Instr
+
+case class NEG(op: Location) extends Instr
 case class NOT(op: Location) extends Instr
 
 case class PUSH(op: Operand) extends Instr
 case class POP(op: Location) extends Instr
 case class MOV(op1: Location, op2: Operand) extends Instr
+// Mov takes some other weird Operands
 
 
-case class CMP(op1: Location, op2: Operand) extends Instr
+case class CMP(ops: (Reg, Location) | (Location, Reg) | (Location, Imm)) extends Instr
 case class SETCond(cond: Cond, op: Location) extends Instr
+
+
 case class RET() extends Instr
 case class CALL(op: Label) extends Instr
 

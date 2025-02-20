@@ -20,7 +20,6 @@ object ExprGen {
       case BoolLiteral(bool) => List(MOV(Reg(R10, Byte), Imm(if bool then 1 else 0)))
       case CharLiteral(char) => List(MOV(Reg(R10, Byte), Imm(char.toInt)))
       case op: Operator => opGen(op)
-      
       case StringLiteral(string) => ???
       case qn: QualifiedName => ???
       case ArrayElem(arrayName, index) => ???
@@ -87,11 +86,10 @@ object ExprGen {
       case Or(l, r) => 
         binaryOpHelper(l,r) :+
         OR(Reg(R10), Reg(R11))
-      
+    
       case Neg(x) => {
         exprGen(x) ++
-        List(NOT(Reg(R10)),
-        ADD(Reg(R10), Imm(1))) ++
+        List(NEG(Reg(R10))) ++
         overflowErr(R10)
       }
 
@@ -125,3 +123,4 @@ object ExprGen {
     Nil
   }
 }
+

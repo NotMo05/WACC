@@ -40,7 +40,7 @@ object IR {
         PUSH(Reg(Rbp, DWord)),
         PUSH(Reg(Rbx, DWord)),
         MOV(Reg(Rbp, DWord), Reg(Rsp, DWord))) ++
-        exprGen(expr) ++
+        exprGen(expr, 10) ++
         List(MOV(Reg(Rdi, DWord), Reg(R10)))
         // CALL(Label())
 

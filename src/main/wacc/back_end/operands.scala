@@ -22,3 +22,22 @@ case class DisplAddr(modifer: Option[MemOpModifier], reg1: Reg, disp: Int) exten
 case class RegScale(modifer: Option[MemOpModifier], reg1: Reg, scale: Int, reg2: Reg) extends MemAddr
 case class RegScaleImm(modifer: Option[MemOpModifier], reg1: Reg, scale: Int, reg2: Reg, imm: Int) extends MemAddr
 case class ScaleImm(modifer: Option[MemOpModifier], reg: Reg, scale: Int, imm: Int) extends MemAddr
+
+object RegName {
+  implicit val intToRegMap: Map[Int, RegName] = Map(
+    10 -> RegName.R10,
+    11 -> RegName.R11,
+    12 -> RegName.R12,
+    13 -> RegName.R13,
+    14 -> RegName.R14,
+    15 -> RegName.R15
+  )
+
+  val regToIntMap: Map[RegName, Int] = intToRegMap.map(_.swap)
+
+  implicit def intToRegName(regNum: Int): RegName = 
+    intToRegMap.getOrElse(regNum, throw new IllegalArgumentException(s"Invalid register number: $regNum"))
+  
+  implicit def RegToInt(regNum: RegName): Int =
+    regToIntMap.getOrElse(regNum, throw new IllegalArgumentException(s"Invalid register name: $regNum"))
+}

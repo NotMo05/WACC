@@ -3,7 +3,7 @@ package wacc.front_end
 import scala.collection.mutable
 
 class QualifiedName(val name: String, val num: Int, val t:Type) extends Ident(name) {
-  override def toString() = {s"QualifiedName(name=$name, num=$num, t=$t)"}
+  override def toString() = {s"$name$num"}
 }
 
 class QualifiedFunc(val t: Type, funcName: String, val paramNum: Int, val paramTypes: List[Type]) extends Ident(funcName) {

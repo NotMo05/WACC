@@ -15,8 +15,9 @@ case class Reg(num: RegName, dataWidth: DataWidth = DataWidth.QWord) extends Loc
 case class Imm(value: BigInt) extends Operand
 case class Label(name: String) extends Operand
 
-sealed trait MemAddr extends Location
-case class BaseAddr(modifer: Option[MemOpModifier], reg: Reg) extends MemAddr
+// Change MOV to take the special things, make the other things not extend MemAddr
+sealed trait MemAddr 
+case class BaseAddr(modifer: Option[MemOpModifier], reg: Reg) extends MemAddr, Location
 case class IndexedAddr(modifer: Option[MemOpModifier], reg1: Reg, reg2: Reg) extends MemAddr
 case class DisplAddr(modifer: Option[MemOpModifier], reg1: Reg, disp: Int) extends MemAddr
 case class RegScale(modifer: Option[MemOpModifier], reg1: Reg, scale: Int, reg2: Reg) extends MemAddr

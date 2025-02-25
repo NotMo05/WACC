@@ -10,21 +10,25 @@ import wacc.back_end.Cond._
 
 // TODO: 
 // Len (Requires Arrays)
-// String, Ident, and Array Generators need Implementation
+// String, and Array Generators need Implementation
 // Char err (Bounds)
 // overflowErr Instructions (At Bottom)
 // divByZeroErr Instructions (At Bottom)
 
 object ExprGen {
-  def exprGen(expr: Expr, regNum: Int): List[Instr] = {
-    expr match
+  def exprGen(expr: Expr, regNum: Int = 10): List[Instr] = {
+    expr match 
       case NullLiteral => List(MOV(Reg(regNum, QWord), Imm(0)))
       case IntLiteral(int) => List(MOV(Reg(regNum, DWord), Imm(int)))
       case BoolLiteral(bool) => List(MOV(Reg(regNum, Byte), Imm(if bool then 1 else 0)))
       case CharLiteral(char) => List(MOV(Reg(regNum, Byte), Imm(char.toInt)))
       case op: Operator => opGen(op, regNum)
+      case qn: QualifiedName => {
+        val offset = Stack.frames.last.identTable(qn)
+        val memOp = Stack.intToMemOpModifier.get(Stack.typeToSize(qn.t))
+        List(MOV(Reg(regNum), DisplAddr(memOp, Reg(Rbp), offset)))
+      }
       case StringLiteral(string) => stringGen()
-      case qn: QualifiedName => varGen()
       case ArrayElem(arrayName, index) => arrayElemGen()
   }
 
@@ -130,7 +134,5 @@ object ExprGen {
 
   def stringGen() = ???
   def arrayElemGen() = ???
-  def varGen() = ???
-
 }
 

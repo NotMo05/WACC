@@ -2,17 +2,19 @@ package wacc.back_end
 
 import Cond._
 import java.io.PrintWriter
+import java.nio.file.Paths
 
 object AssemblyWriter {
   val assemblyBuilder = List.newBuilder[String]
 
   def generateAsmFile(ir: (List[Section], List[LabelDef]), filename: String) = {
+    val file = Paths.get(filename).getFileName.toString
     ir._2.map(labelHandler(_))
     val finalAssembly = assemblyBuilder.result()
     
-    val writer = new PrintWriter(s"${filename.dropRight(5)}.s")
-    finalAssembly.foreach(writer.println) // Writes each line
-    writer.close() // Always close the writer
+    val writer = new PrintWriter(s"${file.dropRight(5)}.s")
+    finalAssembly.foreach(writer.println)
+    writer.close()
     
   }
 

@@ -39,6 +39,9 @@ object IR {
     instructionBuilder += SUB(Reg(Rsp), Imm(-Stack.frames.last.currentDepth))
     println(Stack.frames.last.identTable)
     stmts.map(stmtGen(_, instructionBuilder))
+    instructionBuilder += ADD(Reg(Rsp), Imm(Stack.frames.last.currentDepth))
+    instructionBuilder += POP(Reg(Rbp))
+    instructionBuilder += RET
     return LocalLabelDef("main", instructionBuilder)
   }
 

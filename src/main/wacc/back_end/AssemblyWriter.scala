@@ -55,7 +55,7 @@ object AssemblyWriter {
         case POP(op) => s"pop $op"
         case CMP((op1, op2)) => s"cmp $op1, $op2 "
         case SETCond(cond, op) => "SET" + condToAsm(cond) + s"$op"
-        case RET() => s"ret"
+        case RET => s"ret"
         case CALL(op) => s"call $op"
         case CDQ => "cdq"
         case JCond(cond, label) => "j" + condToAsm(cond) + s"$label"

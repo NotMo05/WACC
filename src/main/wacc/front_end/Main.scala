@@ -8,6 +8,9 @@ import wacc.back_end.ExprGen._
 import wacc.back_end.Stack
 import wacc.back_end.IR.mainGenerate
 import wacc.back_end.IR.generate
+import wacc.back_end.LabelDef
+import wacc.back_end.LocalLabelDef
+import wacc.back_end.AssemblyWriter.generateAsmFile
 val SUCCESS = 0
 val SYNTAX_ERR = 100
 val SEMANTIC_ERR = 200
@@ -26,7 +29,8 @@ def main(args: Array[String]): Unit = {
           semantic.analyse(newProg).foreach(println(_))
           sys.exit(SEMANTIC_ERR)
         } else {
-          generate(newProg)
+          val mainLabel = LocalLabelDef("main", generate(newProg))
+          generateAsmFile(List(), List(mainLabel))
           print("No Error")
           sys.exit(SUCCESS)
         }

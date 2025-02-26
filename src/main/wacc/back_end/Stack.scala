@@ -22,24 +22,18 @@ object Stack {
       case AnyType => ???
   }
 
-  val intToMemOpModifier = Map(
-    8 -> MemOpModifier.QWordPtr,
-    4 -> MemOpModifier.DWordPtr,
-    2 -> MemOpModifier.WordPtr,
-    1 -> MemOpModifier.BytePtr
-  )
-
 }
 
 case class StackFrame(stmts: List[Stmt]) {
   val identTable: mutable.Map[QualifiedName, Int] = mutable.Map()
-  var currentDepth: Int = 1
+  var currentDepth: Int = 0
     
   for (stmt <- stmts) {
     stmt match {
       case Assgn(t, qn: QualifiedName, rValue) =>
+        //Check order
+        currentDepth -= typeToSize(t)
         identTable(qn) = currentDepth
-        currentDepth += typeToSize(t)
       case _ => None
     }
   }

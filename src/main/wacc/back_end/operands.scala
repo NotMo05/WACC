@@ -28,8 +28,11 @@ sealed trait Location extends Operand {
     case OffsetAddr(None, reg1, disp) if disp == 0 => s"[$reg1]" //mov \byte ptr [rax + 16]\ rsi 
     case OffsetAddr(Some(memOpModifier), reg1, disp) => s"$memOpModifier [$reg1 - ${-disp}]"
     case OffsetAddr(None, reg1, disp) => s"[$reg1 - ${-disp}]"
+
     case regScaleImm: RegScaleImm => ???
     case scaleImm: ScaleImm => ???
+    case wacc.back_end.Reg(_, _) => ???
+    case wacc.back_end.RegScale(Some(memOpModifier), reg1, scale, reg2) => s"$memOpModifier [$reg1 + $scale*$reg2]"
   }
 
 }

@@ -30,7 +30,7 @@ def main(args: Array[String]): Unit = {
           sys.exit(SEMANTIC_ERR)
         } else {
           val mainLabel = generate(newProg)
-          generateAsmFile(List(), List(mainLabel))
+          generateAsmFile((List(), List(mainLabel)), fileName)
           print("No Error")
           sys.exit(SUCCESS)
         }

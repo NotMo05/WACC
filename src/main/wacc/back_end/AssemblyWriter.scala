@@ -1,34 +1,37 @@
 package wacc.back_end
 
-import instrument._
 import Cond._
+import java.io.PrintWriter
 
 object AssemblyWriter {
-  val finalAssembly = List.newBuilder[String]
+  val assemblyBuilder = List.newBuilder[String]
 
-  def generateAsmFile(ir: (List[Section], List[LabelDef])) = {
+  def generateAsmFile(ir: (List[Section], List[LabelDef]), filename: String) = {
     ir._2.map(labelHandler(_))
-    val finalA = finalAssembly.result()
-    finalA.foreach(println)
+    val finalAssembly = assemblyBuilder.result()
+    
+    val writer = new PrintWriter(s"${filename.dropRight(5)}.s")
+    finalAssembly.foreach(writer.println) // Writes each line
+    writer.close() // Always close the writer
     
   }
 
   def labelHandler(labelDef: LabelDef): Unit = {
     labelDef match 
       case FuncLabelDef(name, instructions, localLabelDefs) => {
-        finalAssembly += (s"$name:")
+        assemblyBuilder += (s"$name:")
         instructions.result.map(instructionHandler(_))
         localLabelDefs.result.map(labelHandler(_))
       }
       case wacc.back_end.LocalLabelDef(name, instructions) => {
-        finalAssembly += (s"$name:")
+        assemblyBuilder += (s"$name:")
         instructions.result.map(instructionHandler(_))
       }
   }
 
 
   def instructionHandler(instr: Instr) = {
-    finalAssembly += (
+    assemblyBuilder += (
       instr match
         case ADD((op1, op2)) => s"add $op1, $op2 "
         case SUB((op1, op2)) => s"sub $op1, $op2 "

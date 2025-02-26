@@ -8,21 +8,107 @@ enum DataWidth:
 
 enum MemOpModifier:
   case BytePtr, WordPtr, DWordPtr, QWordPtr
+  override def toString(): String = { 
+    this match
+      case BytePtr => "byte ptr"
+      case WordPtr => "word ptr"
+      case DWordPtr => "dword ptr"
+      case QWordPtr => "qword ptr"
+  }
 
-sealed trait Operand
-sealed trait Location extends Operand
-case class Reg(num: RegName, dataWidth: DataWidth = DataWidth.QWord) extends Location
-case class Imm(value: BigInt) extends Operand
-case class Label(name: String) extends Operand
 
-// Change MOV to take the special things, make the other things not extend MemAddr
-sealed trait MemAddr 
-case class BaseAddr(modifer: Option[MemOpModifier], reg: Reg) extends MemAddr, Location
-case class IndexedAddr(modifer: Option[MemOpModifier], reg1: Reg, reg2: Reg) extends MemAddr
-case class DisplAddr(modifer: Option[MemOpModifier], reg1: Reg, disp: Int) extends MemAddr
+sealed trait Operand // Operand is a location or immediate
+sealed trait Location extends Operand {
+  override def toString: String = this match {
+    case indAddr: IndexedAddr => ???
+    // Needs refactoring
+    case OffsetAddr(Some(memOpModifier), reg1, disp) if disp > 0 => s"$memOpModifier [$reg1 + $disp]" //mov \byte ptr [rax + 16]\ rsi 
+    case OffsetAddr(None, reg1, disp) if disp > 0 => s"[$reg1 + $disp]" //mov \byte ptr [rax + 16]\ rsi 
+    case OffsetAddr(Some(memOpModifier), reg1, disp) if disp == 0 => s"$memOpModifier [$reg1]" //mov \byte ptr [rax + 16]\ rsi 
+    case OffsetAddr(None, reg1, disp) if disp == 0 => s"[$reg1]" //mov \byte ptr [rax + 16]\ rsi 
+    case OffsetAddr(Some(memOpModifier), reg1, disp) => s"$memOpModifier [$reg1 - ${-disp}]"
+    case OffsetAddr(None, reg1, disp) => s"[$reg1 - ${-disp}]"
+    case regScaleImm: RegScaleImm => ???
+    case scaleImm: ScaleImm => ???
+  }
+
+}
+case class Reg(num: RegName, dataWidth: DataWidth = DataWidth.QWord) extends Location {
+  override def toString(): String = {
+    num match
+      case RegName.Rax => regABCD(dataWidth, "a")
+      case RegName.Rbx => regABCD(dataWidth, "b")
+      case RegName.Rcx => regABCD(dataWidth, "c")
+      case RegName.Rdx => regABCD(dataWidth, "d")
+      case RegName.Rsi => regSpBpSiDi(dataWidth, "si")
+      case RegName.Rdi => regSpBpSiDi(dataWidth, "di")
+      case RegName.Rsp => regSpBpSiDi(dataWidth, "sp")
+      case RegName.Rbp => regSpBpSiDi(dataWidth, "bp")
+      case RegName.R8 => regNums(dataWidth, "r8")
+      case RegName.R9 => regNums(dataWidth, "r9")
+      case RegName.R10 => regNums(dataWidth, "r10")
+      case RegName.R11 => regNums(dataWidth, "r11")
+      case RegName.R12 => regNums(dataWidth, "r12")
+      case RegName.R13 => regNums(dataWidth, "r13")
+      case RegName.R14 => regNums(dataWidth, "r14")
+      case RegName.R15 => regNums(dataWidth, "r15")
+  }
+}
+
+  def regABCD(dataWidth: DataWidth, regString: String): String = {
+    dataWidth match
+      case DataWidth.Byte => regString + "l"
+      case DataWidth.Word => regString + "x"
+      case DataWidth.DWord => "e" + regString + "x"
+      case DataWidth.QWord => "r" + regString + "x"
+  }
+
+  def regSpBpSiDi(dataWidth: DataWidth, regString: String): String = {
+    dataWidth match
+      case DataWidth.Byte => regString + "l"
+      case DataWidth.Word => regString
+      case DataWidth.DWord => "e" + regString
+      case DataWidth.QWord => "r" + regString
+  }
+
+  def regNums(dataWidth: DataWidth, regString: String): String = {
+    dataWidth match
+      case DataWidth.Byte => regString + "b"
+      case DataWidth.Word => regString + "w"
+      case DataWidth.DWord => regString + "d"
+      case DataWidth.QWord => regString
+  }
+
+
+case class Imm(value: BigInt) extends Operand {
+  override def toString(): String = value.toString()
+}
+case class Label(name: String) extends Operand {
+  override def toString(): String = name.toString()
+}
+
+sealed trait MemAddr extends Location
+case class IndexedAddr(modifer: Option[MemOpModifier], reg1: Reg, reg2: Reg) extends MemAddr 
+// ie mov qword ptr rax, [rbx + rsi]
+
+case class OffsetAddr(modifer: Option[MemOpModifier], reg1: Reg, disp: Int = 0) extends MemAddr // displacement/offset [reg - offset]
+// ie mov qword ptr [rsp + 8], r12
+
 case class RegScale(modifer: Option[MemOpModifier], reg1: Reg, scale: Int, reg2: Reg) extends MemAddr
 case class RegScaleImm(modifer: Option[MemOpModifier], reg1: Reg, scale: Int, reg2: Reg, imm: Int) extends MemAddr
 case class ScaleImm(modifer: Option[MemOpModifier], reg: Reg, scale: Int, imm: Int) extends MemAddr
+
+object MemOpModifier {
+  implicit def intToMemOpModifier(size: Int): MemOpModifier = {
+    size match
+      case 1 => BytePtr
+      case 2 => WordPtr
+      case 4 => DWordPtr
+      case 8 => QWordPtr
+  }
+
+
+}
 
 object RegName {
   implicit val intToRegMap: Map[Int, RegName] = Map(
@@ -39,6 +125,6 @@ object RegName {
   implicit def intToRegName(regNum: Int): RegName = 
     intToRegMap.getOrElse(regNum, throw new IllegalArgumentException(s"Invalid register number: $regNum"))
   
-  implicit def RegToInt(regNum: RegName): Int =
+  implicit def regToInt(regNum: RegName): Int =
     regToIntMap.getOrElse(regNum, throw new IllegalArgumentException(s"Invalid register name: $regNum"))
 }

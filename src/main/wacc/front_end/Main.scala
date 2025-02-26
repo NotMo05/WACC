@@ -29,7 +29,7 @@ def main(args: Array[String]): Unit = {
           semantic.analyse(newProg).foreach(println(_))
           sys.exit(SEMANTIC_ERR)
         } else {
-          val mainLabel = LocalLabelDef("main", generate(newProg))
+          val mainLabel = generate(newProg)
           generateAsmFile(List(), List(mainLabel))
           print("No Error")
           sys.exit(SUCCESS)

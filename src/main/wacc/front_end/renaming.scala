@@ -74,15 +74,6 @@ def lValueHandler(
     case Snd(lValue) => Snd(lValueHandler(lValue, current, parent))
 }
 
-
-def lValueString(lValue: LValue): String = {
-  lValue match
-    case Ident(identifier) => identifier
-    case ArrayElem(arrayName, index) => arrayName.identifier
-    case Fst(lValue) => lValueString(lValue)
-    case Snd(lValue) => lValueString(lValue)
-}
-
 def rValueHandler(
   rValue: RValue,
   current: mutable.Map[String, QualifiedName],

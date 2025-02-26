@@ -13,6 +13,12 @@ object AssemblyWriter {
     val finalAssembly = assemblyBuilder.result()
     
     val writer = new PrintWriter(s"${file.dropRight(5)}.s")
+    val boilerplate = List(
+      ".intel_syntax noprefix",
+      ".globl main",
+      ".section .rodata",
+      ".text")
+    boilerplate.foreach(writer.println)
     finalAssembly.foreach(writer.println)
     writer.close()
     

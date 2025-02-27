@@ -5,7 +5,6 @@ import wacc.back_end.DataWidth._
 import wacc.back_end.Cond._
 import scala.collection.mutable.Builder
 import wacc.back_end.IR.repeatAccessArray
-import scala.util.control.Exception.By
 
 // Complete:
 // All Ops / Len
@@ -20,7 +19,7 @@ import scala.util.control.Exception.By
 
 object ExprGen {
   def exprGen(expr: Expr, builder: Builder[Instr, List[Instr]], regNum: Int = 10): (Reg | Imm) = {
-    expr match 
+    (expr: @unchecked) match 
       case NullLiteral => Imm(0)
       case IntLiteral(int) => Imm(int)
       case BoolLiteral(bool) => Imm(if bool then 1 else 0)

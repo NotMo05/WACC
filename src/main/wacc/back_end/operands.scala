@@ -1,10 +1,12 @@
 package wacc.back_end
+import scala.language.implicitConversions
 
 enum RegName:
   case Rax, Rbx, Rcx, Rdx, Rsi, Rdi, Rsp, Rbp, R8, R9, R10, R11, R12, R13, R14, R15
 
 enum DataWidth:
   case Byte, Word, DWord, QWord
+
 
 enum MemOpModifier:
   case BytePtr, WordPtr, DWordPtr, QWordPtr
@@ -33,6 +35,7 @@ sealed trait Location extends Operand {
     case scaleImm: ScaleImm => ???
     case wacc.back_end.Reg(_, _) => ???
     case wacc.back_end.RegScale(Some(memOpModifier), reg1, scale, reg2) => s"$memOpModifier [$reg1 + $scale*$reg2]"
+    case wacc.back_end.RegScale(None, wacc.back_end.Reg(_, _), _, wacc.back_end.Reg(_, _)) => ???
   }
 
 }
@@ -109,6 +112,13 @@ object MemOpModifier {
       case 4 => DWordPtr
       case 8 => QWordPtr
   }
+  implicit def dataWidthToModifier(dataWidth: DataWidth): MemOpModifier = {
+    dataWidth match
+      case DataWidth.Byte => BytePtr 
+      case DataWidth.Word => WordPtr
+      case DataWidth.DWord => DWordPtr
+      case DataWidth.QWord => QWordPtr
+}
 }
 
 object DataWidth {
@@ -119,6 +129,7 @@ object DataWidth {
       case 4 => DWord
       case 8 => QWord
   }
+
 }
 
 object RegName {

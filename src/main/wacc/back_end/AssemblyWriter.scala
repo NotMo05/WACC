@@ -60,6 +60,7 @@ object AssemblyWriter {
         case CALL(op) => s"call $op"
         case CDQ => "cdq"
         case JCond(cond, label) => "j" + condToAsm(cond) + s"$label"
+        case LEA((op1, op2)) => s"lea $op1, $op2 "
 
     )
   }

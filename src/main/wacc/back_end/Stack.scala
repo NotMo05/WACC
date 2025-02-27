@@ -7,6 +7,8 @@ import wacc.back_end.Stack.typeToSize
 object Stack {
   var frames: List[StackFrame] = Nil
 
+  def getOffset(qn: QualifiedName) = frames.last.identTable(qn)
+
   def initialise(stmts: List[Stmt]) = {
     frames = List(StackFrame(stmts))
   }

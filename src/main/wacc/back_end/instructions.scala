@@ -34,14 +34,14 @@ case class CMP(ops: FullOps) extends Instr
 case class SETCond(cond: Cond, op: Location) extends Instr
 case class JCond(cond: Cond, label: Label) extends Instr
 
-case object RET extends Instr
 case class CALL(op: Label) extends Instr
+case class LEA(ops: (Reg, Location)) extends Instr
 
+case object RET extends Instr
 case object CDQ extends Instr
 
 // TODO
 // case class CALL() extends Instr
-// case class LEA() extends Instr
 // case class JMP() extends Instr
 
 

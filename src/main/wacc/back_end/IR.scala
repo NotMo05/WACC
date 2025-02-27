@@ -46,7 +46,6 @@ object IR {
     instructionBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
     Stack.initialise(stmts)
     instructionBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
-    println(Stack.frames.last.identTable)
     stmts.map(stmtGen(_, instructionBuilder))
 
     instructionBuilder += MOV(Reg(Rax, QWord), Imm(0))

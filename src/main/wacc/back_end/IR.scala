@@ -54,7 +54,7 @@ object IR {
       builder.addAll(
         List(
           MOV(Reg(Rdi, DWord), exprGen(expr, builder)), // expr can be assumed to be an int
-          AND(Reg(Rsp, DWord), Imm(STACK_ALIGN)),       // exit can only take an int 
+          AND(Reg(Rsp, QWord), Imm(STACK_ALIGN)),       // exit can only take an int 
           CALL(Label("exit@plt"))
         )
       )

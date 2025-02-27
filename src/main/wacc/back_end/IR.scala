@@ -39,7 +39,8 @@ object IR {
     instructionBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
     println(Stack.frames.last.identTable)
     stmts.map(stmtGen(_, instructionBuilder))
-  
+
+    instructionBuilder += MOV(Reg(Rax, QWord), Imm(0))
     instructionBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
     instructionBuilder += POP(Reg(Rbp, QWord))
     instructionBuilder += RET

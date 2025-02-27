@@ -56,73 +56,21 @@ object IR {
     return LocalLabelDef("main", instructionBuilder)
   }
 
-  def stmtGen(stmt: Stmt, builder: Builder[Instr, List[Instr]]) = stmt match {
-    case Skip => Nil
-    case Assgn(t, qn: QualifiedName, rValue) => assgnGen(t, qn, rValue, builder)
-    case ReAssgn(lValue, rValue) => reassgnGen(lValue, rValue, builder)
-    case Exit(expr) => exitGen(expr, builder)
-    case Read(lValue) => readGen(lValue, builder)
-
-    case Free(expr) => {
-      (expr: @unchecked) match 
-        case qn: QualifiedName if qn.t.isInstanceOf[ArrayType] => {
-        builder += movQnToReg(Rdi, qn)
-        }
-        case qn: QualifiedName if qn.t.isInstanceOf[PairElemType] => {
-          ??? // qn.
-        }
-
-
-
-      // val offset = Stack.getOffset()
-
-        // val pairOffset = Stack.getOffset(qn)
-        // builder += MOV(Reg(10, QWord), OffsetAddr(Some(MemOpModifier.QWordPtr), Reg(Rbp, QWord), pairOffset))
-        // builder.addAll(storeInstrs)
-
-
-
-    //   builder.addAll(
-    //     List(
-    //       MOV()
-    //     )
-    //   )
-    // }
-    
-
-	// mov dword ptr [r11 + 8], 3
-	// mov r12, r11
-	// # array pointers are shifted forward by 4 bytes, so correct it back to original pointer before free
-	// mov rdi, r12
-	// sub rdi, 4
-	// # statement primitives do not return results (but will clobber r0/rax)
-	// call _free
-	// mov rax, 0
-	// # pop/peek {rbx, r12}
-	// mov rbx, qword ptr [rsp]
-
-
-// _free:
-// 	push rbp
-// 	mov rbp, rsp
-// 	# external calls must be stack-aligned to 16 bytes, accomplished by masking with fffffffffffffff0
-// 	and rsp, -16
-// 	call free@plt
-// 	mov rsp, rbp
-// 	pop rbp
-// 	ret
-
-
-
-      }
-
-    case Return(expr) => ???
-    case Scope(stmts) => ???
-    case WhileDo(condition, stmts) => ???
-    case IfElse(condition, thenStmts, elseStmts) => ???
-    case Print(expr) => ???
-    case Println(expr) => ???
-    case wacc.front_end.Assgn(_, wacc.front_end.Ident(_), _) => ???  }
+  def stmtGen(stmt: Stmt, builder: Builder[Instr, List[Instr]]) = 
+    (stmt: @unchecked) match {
+      case Skip => Nil
+      case Assgn(t, qn: QualifiedName, rValue) => assgnGen(t, qn, rValue, builder)
+      case ReAssgn(lValue, rValue) => reassgnGen(lValue, rValue, builder)
+      case Exit(expr) => exitGen(expr, builder)
+      case Read(lValue) => readGen(lValue, builder)
+      case Free(expr) => freeGen(expr, builder)
+      case Scope(stmts) => ???
+      case WhileDo(condition, stmts) => ???
+      case IfElse(condition, thenStmts, elseStmts) => ???
+      case Print(expr) => ???
+      case Println(expr) => ???
+      case Return(expr) => ???
+    }
 
   def assgnGen(t: Type, qn: QualifiedName, rValue: RValue, builder: Builder[Instr, List[Instr]]) : Builder[Instr, List[Instr]] = {
     val offset = Stack.getOffset(qn)
@@ -156,7 +104,6 @@ object IR {
           builder += MOV(OffsetAddr(Some(MemOpModifier.QWordPtr), Reg(R9, QWord)), regOrImm)
         }
   }
-
 
   def arrayIndexAccess(pointerAddress:MemAddr, index: Expr, t: Type, builder: Builder[Instr, List[Instr]]): (Int, MemAddr) = {
     builder += MOV(Reg(R9, QWord), pointerAddress)
@@ -324,4 +271,33 @@ object IR {
       )
     )
   }
+
+  def freeGen(expr: Expr, builder:Builder[Instr, List[Instr]]) = {
+    (expr: @unchecked) match 
+      case qn: QualifiedName if qn.t.isInstanceOf[ArrayType] => {
+        builder.addAll(
+          List(
+            movQnToReg(Rdi, qn),
+            SUB(Reg(Rdi, QWord), Imm(4)),
+            AND(Reg(Rsp, QWord), Imm(-16)),
+            CALL(Label("free@plt")),
+            MOV(Reg(Rax, QWord), Imm(0))
+          )
+        )
+      }
+      case qn: QualifiedName if qn.t.isInstanceOf[PairElemType] => {
+        builder += movQnToReg(Rdi, qn)
+        builder.addAll(
+          List(
+            AND(Reg(Rsp, QWord), Imm(-16)),
+            CMP(Reg(Rdi, QWord), Imm(0)),
+            JCond(Cond.E, Label("_errNull")),
+            CALL(Label("free@plt")),
+            MOV(Reg(Rax, QWord), Imm(0))
+          )
+        )
+      }
+    }
+
+    
 }

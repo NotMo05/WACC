@@ -3,3 +3,4 @@
 .scala-build/
 .vscode/
 src/test/wacc/wacc-examples/valid_trees
+src/test/wacc/wacctest.wacc

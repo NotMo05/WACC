@@ -1,15 +1,8 @@
 package wacc.front_end
-
 import scala.io.Source
 import parsley.{Success, Failure}
 import java.io.File
-import wacc.back_end.ExprGen
-import wacc.back_end.ExprGen._
-import wacc.back_end.Stack
-import wacc.back_end.IR.mainGenerate
 import wacc.back_end.IR.generate
-import wacc.back_end.LabelDef
-import wacc.back_end.LocalLabelDef
 import wacc.back_end.AssemblyWriter.generateAsmFile
 val SUCCESS = 0
 val SYNTAX_ERR = 100

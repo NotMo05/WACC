@@ -150,3 +150,7 @@ object RegName {
   implicit def regToInt(regNum: RegName): Int =
     regToIntMap.getOrElse(regNum, throw new IllegalArgumentException(s"Invalid register name: $regNum"))
 }
+
+object Reg {
+  implicit def regNameToReg(regName: RegName): Reg = Reg(regName, DataWidth.QWord)
+}

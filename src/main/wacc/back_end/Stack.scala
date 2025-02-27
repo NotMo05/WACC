@@ -9,21 +9,19 @@ object Stack {
 
   def getOffset(qn: QualifiedName) = frames.last.identTable(qn)
 
-  def initialise(stmts: List[Stmt]) = {
-    frames = List(StackFrame(stmts))
-  }
+  def initialise(stmts: List[Stmt]) = frames = List(StackFrame(stmts))
+  
   
   def typeToSize(t: Type): Int = {
-    t match 
-      case PairType(t1, t2) => 8 // I think these
-      case ArrayType(t, d) => 8 // are all 8
-      case StringType => 8 // cuz they're pointers?
+    (t: @unchecked) match 
+      case PairType(t1, t2) => 8
+      case ArrayType(t, d) => 8
+      case StringType => 8
       case IntType => 4
       case BoolType => 1
       case CharType => 1
       case AnyType => ???
   }
-
 }
 
 case class StackFrame(stmts: List[Stmt]) {

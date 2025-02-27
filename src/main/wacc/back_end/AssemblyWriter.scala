@@ -41,11 +41,11 @@ object AssemblyWriter {
 
   def instructionHandler(instr: Instr) = {
     assemblyBuilder += (
-      instr match
+      (instr: @unchecked) match
         case ADD((op1, op2)) => s"add $op1, $op2 "
         case SUB((op1, op2)) => s"sub $op1, $op2 "
-        case IDIV(op) => s"div $op"
-        case IMUL((op1, op2)) => s"mul $op1, $op2 "
+        case IDIV(op) => s"idiv $op"
+        case IMUL((op1, op2)) => s"imul $op1, $op2 "
         case AND((op1, op2)) => s"and $op1, $op2 "
         case OR((op1, op2)) => s"or $op1, $op2"
         case XOR((op1, op2)) => s"xor $op1, $op2"

@@ -2,7 +2,7 @@ package wacc.front_end
 import scala.io.Source
 import parsley.{Success, Failure}
 import java.io.File
-import wacc.back_end.IR.generate
+import wacc.back_end.IR.generateIR
 import wacc.back_end.AssemblyWriter.generateAsmFile
 val SUCCESS = 0
 val SYNTAX_ERR = 100
@@ -22,8 +22,8 @@ def main(args: Array[String]): Unit = {
           semantic.analyse(newProg).foreach(println(_))
           sys.exit(SEMANTIC_ERR)
         } else {
-          val mainLabel = generate(newProg)
-          generateAsmFile((List(), List(mainLabel)), fileName)
+          val IR = generateIR(newProg)
+          generateAsmFile(IR, fileName)
           print("No Error")
           sys.exit(SUCCESS)
         }

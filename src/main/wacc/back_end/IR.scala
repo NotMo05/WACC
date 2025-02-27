@@ -14,14 +14,14 @@ import scala.collection.mutable.{Builder}
 object IR {
   val STACK_ALIGN = -16
   def generateIR(prog: Prog): (List[Section], List[LabelDef]) = {
-    ???
+    return(List(), List(generate(prog)))
   }
   val sections = List.newBuilder[Section] // each section is .rodata (read only)
                                           // what follows is .text
-  val labelDefs = List.newBuilder[LabelDef] // each function may contain labels/jumping points (ie for loops)
+  val funcLabelDefs = List.newBuilder[FuncLabelDef] // each function may contain labels/jumping points (ie for loops)
 
   // Data width defaults to QWord for moving pointers in registers
-  def movQnToReg(destReg: RegName, qn: QualifiedName, dataWidth: DataWidth = QWord) =    
+  def movQnToReg(destReg: RegName, qn: QualifiedName, dataWidth: DataWidth = QWord) =
    MOV(Reg(destReg, dataWidth), OffsetAddr(Some(MemOpModifier.QWordPtr), Reg(Rbp, QWord), Stack.getOffset(qn)))
 
   def movRegOrImmToMem(srcRegOrImm: RegName | Imm, qn: QualifiedName, dataWidth: DataWidth = QWord) = {
@@ -35,13 +35,14 @@ object IR {
 
   }
 
-  def generate(prog: Prog) = prog match {
+  def generate(prog: Prog): LabelDef = prog match {
     case Prog(_, main) =>
       mainGenerate(main)
   }
 
   def mainGenerate(stmts: List[Stmt]): LabelDef = {
     val instructionBuilder = List.newBuilder[Instr]
+    val localLabelBuilder = List.newBuilder[LocalLabelDef]
     instructionBuilder += PUSH(Reg(Rbp, QWord))
     instructionBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
     Stack.initialise(stmts)
@@ -53,10 +54,10 @@ object IR {
     instructionBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
     instructionBuilder += POP(Reg(Rbp, QWord))
     instructionBuilder += RET
-    return LocalLabelDef("main", instructionBuilder)
+    return FuncLabelDef("main", instructionBuilder, localLabelBuilder)
   }
 
-  def stmtGen(stmt: Stmt, builder: Builder[Instr, List[Instr]]) = 
+  def stmtGen(stmt: Stmt, builder: Builder[Instr, List[Instr]]) =
     (stmt: @unchecked) match {
       case Skip => Nil
       case Assgn(t, qn: QualifiedName, rValue) => assgnGen(t, qn, rValue, builder)
@@ -77,7 +78,7 @@ object IR {
     val dataWidth = Stack.typeToSize(t)
     storeOnStack(rValue, dataWidth, offset, builder, t)
   }
-  
+
   def reassgnGen(lValue: LValue, rValue: RValue, builder: Builder[Instr, List[Instr]]) = {
     (lValue: @unchecked) match
         case qn: QualifiedName => assgnGen(qn.t, qn, rValue, builder)
@@ -136,12 +137,12 @@ object IR {
       case Fst(lValue) => fstSndAddress(lValue, builder); builder += MOV(OffsetAddr(Some(dataWidth), Reg(Rbp, QWord), offset), Reg(R10, dataWidth))
       case Snd(lValue) => fstSndAddress(lValue, builder, 8); builder += MOV(OffsetAddr(Some(dataWidth), Reg(Rbp, QWord), offset), Reg(R10, dataWidth))
       case ArrayLiter(elems) => mallocArrayLiter(elems, t.asInstanceOf[ArrayType], builder); builder += MOV(OffsetAddr(Some(dataWidth), Reg(Rbp, QWord), offset), Reg(Rax, dataWidth))
-      case NewPair(fst, snd) => mallocNewPair(fst, snd, builder); builder += MOV(OffsetAddr(Some(dataWidth), Reg(Rbp, QWord), offset), Reg(Rax, dataWidth))       
+      case NewPair(fst, snd) => mallocNewPair(fst, snd, builder); builder += MOV(OffsetAddr(Some(dataWidth), Reg(Rbp, QWord), offset), Reg(Rax, dataWidth))
       case Call(ident, args) => ???
   }
 
   def mallocArrayLiter(elems: List[Expr], arrayType: ArrayType, builder: Builder[Instr, List[Instr]]) = {
-    
+
     val arrayTypeSize = if arrayType.d != 1 then typeToSize(arrayType) else typeToSize(arrayType)
     builder.addAll(
       List(
@@ -174,7 +175,7 @@ object IR {
   def repeatAccessArray(qn: QualifiedName, index: List[Expr], builder: Builder[Instr, List[Instr]]): (Int, MemAddr) = {
     val arrayElemType = qn.t.asInstanceOf[ArrayType]
     var pointer: MemAddr = OffsetAddr(Some(MemOpModifier.QWordPtr), Reg(Rbp, QWord), Stack.getOffset(qn))
-    for (i <- 1 to index.size - 1) pointer = arrayIndexAccess(pointer, index(i), arrayElemType, builder)._2 
+    for (i <- 1 to index.size - 1) pointer = arrayIndexAccess(pointer, index(i), arrayElemType, builder)._2
     arrayIndexAccess(pointer, index.last, arrayElemType.t, builder)
   }
 
@@ -213,17 +214,17 @@ object IR {
           builder += MOV(pointer, Reg(Rax, dataWidth))
         }
         case Fst(lValue) => readPair(lValue, builder, 0)
-    
+
         case Snd(lValue) => readPair(lValue, builder , 8)
     }
- 
+
   def fstSndAddress(lValue: LValue, builder: Builder[Instr, List[Instr]], fstOrSnd: Int = 0): Reg = {
     val storeInstrs = List(
       CMP(Reg(10, QWord), Imm(0)),
       JCond(Cond.E, Label("_errNull")),
       MOV(Reg(10, QWord), OffsetAddr(Some(MemOpModifier.QWordPtr), Reg(R10, QWord), fstOrSnd))
     )
-    (lValue: @unchecked) match 
+    (lValue: @unchecked) match
       case qn: QualifiedName => {
         movQnToReg(R10, qn)
         builder.addAll(storeInstrs)
@@ -266,14 +267,14 @@ object IR {
     builder.addAll(
       List(
         MOV(Reg(Rdi, DWord), exprGen(expr, builder)), // expr can be assumed to be an int
-        AND(Reg(Rsp, QWord), Imm(STACK_ALIGN)),       // exit can only take an int 
+        AND(Reg(Rsp, QWord), Imm(STACK_ALIGN)),       // exit can only take an int
         CALL(Label("exit@plt"))
       )
     )
   }
 
   def freeGen(expr: Expr, builder:Builder[Instr, List[Instr]]) = {
-    (expr: @unchecked) match 
+    (expr: @unchecked) match
       case qn: QualifiedName if qn.t.isInstanceOf[ArrayType] => {
         builder.addAll(
           List(
@@ -299,5 +300,5 @@ object IR {
       }
     }
 
-    
+
 }

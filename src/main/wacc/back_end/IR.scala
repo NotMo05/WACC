@@ -73,8 +73,7 @@ object IR {
   def assgnGen(t: Type, identifier: QualifiedName, rValue: RValue, builder: Builder[Instr, List[Instr]]) : Builder[Instr, List[Instr]] = {
     val offset = Stack.frames.last.identTable(identifier)
     val memSize = Stack.typeToSize(t)
-    rValueGen(rValue, builder, t)
-    storeOnStack(rValue, memSize, offset, builder)
+    storeOnStack(rValue, memSize, offset, builder, t)
   }
   
   def reassgnGen(lValue: LValue, rValue: RValue, builder: Builder[Instr, List[Instr]]) = {
@@ -124,7 +123,7 @@ object IR {
 
   def rValueGen(rValue: RValue, builder: Builder[Instr, List[Instr]], t: Type = Undefined): (Reg | Imm) = {
     rValue match
-      case expr: Expr => exprGen(expr, builder) // will be fine
+      case expr: Expr => exprGen(expr, builder)
       case Fst(lValue) => fstSndAddress(lValue, builder)
       case Snd(lValue) => fstSndAddress(lValue, builder, 8)
       case ArrayLiter(elems) => mallocArrayLiter(elems, t.asInstanceOf[ArrayType], builder)
@@ -132,13 +131,13 @@ object IR {
       case Call(ident, args) => ???
   }
 
-  def storeOnStack(rValue: RValue, memSize: Int, offset: Int, builder: Builder[Instr, List[Instr]]) = {
+  def storeOnStack(rValue: RValue, memSize: Int, offset: Int, builder: Builder[Instr, List[Instr]], t: Type = Undefined) = {
     rValue match
-      case expr: Expr => builder += MOV(OffsetAddr(Some(memSize), Reg(Rbp, QWord), offset), Reg(10, memSize))
-      case Fst(lValue) => builder += MOV(OffsetAddr(Some(memSize), Reg(Rbp, QWord), offset), Reg(R10, memSize))
-      case Snd(lValue) => builder += MOV(OffsetAddr(Some(memSize), Reg(Rbp, QWord), offset), Reg(R10, memSize))
-      case ArrayLiter(elems) => builder += MOV(OffsetAddr(Some(memSize), Reg(Rbp, QWord), offset), Reg(Rax, memSize))
-      case NewPair(fst, snd) => builder += MOV(OffsetAddr(Some(memSize), Reg(Rbp, QWord), offset), Reg(Rax, memSize))       
+      case expr: Expr => builder += MOV(OffsetAddr(Some(memSize), Reg(Rbp, QWord), offset), exprGen(expr, builder))
+      case Fst(lValue) => fstSndAddress(lValue, builder); builder += MOV(OffsetAddr(Some(memSize), Reg(Rbp, QWord), offset), Reg(R10, memSize))
+      case Snd(lValue) => fstSndAddress(lValue, builder, 8); builder += MOV(OffsetAddr(Some(memSize), Reg(Rbp, QWord), offset), Reg(R10, memSize))
+      case ArrayLiter(elems) => mallocArrayLiter(elems, t.asInstanceOf[ArrayType], builder); builder += MOV(OffsetAddr(Some(memSize), Reg(Rbp, QWord), offset), Reg(Rax, memSize))
+      case NewPair(fst, snd) => mallocNewPair(fst, snd, builder); builder += MOV(OffsetAddr(Some(memSize), Reg(Rbp, QWord), offset), Reg(Rax, memSize))       
       case Call(ident, args) => ???
   }
 

@@ -5,7 +5,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import parsley.{Success, Failure}
 import scala.io.Source
-import java.io.{File}
+import java.io.File
+import java.nio.file.{Files, Paths}
 import wacc.back_end.IR
 import wacc.back_end.AssemblyWriter
 import wacc.back_end.IR.generate
@@ -14,22 +15,40 @@ import scala.sys.process._
 
 class produceAssembly extends AnyFlatSpec {
 
-  def findOutputValue(filePath: String): Option[String] = {
+  val binDir: String = "src/test/wacc/back_end_tests/bin"
+
+  def findOutputValues(filePath: String): List[String] = {
     val source = Source.fromFile(filePath)
     try {
-      source.getLines()
-        .find(_.startsWith("output:")) // Find the first line starting with "output:"
-        .map(_.stripPrefix("output:").trim) // Remove "output:" and trim whitespace
+      val lines = source.getLines()
+        .filter(_.startsWith("#")) // Find all lines starting with "#"
+        .map(_.stripPrefix("#").trim) // Remove "#" and trim whitespace
+        .map(line => "  " + line)
+        .toList
+      
+      // Find indices of "Output:" and "Program:" markers
+      val outputIndex = lines.indexWhere(_.contains("Output:"))
+      val programIndex = lines.indexWhere(_.contains("Program:"))
+      
+      // Return only lines between "Output:" and "Program:"
+      if (outputIndex >= 0 && programIndex > outputIndex) {
+        lines.slice(outputIndex + 1, programIndex)
+          .filter(_.nonEmpty) // Remove empty lines
+          .map(_.replaceAll("\\s", "")) // Remove all whitespace characters
+      } else {
+        List() // Return empty list if markers not found or in wrong order
+      }
     } finally {
       source.close()
     }
   }
 
-  val directoryPath = "src/test/wacc/wacc-examples/valid/"
+  val directoryPath = "src/test/wacc/wacc-examples/valid/basic"
   val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
 
 
   for (file <- files) {
+    
     val fileName = file.getPath
 
     if (fileName.endsWith(".wacc")) {
@@ -46,34 +65,49 @@ class produceAssembly extends AnyFlatSpec {
             assert(errors.isEmpty && semantic.analyse(newProg).isEmpty)
             val mainLabel = generate(newProg)
             generateAsmFile((List(), List(mainLabel)), fileName, "assemblyFiles/")
-
-            //TODO GET ASSEMBLY FILE PATH
+            
             val baseName = new File(fileName).getName.replace(".wacc", "")
             val assemblyFilepath = s"assemblyFiles/${baseName}.s"
-
-            val compileProcess = Process(s"gcc -o output_binary ${assemblyFilepath}")
-            val compileExitCode = compileProcess.!
             
-            var output = new StringBuilder
-            var errorOutput = new StringBuilder
-
-            val logger = ProcessLogger(
-              (out: String) => output.append(out + "\n"),  // Capture stdout
-              (err: String) => errorOutput.append(err + "\n") // Capture stderr
-            )
-
-            val exitCode = Process("./output_binary").!(logger)
-
-            println(s"Program output:\n$output")
-            println(s"Error output:\n$errorOutput")
             
-            val expectedResult = findOutputValue(assemblyFilepath) 
 
-            if (expectedResult.contains(output.toString())) {
-              println("Output matches result")
-            } else {
-              println(s"expected ${value} but got ${output}")
+            val binDirPath = new File(binDir)
+            if (!binDirPath.exists()) {
+              binDirPath.mkdirs()
             }
+
+            val compilation = Process(s"gcc -z noexecstack -o ${binDir}/${baseName} ${assemblyFilepath}").!
+            println(s"\nCompilation exit code: ${compilation}")
+            
+            
+            // println(s"Output binary exists?: ${File(s"./${binDir}/${baseName}").exists()}")
+            // println(s"assembly file path is ${assemblyFilepath}")
+            
+            val exitCode = Process(s"./${binDir}/$baseName").!
+            // val output = Process(s"./${binDir}/$baseName").!!
+            
+            println(s"Program exitCode: $exitCode")
+            // println(s"Program output: $output")
+            
+            // println(s"Original Wacc file ?: ${File(s"${file.getPath}").exists()}")
+            val expectedResult = findOutputValues(file.getPath) 
+
+            println(s"Comments are: $expectedResult")
+
+            if (expectedResult.isEmpty) {
+              println("Not expecting any exit codes or returns")
+              assert(exitCode.toString == "0")
+            } else if (expectedResult(0) == "Exit:") {
+              val expected = expectedResult(1) 
+              println(s"Expecting exit code of $expected")
+              assert(expected == exitCode.toString)
+            }
+
+            // if (expectedResult.contains(output.toString())) {
+            //   println("Output matches result")
+            // } else {
+            //   println(s"expected ${value} but got ${output}")
+            // }
           }
           case Failure(msg) => fail(s"$msg?")
         }

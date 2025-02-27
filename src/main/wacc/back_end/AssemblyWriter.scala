@@ -12,6 +12,7 @@ object AssemblyWriter {
     val file = Paths.get(filename).getFileName.toString
     ir._2.map(labelHandler(_))
     val finalAssembly = assemblyBuilder.result()
+    assemblyBuilder.clear()
     
     val writer = new PrintWriter(s"$folder${file.dropRight(5)}.s")
     val boilerplate = List(

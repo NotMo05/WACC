@@ -16,6 +16,7 @@ import scala.sys.process._
 class produceAssembly extends AnyFlatSpec {
 
   val binDir: String = "src/test/wacc/back_end_tests/bin"
+  val assDir: String = "assemblyFiles"
 
   def findOutputValues(filePath: String): List[String] = {
     val source = Source.fromFile(filePath)
@@ -43,7 +44,7 @@ class produceAssembly extends AnyFlatSpec {
     }
   }
 
-  val directoryPath = "src/test/wacc/wacc-examples/valid/basic"
+  val directoryPath = "src/test/wacc/wacc-examples/valid"
   val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
 
 
@@ -64,10 +65,10 @@ class produceAssembly extends AnyFlatSpec {
             val (newProg, errors) = rename(ast)
             assert(errors.isEmpty && semantic.analyse(newProg).isEmpty)
             val mainLabel = generate(newProg)
-            generateAsmFile((List(), List(mainLabel)), fileName, "assemblyFiles/")
+            generateAsmFile((List(), List(mainLabel)), fileName, s"${assDir}/")
             
             val baseName = new File(fileName).getName.replace(".wacc", "")
-            val assemblyFilepath = s"assemblyFiles/${baseName}.s"
+            val assemblyFilepath = s"${assDir}/${baseName}.s"
             
             
 

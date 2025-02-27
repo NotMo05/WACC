@@ -3,7 +3,14 @@ package wacc.front_end
 import scala.collection.mutable
 
 class QualifiedName(val name: String, val num: Int, val t:Type) extends Ident(name) {
-  override def toString() = {s"$name$num"}
+
+  override def toString() = s"$name$num"
+  override def equals(obj: Any): Boolean = obj match {
+    case that: QualifiedName =>
+      this.name == that.name && this.num == that.num && this.t == that.t
+    case _ => false
+  }
+  override def hashCode(): Int = (name, num, t).##
 }
 
 class QualifiedFunc(val t: Type, funcName: String, val paramNum: Int, val paramTypes: List[Type]) extends Ident(funcName) {

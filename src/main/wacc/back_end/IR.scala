@@ -36,15 +36,11 @@ object IR {
     instructionBuilder += PUSH(Reg(Rbp, QWord))
     instructionBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
     Stack.initialise(stmts)
-    instructionBuilder += SUB(Reg(Rsp, DWord), Imm(-Stack.frames.last.currentDepth))
+    instructionBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
     println(Stack.frames.last.identTable)
-   
-   
     stmts.map(stmtGen(_, instructionBuilder))
-   
-   
-   
-    instructionBuilder += ADD(Reg(Rsp, DWord), Imm(Stack.frames.last.currentDepth))
+  
+    instructionBuilder += ADD(Reg(Rsp, QWord), Imm(Stack.frames.last.currentDepth))
     instructionBuilder += POP(Reg(Rbp, QWord))
     instructionBuilder += RET
     return LocalLabelDef("main", instructionBuilder)

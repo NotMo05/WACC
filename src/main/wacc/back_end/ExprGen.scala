@@ -5,6 +5,7 @@ import wacc.back_end.DataWidth._
 import wacc.back_end.Cond._
 import scala.collection.mutable.Builder
 import wacc.back_end.IR.repeatAccessArray
+import scala.util.control.Exception.By
 
 // Complete:
 // All Ops / Len
@@ -26,32 +27,31 @@ object ExprGen {
       case CharLiteral(char) => Imm(char.toInt)
       case op: Operator => {
         opGen(op, regNum, builder)
-        Reg(regNum)
       }
       case qn: QualifiedName => {
         val offset = Stack.frames.last.identTable(qn)
-        builder += MOV(Reg(regNum), OffsetAddr(Some(Stack.typeToSize(qn.t)), Reg(Rbp), offset))
-        Reg(regNum)
+        val memSize = Stack.typeToSize(qn.t)
+        builder += MOV(Reg(regNum, memSize), OffsetAddr(Some(memSize), Reg(Rbp, QWord), offset))
+        Reg(regNum, memSize)
       }
       case StringLiteral(string) => stringGen()
       case ArrayElem(qn: QualifiedName, index) => {
-        val pointer = repeatAccessArray(qn, index, builder)
-        builder += MOV(Reg(regNum), pointer)
-        Reg(regNum)
+        val (memSize, pointer) = repeatAccessArray(qn, index, builder)
+        builder += MOV(Reg(regNum, QWord), pointer)
+        Reg(regNum, memSize)
       }
   }
 
   def exprGenRegister(expr: Expr, builder: Builder[Instr, List[Instr]], regNum: Int = 10): Reg = {
     expr match 
-      case NullLiteral => builder += MOV(Reg(regNum, QWord), Imm(0))
-      case IntLiteral(int) => builder += MOV(Reg(regNum, DWord), Imm(int))
-      case BoolLiteral(bool) => builder += MOV(Reg(regNum, Byte), Imm(if bool then 1 else 0))
-      case CharLiteral(char) => builder += MOV(Reg(regNum, Byte), Imm(char.toInt))
-      case _ => exprGen(expr, builder, regNum)
-    Reg(regNum)
+      case NullLiteral => builder += MOV(Reg(regNum, QWord), Imm(0)) ; Reg(regNum, QWord)
+      case IntLiteral(int) => builder += MOV(Reg(regNum, DWord), Imm(int)) ; Reg(regNum, DWord)
+      case BoolLiteral(bool) => builder += MOV(Reg(regNum, Byte), Imm(if bool then 1 else 0)) ; Reg(regNum, Byte)
+      case CharLiteral(char) => builder += MOV(Reg(regNum, Byte), Imm(char.toInt)) ; Reg(regNum, Byte)
+      case _ => exprGen(expr, builder, regNum).asInstanceOf[Reg]
   }
 
-  def opGen(op: Operator, regNum: Int, builder: Builder[Instr, List[Instr]]) = {
+  def opGen(op: Operator, regNum: Int, builder: Builder[Instr, List[Instr]]): Reg = {
     op match
       case Add(l, r) => arithmeticOp(l, r, regNum, builder, ADD.apply)
       case Sub(l, r) => arithmeticOp(l, r, regNum, builder, SUB.apply)
@@ -66,22 +66,25 @@ object ExprGen {
       case NotEq(l, r) => cmpOp(l, r, regNum, builder,  NE)
       case And(l, r) => logicOp(l, r, regNum, builder, AND.apply)
       case Or(l, r) => logicOp(l, r, regNum, builder, OR.apply)
-      case Ord(x) => {exprGen(x, builder, regNum)}
+      case Ord(x) => {exprGenRegister(x, builder, regNum)}
 
       case Neg(x) => 
         exprGenRegister(x, builder, regNum)
-        builder += (NEG(Reg(regNum)))
+        builder += (NEG(Reg(regNum, DWord)))
         overflowErr(regNum)
+        Reg(regNum, DWord)
 
       case Not(x) => 
         exprGenRegister(x, builder, regNum)
         builder.addAll(
           List(
-            CMP(Reg(regNum), Imm(0)),
-            XOR(Reg(regNum), Reg(regNum)),
-            SETCond(E, Reg(regNum))
+            CMP(Reg(regNum, Byte), Imm(0)),
+            XOR(Reg(regNum, Byte), Reg(regNum, Byte)),
+            SETCond(E, Reg(regNum, Byte))
             )
         )
+        Reg(regNum, Byte)
+  
 
       case Chr(x) => 
         exprGenRegister(x, builder, regNum) 
@@ -93,9 +96,9 @@ object ExprGen {
   def binOpHelper(l: Expr, r: Expr, regNum: Int, builder: Builder[Instr, List[Instr]]) = {
     if regNum == 14 then {
       exprGenRegister(r, builder, 14)
-      builder += (PUSH(Reg(R14)))
+      builder += (PUSH(Reg(R14, QWord)))
       exprGenRegister(l, builder, 14)
-      builder += (POP(Reg(R15)))
+      builder += (POP(Reg(R15, QWord)))
     } else {
       exprGenRegister(l, builder, regNum)
       exprGenRegister(r, builder, regNum+1)
@@ -106,8 +109,9 @@ object ExprGen {
     r match {
       case IntLiteral(int) =>
         exprGenRegister(l, builder, regNum) 
-        builder += op(Reg(regNum), Imm(int))
+        builder += op(Reg(regNum, DWord), Imm(int))
         overflowErr(regNum)
+        Reg(regNum, DWord)
       case _ => arithmeticNonImm(l, r, regNum, builder, op)
 
     }
@@ -115,25 +119,28 @@ object ExprGen {
 
   def arithmeticNonImm(l: Expr, r: Expr, regNum: Int, builder: Builder[Instr, List[Instr]], op: LocationOps => Instr) = {
     binOpHelper(l, r, regNum, builder)
-    builder += op(Reg(regNum), Reg(regNum + 1))
+    builder += op(Reg(regNum, DWord), Reg(regNum + 1, DWord))
     overflowErr(regNum)
+    Reg(regNum, DWord)
   }
 
   def logicOp(l: Expr, r: Expr, regNum: Int, builder: Builder[Instr, List[Instr]], op: FullOps => Instr) = {
     r match {
       case BoolLiteral(bool) =>
         exprGenRegister(l, builder, regNum)
-        builder += op(Reg(regNum), Imm(if bool then 1 else 0))
+        builder += op(Reg(regNum, Byte), Imm(if bool then 1 else 0))
       case _ =>
         binOpHelper(l, r, regNum, builder)
-        builder += op(Reg(regNum), Reg(regNum + 1))
+        builder += op(Reg(regNum, Byte), Reg(regNum + 1, Byte))
     }
+    Reg(regNum, Byte)
   }
 
   def cmpOp(l: Expr, r: Expr, regNum: Int, builder: Builder[Instr, List[Instr]], cond: Cond) = {
     binOpHelper(l,r, regNum, builder)
-    builder += CMP(Reg(regNum), Reg(regNum+1))
-    SETCond(cond, Reg(regNum))
+    builder += CMP(Reg(regNum, DWord), Reg(regNum+1, DWord))
+    SETCond(cond, Reg(regNum, Byte))
+    Reg(regNum, Byte)
   }
 
   def divMod(l: Expr, r: Expr, regNum: Int, reg: RegName, builder: Builder[Instr, List[Instr]]) = {
@@ -141,21 +148,22 @@ object ExprGen {
 
     builder.addAll(
       List(
-        PUSH(Reg(Rax)),
-        PUSH(Reg(Rdx))
+        PUSH(Reg(Rax, QWord)),
+        PUSH(Reg(Rdx, QWord))
         )
     )
     exprGenRegister(l, builder, regNum) 
-    builder += MOV(Reg(Rax), Reg(regNum))
+    builder += MOV(Reg(Rax, DWord), Reg(regNum, DWord))
     exprGenRegister(r, builder, regNum) 
     divByZeroErr(regNum) 
     builder.addAll(
       List(CDQ,
-      IDIV(Reg(regNum)),
-      MOV(Reg(regNum), Reg(reg)),
-      POP(Reg(Rdx)),
-      POP(Reg(Rax)))
+      IDIV(Reg(regNum, DWord)),
+      MOV(Reg(regNum, DWord), Reg(reg, DWord)),
+      POP(Reg(Rdx, QWord)),
+      POP(Reg(Rax, QWord)))
     )
+    Reg(reg, DWord)
     // So doesn't need to push em
   }
 

@@ -36,7 +36,7 @@ sealed trait Location extends Operand {
   }
 
 }
-case class Reg(num: RegName, dataWidth: DataWidth = DataWidth.QWord) extends Location {
+case class Reg(num: RegName, dataWidth: DataWidth) extends Location {
   override def toString(): String = {
     num match
       case RegName.Rax => regABCD(dataWidth, "a")
@@ -109,8 +109,16 @@ object MemOpModifier {
       case 4 => DWordPtr
       case 8 => QWordPtr
   }
+}
 
-
+object DataWidth {
+  implicit def intToDataWidth(size: Int): DataWidth = {
+    size match
+      case 1 => Byte
+      case 2 => Word
+      case 4 => DWord
+      case 8 => QWord
+  }
 }
 
 object RegName {

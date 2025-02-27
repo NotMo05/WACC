@@ -40,7 +40,7 @@ object IR {
     println(Stack.frames.last.identTable)
     stmts.map(stmtGen(_, instructionBuilder))
   
-    instructionBuilder += ADD(Reg(Rsp, QWord), Imm(Stack.frames.last.currentDepth))
+    instructionBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
     instructionBuilder += POP(Reg(Rbp, QWord))
     instructionBuilder += RET
     return LocalLabelDef("main", instructionBuilder)

@@ -7,12 +7,13 @@ import java.nio.file.Paths
 object AssemblyWriter {
   val assemblyBuilder = List.newBuilder[String]
 
-  def generateAsmFile(ir: (List[Section], List[LabelDef]), filename: String) = {
+  def generateAsmFile(ir: (List[Section], List[LabelDef]), filename: String, folder: String = "") = {
+    print(filename)
     val file = Paths.get(filename).getFileName.toString
     ir._2.map(labelHandler(_))
     val finalAssembly = assemblyBuilder.result()
     
-    val writer = new PrintWriter(s"${file.dropRight(5)}.s")
+    val writer = new PrintWriter(s"$folder${file.dropRight(5)}.s")
     val boilerplate = List(
       ".intel_syntax noprefix",
       ".globl main",

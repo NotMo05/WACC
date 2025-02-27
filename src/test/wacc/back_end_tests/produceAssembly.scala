@@ -8,6 +8,8 @@ import scala.io.Source
 import java.io.{File}
 import wacc.back_end.IR
 import wacc.back_end.AssemblyWriter
+import wacc.back_end.IR.generate
+import wacc.back_end.AssemblyWriter.generateAsmFile
 
 class produceAssembly extends AnyFlatSpec {
   val directoryPath = "src/test/wacc/wacc-examples/valid/"
@@ -23,15 +25,13 @@ class produceAssembly extends AnyFlatSpec {
       source.close()
 
       it should s"successfully produce assembly for $fileName" in {
-        pending
+        // pending
         parser.parse(fileContent) match {
           case Success(ast) => {
             val (newProg, errors) = rename(ast)
             assert(errors.isEmpty && semantic.analyse(newProg).isEmpty)
-            val ir = IR.generateIR(newProg) 
-            AssemblyWriter.generateAsmFile(ir)
-
-
+            val mainLabel = generate(newProg)
+            generateAsmFile((List(), List(mainLabel)), fileName, "assemblyFiles/")
           }
           case Failure(msg) => fail(s"$msg?")
         }

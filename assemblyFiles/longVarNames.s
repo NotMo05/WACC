@@ -1,0 +1,195 @@
+.intel_syntax noprefix
+.globl main
+.section .rodata
+.text
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 0 
+mov edi, 42 
+and rsp, -16 
+call exit@plt
+mov rax, 0 
+add rsp, 0 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 0 
+mov edi, -1 
+and rsp, -16 
+call exit@plt
+mov rax, 0 
+add rsp, 0 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 0 
+mov edi, 7 
+and rsp, -16 
+call exit@plt
+mov rax, 0 
+add rsp, 0 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 0 
+mov edi, 256 
+and rsp, -16 
+call exit@plt
+mov rax, 0 
+add rsp, 0 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 0 
+mov rax, 0 
+add rsp, 0 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 0 
+mov rax, 0 
+add rsp, 0 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 0 
+mov rax, 0 
+add rsp, 0 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 0 
+mov rax, 0 
+add rsp, 0 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 8 
+mov edi, 4 
+call _malloc
+mov dword ptr [rax], 0 
+add eax, 4 
+mov qword ptr [rbp - 8], rax 
+mov rax, 0 
+add rsp, 8 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 9 
+mov edi, 4 
+call _malloc
+mov dword ptr [rax], 0 
+add eax, 4 
+mov qword ptr [rbp - 8], rax 
+mov byte ptr [rbp - 9], 1 
+mov rax, 0 
+add rsp, 9 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 8 
+mov edi, 12 
+call _malloc
+mov dword ptr [rax], 1 
+add eax, 4 
+mov qword ptr [rax], 0 
+mov qword ptr [rbp - 8], rax 
+mov rax, 0 
+add rsp, 8 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 8 
+mov edi, 4 
+call _malloc
+mov dword ptr [rax], 0 
+add eax, 4 
+mov qword ptr [rbp - 8], rax 
+mov rax, 0 
+add rsp, 8 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 1 
+mov r10d, 128 
+mov byte ptr [rbp - 1], r10d 
+mov rax, 0 
+add rsp, 1 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 1 
+mov r10d, -1 
+mov byte ptr [rbp - 1], r10d 
+mov rax, 0 
+add rsp, 1 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 12 
+mov qword ptr [rbp - 8], 0 
+mov r10, qword ptr [rbp - 8] 
+cmp r10, 0 
+je_errNull
+mov r10, qword ptr [r10 + 8] 
+mov dword ptr [rbp - 12], r10d 
+mov rax, 0 
+add rsp, 12 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 12 
+mov qword ptr [rbp - 8], 0 
+mov r10, qword ptr [rbp - 8] 
+cmp r10, 0 
+je_errNull
+mov r10, qword ptr [r10] 
+mov dword ptr [rbp - 12], r10d 
+mov rax, 0 
+add rsp, 12 
+pop rbp
+ret
+main:
+push rbp
+mov rbp, rsp 
+sub rsp, 4 
+mov dword ptr [rbp - 4], 5 
+mov r10d, dword ptr [rbp - 4] 
+mov edi, r10d 
+and rsp, -16 
+call exit@plt
+mov rax, 0 
+add rsp, 4 
+pop rbp
+ret

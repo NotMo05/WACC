@@ -131,9 +131,13 @@ object IR {
         printGen(expr, asmBuilder)
         asmBuilder.addAll(
           List(
-        MOV(Reg(Rdi, QWord), Imm(0)),
-        CALL(Label("puts@plt")),
-        CALL(Label("fflush@plt")),
+            SUB(Reg(Rsp, QWord), Imm(8)),
+            MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(Rsp, QWord)), Imm(0)),
+            MOV(Reg(Rdi, QWord), Reg(Rsp, QWord)),
+            CALL(Label("puts@plt")),
+            MOV(Reg(Rdi, QWord), Imm(0)),
+            CALL(Label("fflush@plt")),
+            ADD(Reg(Rsp, QWord), Imm(8))
           )
         )
         asmBuilder ++= popRbp

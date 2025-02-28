@@ -27,9 +27,3 @@ class invalidProgramSemanticTest extends AnyFlatSpec {
     }
   }
 }
-
-
-// - should fail to parse src/test/wacc/wacc-examples/invalid/semanticErr/function/functionOverArgs.wacc *** FAILED ***
-// - should fail to parse src/test/wacc/wacc-examples/invalid/semanticErr/function/functionBadParam.wacc *** FAILED ***
-// - should fail to parse src/test/wacc/wacc-examples/invalid/semanticErr/function/functionUnderArgs.wacc *** FAILED ***
-// - should fail to parse src/test/wacc/wacc-examples/invalid/semanticErr/function/functionSwapArgs.wacc *** FAILED ***

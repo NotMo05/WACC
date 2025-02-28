@@ -16,7 +16,7 @@ class validProgramRenamingTest extends AnyFlatSpec {
     val fileContent = source.mkString
     source.close()
 
-    ignore should s"successfully parse $fileName" in {
+    it should s"successfully parse $fileName" in {
       parser.parse(fileContent) match {
         case Success(ast) => {
           val (newProg, errors) = rename(ast)

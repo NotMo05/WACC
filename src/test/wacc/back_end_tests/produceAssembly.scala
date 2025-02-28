@@ -5,18 +5,37 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import parsley.{Success, Failure}
 import scala.io.Source
-import java.io.File
 import java.nio.file.{Files, Paths}
+import java.io.File
 import wacc.back_end.IR
 import wacc.back_end.AssemblyWriter
 import wacc.back_end.AssemblyWriter.generateAsmFile
 import scala.sys.process._
 import wacc.back_end.IR.generateIR
+import org.scalatest.BeforeAndAfter
 
-class produceAssembly extends AnyFlatSpec {
+class produceAssembly extends AnyFlatSpec with BeforeAndAfter{
 
   val binDir: String = "src/test/wacc/back_end_tests/bin"
-  val assDir: String = "assemblyFiles"
+  val assDir: String = "src/test/wacc/back_end_tests/assemblyFiles"
+
+  def deleteDirectory(directory: File): Boolean = {
+    if (directory.exists()) {
+      val files = directory.listFiles()
+      if (files != null) {
+        files.foreach { file =>
+          if (file.isDirectory) {
+            deleteDirectory(file)
+          } else {
+            file.delete()
+          }
+        }
+      }
+      directory.delete()
+    } else {
+      false
+    }
+  }
 
   def findOutputValues(filePath: String): List[String] = {
     val source = Source.fromFile(filePath)
@@ -26,93 +45,114 @@ class produceAssembly extends AnyFlatSpec {
         .map(_.stripPrefix("#").trim) // Remove "#" and trim whitespace
         .map(line => "  " + line)
         .toList
-      
-      // Find indices of "Output:" and "Program:" markers
+
+      // Find index of "Output:" marker
       val outputIndex = lines.indexWhere(_.contains("Output:"))
-      val programIndex = lines.indexWhere(_.contains("Program:"))
-      
-      // Return only lines between "Output:" and "Program:"
-      if (outputIndex >= 0 && programIndex > outputIndex) {
-        lines.slice(outputIndex + 1, programIndex)
+
+      if (outputIndex >= 0) {
+        lines.drop(outputIndex + 1) // Take all lines after "Output:"
+          .filter(!_.contains("Program:")) // Filter out lines containing "Program:"
           .filter(_.nonEmpty) // Remove empty lines
           .map(_.replaceAll("\\s", "")) // Remove all whitespace characters
       } else {
-        List() // Return empty list if markers not found or in wrong order
+        List() // Return empty list if marker not found
       }
     } finally {
       source.close()
     }
   }
 
-  val directoryPath = "src/test/wacc/wacc-examples/valid/expressions"
-  val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
+    /** Function to dynamically register tests for a given folder **/
+  def runTest(directoryPath: String, isPending: Boolean, persist: Boolean): Unit = {
+    try {
+      val path = Paths.get(assDir)
+      if (!Files.exists(path)) {
+        Files.createDirectory(path)
+      }
+      val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
 
-
-  for (file <- files) {
+      for (file <- files if file.getPath.endsWith(".wacc")) {
+        // Your existing test code
+        val fileName = file.getPath
     
-    val fileName = file.getPath
-
-    if (fileName.endsWith(".wacc")) {
-      val source = Source.fromFile(file)
-      val fileContent = source.mkString
-      source.close()
-
-      it should s"successfully produce assembly for $fileName" in {
-        // pending
-        parser.parse(fileContent) match {
-          case Success(ast) => {
-
-            val (newProg, errors) = rename(ast)
-            assert(errors.isEmpty && semantic.analyse(newProg).isEmpty)
-            val IR = generateIR(newProg)
-            generateAsmFile(IR, fileName, s"${assDir}/")
-            
-            val baseName = new File(fileName).getName.replace(".wacc", "")
-            val assemblyFilepath = s"${assDir}/${baseName}.s"
-            
-            
-
-            val binDirPath = new File(binDir)
-            if (!binDirPath.exists()) {
-              binDirPath.mkdirs()
-            }
-
-            val compilation = Process(s"gcc -z noexecstack -o ${binDir}/${baseName} ${assemblyFilepath}").!
-            println(s"\nCompilation exit code: ${compilation}")
-            
-            
-            // println(s"Output binary exists?: ${File(s"./${binDir}/${baseName}").exists()}")
-            // println(s"assembly file path is ${assemblyFilepath}")
-            
-            val exitCode = Process(s"./${binDir}/$baseName").!
-            // val output = Process(s"./${binDir}/$baseName").!!
-            
-            println(s"Program exitCode: $exitCode")
-            // println(s"Program output: $output")
-            
-            // println(s"Original Wacc file ?: ${File(s"${file.getPath}").exists()}")
-            val expectedResult = findOutputValues(file.getPath) 
-
-            println(s"Comments are: $expectedResult")
-
-            if (expectedResult.isEmpty) {
-              println("Not expecting any exit codes or returns")
-              assert(exitCode.toString == "0")
-            } else if (expectedResult(0) == "Exit:") {
-              val expected = expectedResult(1) 
-              println(s"Expecting exit code of $expected")
-              assert(expected == exitCode.toString)
-            }
-
-            // if (expectedResult.contains(output.toString())) {
-            //   println("Output matches result")
-            // } else {
-            //   println(s"expected ${value} but got ${output}")
-            // }
+        it should s"successfully produce assembly for $fileName" in {
+          if isPending then pending
+          val source = Source.fromFile(file)
+          val fileContent = try source.mkString finally source.close()
+          
+          parser.parse(fileContent) match {
+            case Success(ast) =>
+              val (newProg, errors) = rename(ast)
+              assert(errors.isEmpty && semantic.analyse(newProg).isEmpty)
+              
+              val IR = generateIR(newProg)
+              generateAsmFile(IR, fileName, s"$assDir/")
+              
+              val baseName = new File(fileName).getName.replace(".wacc", "")
+              val assemblyFilepath = s"$assDir/$baseName.s"
+    
+              if (!new File(binDir).exists()) {
+                new File(binDir).mkdirs()
+              }
+    
+              val compilation = Process(s"gcc -z noexecstack -o $binDir/$baseName $assemblyFilepath").!
+              println(s"\nCompilation exit code: $compilation")
+    
+              val exitCode = Process(s"./$binDir/$baseName").!
+              println(s"Program exitCode: $exitCode")
+    
+              val expectedResult = findOutputValues(file.getPath)
+              println(s"Comments are: $expectedResult")
+    
+              if (expectedResult.isEmpty) {
+                println("Not expecting any exit codes or returns")
+                assert(exitCode.toString == "0")
+              } else if (expectedResult.head == "Exit:") {
+                val expected = expectedResult(1)
+                println(s"Expecting exit code of $expected")
+                assert(expected == exitCode.toString)
+              }
+              // Replace deleteDirectory calls with this
+              // if (!persist) {
+                
+              //   // Create a fresh directory for next run
+              //   Process(s"rm -rf $assDir").!
+              //   Process(s"rm -rf $binDir").!
+              // }
+    
+            case Failure(msg) => fail(s"Parsing failed: $msg")
           }
-          case Failure(msg) => fail(s"$msg?")
         }
       }
+    } 
+    finally {
+
     }
   }
+
+  val advancedPath = "src/test/wacc/wacc-examples/valid/advanced"
+  val arrayPath = "src/test/wacc/wacc-examples/valid/array"
+  val basicPath = "src/test/wacc/wacc-examples/valid/basic"
+  val expressionPath = "src/test/wacc/wacc-examples/valid/expressions"
+  val functionPath = "src/test/wacc/wacc-examples/valid/function"
+  val ifPath = "src/test/wacc/wacc-examples/valid/if"
+  val IOPath = "src/test/wacc/wacc-examples/valid/IO"
+  val pairsPath = "src/test/wacc/wacc-examples/valid/pairs"
+  val runtimeErrPath = "src/test/wacc/wacc-examples/valid/runtimeErr"
+  val scopePath = "src/test/wacc/wacc-examples/valid/scope"
+  val variablesPath = "src/test/wacc/wacc-examples/valid/variables"
+  val whilePath = "src/test/wacc/wacc-examples/valid/while"
+
+  // runTest(advancedPath, true, false)
+  // runTest(arrayPath, true, false)
+  runTest(basicPath, false, true)
+  // runTest(expressionPath, false, true)
+  // runTest(functionPath, true, false)
+  // runTest(ifPath, true, false)
+  // runTest(IOPath, true, false)
+  // runTest(pairsPath, true, false)
+  // runTest(runtimeErrPath, true, false)
+  // runTest(scopePath, true, false)
+  // runTest(variablesPath, true, false)
+  // runTest(whilePath, true, false)
 }

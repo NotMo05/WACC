@@ -2,7 +2,7 @@ package wacc.back_end
 import scala.language.implicitConversions
 
 enum RegName:
-  case Rax, Rbx, Rcx, Rdx, Rsi, Rdi, Rsp, Rbp, R8, R9, R10, R11, R12, R13, R14, R15
+  case Rax, Rbx, Rcx, Rdx, Rsi, Rdi, Rsp, Rbp, Rip, R8, R9, R10, R11, R12, R13, R14, R15
 
 enum DataWidth:
   case Byte, Word, DWord, QWord
@@ -54,6 +54,7 @@ case class Reg(num: RegName, dataWidth: DataWidth) extends Location {
       case RegName.R13 => regNums(dataWidth, "r13")
       case RegName.R14 => regNums(dataWidth, "r14")
       case RegName.R15 => regNums(dataWidth, "r15")
+      case RegName.Rip => "rip"
   }
 }
 

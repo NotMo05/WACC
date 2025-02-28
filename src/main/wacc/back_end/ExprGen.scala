@@ -37,6 +37,7 @@ object ExprGen {
         Reg(regNum, dataWidth)
       }
       case StringLiteral(string) => {
+        // LEA(Reg(regNum, QWord), OffsetAddr(MemOpModifier.QWordPtr, Reg(Rip, QWord), .L))
         ???
       }
 
@@ -178,7 +179,7 @@ object ExprGen {
     // So doesn't need to push em
   }
 
-  def overflowErr(regNum: Int): List[Instr] = ???
-  def divByZeroErr(regNum: Int): List[Instr] = ???
+  def overflowErr(regNum: Int): List[Instr] = Nil
+  def divByZeroErr(regNum: Int): List[Instr] = Nil
 
 }

@@ -27,17 +27,16 @@ class produceAssembly extends AnyFlatSpec {
         .map(line => "  " + line)
         .toList
       
-      // Find indices of "Output:" and "Program:" markers
+      // Find index of "Output:" marker
       val outputIndex = lines.indexWhere(_.contains("Output:"))
-      val programIndex = lines.indexWhere(_.contains("Program:"))
       
-      // Return only lines between "Output:" and "Program:"
-      if (outputIndex >= 0 && programIndex > outputIndex) {
-        lines.slice(outputIndex + 1, programIndex)
+      if (outputIndex >= 0) {
+        lines.drop(outputIndex + 1) // Take all lines after "Output:"
+          .filter(!_.contains("Program:")) // Filter out lines containing "Program:"
           .filter(_.nonEmpty) // Remove empty lines
           .map(_.replaceAll("\\s", "")) // Remove all whitespace characters
       } else {
-        List() // Return empty list if markers not found or in wrong order
+        List() // Return empty list if marker not found
       }
     } finally {
       source.close()

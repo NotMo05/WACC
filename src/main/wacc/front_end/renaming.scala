@@ -13,7 +13,7 @@ class QualifiedName(val name: String, val num: Int, val t:Type) extends Ident(na
   override def hashCode(): Int = (name, num, t).##
 }
 
-class QualifiedFunc(val t: Type, funcName: String, val paramNum: Int, val paramTypes: List[Type]) extends Ident(funcName) {
+class QualifiedFunc(val t: Type, val funcName: String, val paramNum: Int, val paramTypes: List[Type]) extends Ident(funcName) {
   override def toString() = {s"QualifiedFunc(t=$t, funcName=$funcName, paramNum=$paramNum, paramTypes=$paramTypes)"}
 }
 

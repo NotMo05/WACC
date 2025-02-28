@@ -9,9 +9,9 @@ import java.io.File
 import java.nio.file.{Files, Paths}
 import wacc.back_end.IR
 import wacc.back_end.AssemblyWriter
-import wacc.back_end.IR.generate
 import wacc.back_end.AssemblyWriter.generateAsmFile
 import scala.sys.process._
+import wacc.back_end.IR.generateIR
 
 class produceAssembly extends AnyFlatSpec {
 
@@ -44,7 +44,7 @@ class produceAssembly extends AnyFlatSpec {
     }
   }
 
-  val directoryPath = "src/test/wacc/wacc-examples/valid"
+  val directoryPath = "src/test/wacc/wacc-examples/valid/expressions"
   val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
 
 
@@ -64,8 +64,8 @@ class produceAssembly extends AnyFlatSpec {
 
             val (newProg, errors) = rename(ast)
             assert(errors.isEmpty && semantic.analyse(newProg).isEmpty)
-            val mainLabel = generate(newProg)
-            generateAsmFile((List(), List(mainLabel)), fileName, s"${assDir}/")
+            val IR = generateIR(newProg)
+            generateAsmFile(IR, fileName, s"${assDir}/")
             
             val baseName = new File(fileName).getName.replace(".wacc", "")
             val assemblyFilepath = s"${assDir}/${baseName}.s"

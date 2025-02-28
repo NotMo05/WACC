@@ -29,15 +29,15 @@ object ExprGen {
       }
       case qn: QualifiedName => {
         val offset = Stack.frames.last.identTable(qn)
-        val memSize = Stack.typeToSize(qn.t)
-        builder += MOV(Reg(regNum, memSize), OffsetAddr(Some(memSize), Reg(Rbp, QWord), offset))
-        Reg(regNum, memSize)
+        val dataWidth = Stack.typeToSize(qn.t)
+        builder += MOV(Reg(regNum, dataWidth), OffsetAddr(dataWidth, Reg(Rbp, QWord), offset))
+        Reg(regNum, dataWidth)
       }
       case StringLiteral(string) => stringGen()
       case ArrayElem(qn: QualifiedName, index) => {
-        val (memSize, pointer) = repeatAccessArray(qn, index, builder)
+        val (dataWidth, pointer) = repeatAccessArray(qn, index, builder)
         builder += MOV(Reg(regNum, QWord), pointer)
-        Reg(regNum, memSize)
+        Reg(regNum, dataWidth)
       }
   }
 

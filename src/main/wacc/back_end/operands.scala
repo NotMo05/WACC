@@ -24,18 +24,14 @@ sealed trait Location extends Operand {
   override def toString: String = this match {
     case indAddr: IndexedAddr => ???
     // Needs refactoring
-    case OffsetAddr(Some(memOpModifier), reg1, disp) if disp > 0 => s"$memOpModifier [$reg1 + $disp]" //mov \byte ptr [rax + 16]\ rsi 
-    case OffsetAddr(None, reg1, disp) if disp > 0 => s"[$reg1 + $disp]" //mov \byte ptr [rax + 16]\ rsi 
-    case OffsetAddr(Some(memOpModifier), reg1, disp) if disp == 0 => s"$memOpModifier [$reg1]" //mov \byte ptr [rax + 16]\ rsi 
-    case OffsetAddr(None, reg1, disp) if disp == 0 => s"[$reg1]" //mov \byte ptr [rax + 16]\ rsi 
-    case OffsetAddr(Some(memOpModifier), reg1, disp) => s"$memOpModifier [$reg1 - ${-disp}]"
-    case OffsetAddr(None, reg1, disp) => s"[$reg1 - ${-disp}]"
+    case OffsetAddr(memOpModifier, reg1, disp) if disp > 0 => s"$memOpModifier [$reg1 + $disp]" //mov \byte ptr [rax + 16]\ rsi 
+    case OffsetAddr(memOpModifier, reg1, disp) if disp == 0 => s"$memOpModifier [$reg1]" //mov \byte ptr [rax + 16]\ rsi 
+    case OffsetAddr(memOpModifier, reg1, disp) => s"$memOpModifier [$reg1 - ${-disp}]"
 
     case regScaleImm: RegScaleImm => ???
     case scaleImm: ScaleImm => ???
     case wacc.back_end.Reg(_, _) => ???
-    case wacc.back_end.RegScale(Some(memOpModifier), reg1, scale, reg2) => s"$memOpModifier [$reg1 + $scale*$reg2]"
-    case wacc.back_end.RegScale(None, wacc.back_end.Reg(_, _), _, wacc.back_end.Reg(_, _)) => ???
+    case wacc.back_end.RegScale(memOpModifier, reg1, scale, reg2) => s"$memOpModifier [$reg1 + $scale*$reg2]"
   }
 
 }
@@ -94,15 +90,15 @@ case class Label(name: String) extends Operand {
 }
 
 sealed trait MemAddr extends Location
-case class IndexedAddr(modifer: Option[MemOpModifier], reg1: Reg, reg2: Reg) extends MemAddr 
+case class IndexedAddr(modifer: MemOpModifier, reg1: Reg, reg2: Reg) extends MemAddr 
 // ie mov qword ptr rax, [rbx + rsi]
 
-case class OffsetAddr(modifer: Option[MemOpModifier], reg1: Reg, disp: Int = 0) extends MemAddr // displacement/offset [reg - offset]
+case class OffsetAddr(modifer: MemOpModifier, reg1: Reg, disp: Int = 0) extends MemAddr // displacement/offset [reg - offset]
 // ie mov qword ptr [rsp + 8], r12
 
-case class RegScale(modifer: Option[MemOpModifier], reg1: Reg, scale: Int, reg2: Reg) extends MemAddr
-case class RegScaleImm(modifer: Option[MemOpModifier], reg1: Reg, scale: Int, reg2: Reg, imm: Int) extends MemAddr
-case class ScaleImm(modifer: Option[MemOpModifier], reg: Reg, scale: Int, imm: Int) extends MemAddr
+case class RegScale(modifer: MemOpModifier, reg1: Reg, scale: Int, reg2: Reg) extends MemAddr
+case class RegScaleImm(modifer: MemOpModifier, reg1: Reg, scale: Int, reg2: Reg, imm: Int) extends MemAddr
+case class ScaleImm(modifer: MemOpModifier, reg: Reg, scale: Int, imm: Int) extends MemAddr
 
 object MemOpModifier {
   implicit def intToMemOpModifier(size: Int): MemOpModifier = {

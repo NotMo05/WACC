@@ -12,8 +12,9 @@ import wacc.back_end.AssemblyWriter
 import wacc.back_end.AssemblyWriter.generateAsmFile
 import scala.sys.process._
 import wacc.back_end.IR.generateIR
+import org.scalatest.BeforeAndAfter
 
-class produceAssembly extends AnyFlatSpec {
+class produceAssembly extends AnyFlatSpec with BeforeAndAfter{
 
   val binDir: String = "src/test/wacc/back_end_tests/bin"
   val assDir: String = "src/test/wacc/back_end_tests/assemblyFiles"
@@ -62,7 +63,7 @@ class produceAssembly extends AnyFlatSpec {
   }
 
     /** Function to dynamically register tests for a given folder **/
-  def runTest(directoryPath: String, isPending: Boolean): Unit = {
+  def runTest(directoryPath: String, isPending: Boolean, persist: Boolean): Unit = {
     try {
       val path = Paths.get(assDir)
       if (!Files.exists(path)) {
@@ -111,24 +112,21 @@ class produceAssembly extends AnyFlatSpec {
                 println(s"Expecting exit code of $expected")
                 assert(expected == exitCode.toString)
               }
+              // Replace deleteDirectory calls with this
+              // if (!persist) {
+                
+              //   // Create a fresh directory for next run
+              //   Process(s"rm -rf $assDir").!
+              //   Process(s"rm -rf $binDir").!
+              // }
     
             case Failure(msg) => fail(s"Parsing failed: $msg")
           }
         }
       }
-    } finally {
-      // Delete the assembly files directory after tests complete
-      try {
-        deleteDirectory(new File(assDir))
-        println(s"Cleaned up assembly files directory: $assDir")
-        
-        // Also clean up binary directory
-        deleteDirectory(new File(binDir))
-        println(s"Cleaned up binary files directory: $binDir")
-      } catch {
-        case e: Exception => 
-          println(s"Warning: Failed to delete directories: ${e.getMessage}")
-      }
+    } 
+    finally {
+
     }
   }
 
@@ -145,16 +143,16 @@ class produceAssembly extends AnyFlatSpec {
   val variablesPath = "src/test/wacc/wacc-examples/valid/variables"
   val whilePath = "src/test/wacc/wacc-examples/valid/while"
 
-  runTest(advancedPath, true)
-  runTest(arrayPath, true)
-  runTest(basicPath, true)
-  runTest(expressionPath, true)
-  runTest(functionPath, true)
-  runTest(ifPath, true)
-  runTest(IOPath, true)
-  runTest(pairsPath, true)
-  runTest(runtimeErrPath, true)
-  runTest(scopePath, true)
-  runTest(variablesPath, true)
-  runTest(whilePath, true)
+  // runTest(advancedPath, true, false)
+  // runTest(arrayPath, true, false)
+  runTest(basicPath, false, true)
+  // runTest(expressionPath, false, true)
+  // runTest(functionPath, true, false)
+  // runTest(ifPath, true, false)
+  // runTest(IOPath, true, false)
+  // runTest(pairsPath, true, false)
+  // runTest(runtimeErrPath, true, false)
+  // runTest(scopePath, true, false)
+  // runTest(variablesPath, true, false)
+  // runTest(whilePath, true, false)
 }

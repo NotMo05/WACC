@@ -6,41 +6,96 @@ import DataWidth._
 import ExprGen._
 import wacc.back_end.Stack.typeToSize
 import scala.collection.mutable.{Builder}
+import wacc.front_end.semantic.getExprType
 
-// At the start of each assembly file
-// .intel_syntax noprefix
-// .globl main
+class Section(val text: String) {
+  override def toString(): String = text
+}
+
 
 object IR {
   val STACK_ALIGN = -16
   def generateIR(prog: Prog): (List[Section], List[LabelDef]) = {
+
     val funcLabelDefs = 
     funcGenerate(prog.main) :: prog.funcs.map(func => funcGenerate(func.stmts, func.identifier.identifier))
-    val sections = List.newBuilder[Section] // each section is .rodata (read only)
+    val sections = generateROData(prog.main) :: prog.funcs.map(func => generateROData(func.stmts))
+     // each section is .rodata (read only)
                                           // what follows is .text
-    return(sections.result(), funcLabelDefs)
+    return(sections.flatten, funcLabelDefs)
   }
 
   // Data width defaults to QWord for moving pointers in registers
   def movQnToReg(destReg: RegName, qn: QualifiedName, dataWidth: DataWidth = QWord) =
    MOV(Reg(destReg, dataWidth), OffsetAddr(MemOpModifier.QWordPtr, Reg(Rbp, QWord), Stack.getOffset(qn)))
-
   def movRegOrImmToMem(srcRegOrImm: RegName | Imm, qn: QualifiedName, dataWidth: DataWidth = QWord) = {
     srcRegOrImm match
       case reg: RegName => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(reg, dataWidth))
       case imm: Imm => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), imm)
   }
-  def generateSection(prog: Prog) = {
+
+  def RO_helper(stmt: Stmt): List[Section] = {
+    stmt match
+      case Return(expr) => (ROExprHelper(expr))
+      case Print(expr) =>  ROExprHelper(expr)
+      case Println(expr) =>  ROExprHelper(expr) 
+      case WhileDo(condition, stmts) => ROExprHelper(condition) 
+      case IfElse(condition, thenStmts, elseStmts) => ROExprHelper(condition)
+      // case Assgn(t, identifier, rValue) => return ROExprHelper(rValue)
+      // case ReAssgn(lValue, rValue) => return ROExprHelper(rValue)
+      case _ => return List()
+      
+  }
+
+
+  def generateROData(stmts: List[Stmt]): List[Section] = { // CHANGED TO LIST OF SECTIONS FOR NOW
     // This will generate the boilerplate at the beginning of the asm file and
     // the string+len of string stuff to go in that section
 
+
+    // Remind me to change stringGen in ExprGen
+    // make a map of string to section
+    return stmts.foldLeft(List.empty[Section])((list: List[Section], stmt: Stmt) => 
+      (stmt match
+        case Return(expr) => (ROExprHelper(expr))
+        case Print(expr) =>  ROExprHelper(expr)
+        case Println(expr) =>  ROExprHelper(expr) 
+        case WhileDo(condition, stmts) => ROExprHelper(condition) 
+        case IfElse(condition, thenStmts, elseStmts) => ROExprHelper(condition)
+        // case Assgn(t, identifier, rValue) => return ROExprHelper(rValue)
+        // case ReAssgn(lValue, rValue) => return ROExprHelper(rValue)
+        case _ => List()
+      ) ++ list)
+
+
   }
 
-  def funcGenerate(stmts: List[Stmt], funcName: String = ""): FuncLabelDef = {
+  def ROExprHelper(expr: Expr): List[Section] = {
+    expr match
+      case StringLiteral(string) => List(Section(string))
+      case qn: QualifiedName => {
+        if (qn.t == StringType) {
+          ???// List(Section(qn.num))
+        } else {
+          List()
+        }
+      } ///qn.t
+      case ArrayElem(arrayName, index) => ???//arrayName.t.asInstanceOf[ArrayType] ArrayType(string, ) string[][][][][][]
+      case op: Operator => {
+        op match
+          case Not(x) => ROExprHelper(x)
+          case Eq(l, r) => ROExprHelper(l) ++ ROExprHelper(r)
+          case NotEq(l, r) => ROExprHelper(l) ++ ROExprHelper(r) 
+          case And(l, r) => ROExprHelper(l) ++ ROExprHelper(r) 
+          case Or(l, r) => ROExprHelper(l) ++ ROExprHelper(r)
+      }
+      case _ => List()
+    }   
+
+    def funcGenerate(stmts: List[Stmt], funcName: String = ""): FuncLabelDef = {
     val asmBuilder = List.newBuilder[Instr]
     val localLabelBuilder = List.newBuilder[LocalLabelDef]
     Stack.initialise(stmts)
-
     asmBuilder += PUSH(Reg(Rbp, QWord))
     asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
     asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
@@ -56,7 +111,6 @@ object IR {
     asmBuilder += RET 
     
     return FuncLabelDef(funcLabel, asmBuilder, localLabelBuilder)
-
   }
 
   def stmtGen(stmt: Stmt, asmBuilder: Builder[Instr, List[Instr]], localLabelBuilder: Builder[LocalLabelDef, List[LocalLabelDef]]): Unit =
@@ -69,11 +123,23 @@ object IR {
       case Read(lValue) => readGen(lValue, asmBuilder)
       case Free(expr) => freeGen(expr, asmBuilder)
       case Scope(stmts) => scopeGen(stmts, asmBuilder, localLabelBuilder)
+      case Print(expr) => {
+        printGen(expr, asmBuilder)
+        asmBuilder ++= popRbp
+      }
+      case Println(expr) => {
+        printGen(expr, asmBuilder)
+        asmBuilder.addAll(
+          List(
+        MOV(Reg(Rdi, QWord), Imm(0)),
+        CALL(Label("puts@plt")),
+        CALL(Label("fflush@plt")),
+          )
+        )
+        asmBuilder ++= popRbp
+      }
       case WhileDo(condition, stmts) => ???
       case IfElse(condition, thenStmts, elseStmts) => ???
-      case Print(expr) => ???
-      case Println(expr) => ???
-
     }
 
   def assgnGen(t: Type, qn: QualifiedName, rValue: RValue, asmBuilder: Builder[Instr, List[Instr]]) : Builder[Instr, List[Instr]] = {
@@ -183,6 +249,7 @@ object IR {
   }
 
   def readFunc(dataWidth: Int,asmBuilder: Builder[Instr, List[Instr]]) = {
+    asmBuilder.addAll(pushRbp)
     asmBuilder.addAll(
       List(
         AND(Reg(Rsp, QWord), Imm(STACK_ALIGN)),
@@ -196,6 +263,7 @@ object IR {
         ADD(Reg(Rsp, QWord), Imm(-STACK_ALIGN)),
       )
     )
+    asmBuilder.addAll(popRbp)
   }
 
   def readGen(lValue: LValue, asmBuilder: Builder[Instr, List[Instr]]) = {
@@ -265,13 +333,16 @@ object IR {
   }
 
   def exitGen(expr: Expr, asmBuilder: Builder[Instr, List[Instr]]) = {
+
+    asmBuilder += MOV(Reg(Rdi, DWord), exprGen(expr, asmBuilder))
+    asmBuilder ++= pushRbp
     asmBuilder.addAll(
       List(
-        MOV(Reg(Rdi, DWord), exprGen(expr, asmBuilder)), 
         AND(Reg(Rsp, QWord), Imm(STACK_ALIGN)),
         CALL(Label("exit@plt"))
       )
     )
+    asmBuilder ++= popRbp
   }
 
   def freeGen(expr: Expr, asmBuilder:Builder[Instr, List[Instr]]) = {
@@ -280,15 +351,18 @@ object IR {
         asmBuilder.addAll(
           List(
             movQnToReg(Rdi, qn),
-            SUB(Reg(Rdi, QWord), Imm(4)),
-            AND(Reg(Rsp, QWord), Imm(-16)),
-            CALL(Label("free@plt")),
-            MOV(Reg(Rax, QWord), Imm(0))
+            SUB(Reg(Rdi, QWord), Imm(4))
           )
         )
+        asmBuilder ++= pushRbp
+        asmBuilder += AND(Reg(Rsp, QWord), Imm(-16))
+        asmBuilder += CALL(Label("free@plt"))
+        asmBuilder ++= popRbp
+        asmBuilder += MOV(Reg(Rax, QWord), Imm(0))
       }
       case qn: QualifiedName if qn.t.isInstanceOf[PairElemType] => {
         asmBuilder += movQnToReg(Rdi, qn)
+        asmBuilder ++= pushRbp
         asmBuilder.addAll(
           List(
             AND(Reg(Rsp, QWord), Imm(-16)),
@@ -298,6 +372,7 @@ object IR {
             MOV(Reg(Rax, QWord), Imm(0))
           )
         )
+        asmBuilder ++= popRbp
       }
     }
 
@@ -333,4 +408,52 @@ object IR {
     Reg(Rax, typeToSize(qn.t))
   }
 
+  def printGen(expr: Expr, asmBuilder: Builder[Instr, List[Instr]]) = {
+    val t = getExprType(expr).get
+    if (t == BoolType) {
+      CMP(exprGenRegister(expr, asmBuilder), Imm(0))
+    }
+
+    val formatMode = formatMap(t)
+    val reg = exprGenRegister(expr, asmBuilder) 
+    val dataWidth = reg.dataWidth
+    asmBuilder ++= pushRbp
+    asmBuilder.addAll(
+      List(
+        MOV(Reg(Rsi, dataWidth), reg),
+        SUB(Reg(Rsp, QWord), Imm(8)),
+        MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(Rsp, QWord)), Imm(formatMode)),
+        MOV(Reg(Rdi, QWord), Reg(Rsp, QWord)),
+        MOV(Reg(Rax, Byte), Imm(0)),
+        AND(Reg(Rsp, QWord), Imm(STACK_ALIGN)),
+        CALL(Label("printf@plt")),
+        MOV(Reg(Rdi, QWord), Imm(0)),
+        CALL(Label("fflush@plt")),
+        ADD(Reg(Rsp, QWord), Imm(8))
+      )
+    ) 
+  }
+
+  val (pushRbp) = 
+    List(
+      PUSH(Reg(Rbp, QWord)),
+      MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
+    )
+
+  val popRbp = 
+    List(
+      MOV(Reg(Rsp, QWord), Reg(Rbp, QWord)),
+      POP(Reg(Rbp, QWord)),
+    )
+
+  def formatMap(t: Type): Int = {
+    t match
+      case PairType(t1, t2) => 0x007025
+      case ArrayType(CharType, 1) => 0x732A2E25
+      case ArrayType(t, d) => 0x007025
+      case IntType => 0x006425
+      case StringType => 0x732A2E25
+      case BoolType => ???
+      case CharType => 0x006325
+  }
 }

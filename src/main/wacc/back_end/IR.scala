@@ -41,9 +41,9 @@ object IR {
     val localLabelBuilder = List.newBuilder[LocalLabelDef]
     Stack.initialise(stmts)
 
-    asmBuilder += PUSH(Reg(Rbp, QWord)) //
-    asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord)) //
-    asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth)) //
+    asmBuilder += PUSH(Reg(Rbp, QWord))
+    asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
+    asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
     stmts.map(stmtGen(_, asmBuilder, localLabelBuilder))
     
     val funcLabel = if (funcName == "") {
@@ -90,13 +90,13 @@ object IR {
           asmBuilder += MOV(pointer, rValueGen(rValue, asmBuilder, qn.t))
         }
         case Fst(lValue2) => {
-          fstSndAddress(lValue2, asmBuilder) // Store address in R10
-          asmBuilder += MOV(Reg(9, QWord), Reg(10, QWord)) // Move into R9
+          fstSndAddress(lValue2, asmBuilder) 
+          asmBuilder += MOV(Reg(9, QWord), Reg(10, QWord))
           val regOrImm: (Reg | Imm) =
           rValueGen(rValue, asmBuilder) match
             case Reg(num, dataWidth) => Reg(num, QWord)
             case Imm(value) => Imm(value)
-          asmBuilder += MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(R9, QWord)), regOrImm) // Store RValue in R10, MOV R10 into [R9]
+          asmBuilder += MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(R9, QWord)), regOrImm) 
         }
         case Snd(lValue2) => {
           fstSndAddress(lValue2, asmBuilder, 8)
@@ -114,7 +114,7 @@ object IR {
     val dataWidth = typeToSize(t)
     asmBuilder.addAll(
       List(
-        MOV(Reg(R8, DWord), exprGen(index, asmBuilder)), // Okay because index has to be an int
+        MOV(Reg(R8, DWord), exprGen(index, asmBuilder)),
         CMP(Reg(R8, DWord), Imm(0)),
         JCond(Cond.L, Label("_outOfBounds")),
         CMP(Reg(R8, DWord), OffsetAddr(MemOpModifier.DWordPtr, Reg(R9, QWord), -4)),
@@ -135,7 +135,7 @@ object IR {
   }
 
   def storeOnStack(rValue: RValue, dataWidth: Int, offset: Int, asmBuilder: Builder[Instr, List[Instr]], t: Type = Undefined) = {
-    rValue match
+    (rValue: @unchecked) match
       case expr: Expr => asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), offset), exprGen(expr, asmBuilder))
       case Fst(lValue) => fstSndAddress(lValue, asmBuilder); asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), offset), Reg(R10, dataWidth))
       case Snd(lValue) => fstSndAddress(lValue, asmBuilder, 8); asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), offset), Reg(R10, dataWidth))
@@ -156,7 +156,7 @@ object IR {
         )
     )
     elems.indices.map(i => {
-      asmBuilder += MOV(OffsetAddr(arrayTypeSize, Reg(Rax, QWord), i*arrayTypeSize), exprGen(elems(i), asmBuilder)) // will be fine
+      asmBuilder += MOV(OffsetAddr(arrayTypeSize, Reg(Rax, QWord), i*arrayTypeSize), exprGen(elems(i), asmBuilder))
     })
     Reg(Rax, QWord)
   }
@@ -169,8 +169,8 @@ object IR {
       CALL(Label("_malloc")),
       )
     )
-    asmBuilder += MOV(OffsetAddr(fstSize, Reg(Rax, QWord)), exprGen(fst, asmBuilder)) // will be fine
-    asmBuilder += MOV(OffsetAddr(sndSize, Reg(Rax, QWord), sndSize), exprGen(snd, asmBuilder)) // will be fine
+    asmBuilder += MOV(OffsetAddr(fstSize, Reg(Rax, QWord)), exprGen(fst, asmBuilder))
+    asmBuilder += MOV(OffsetAddr(sndSize, Reg(Rax, QWord), sndSize), exprGen(snd, asmBuilder))
     Reg(Rax, QWord)
   }
 
@@ -202,11 +202,9 @@ object IR {
       (lValue: @unchecked) match
         case qn: QualifiedName => {
           val dataWidth = typeToSize(qn.t)
-          asmBuilder += movQnToReg(Rdi, qn, dataWidth) // Check if bugs later
-          // asmBuilder += MOV(Reg(Rdi, dataWidth), OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)))
+          asmBuilder += movQnToReg(Rdi, qn, dataWidth) 
           readFunc(dataWidth, asmBuilder)
-          asmBuilder += movRegOrImmToMem(Rax, qn, dataWidth) // Check if bugs later
-          // asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(Rax, dataWidth))
+          asmBuilder += movRegOrImmToMem(Rax, qn, dataWidth) 
         }
         case ArrayElem(qn: QualifiedName, index) => {
           val arrayBaseType = qn.t.asInstanceOf[ArrayType].t
@@ -269,8 +267,8 @@ object IR {
   def exitGen(expr: Expr, asmBuilder: Builder[Instr, List[Instr]]) = {
     asmBuilder.addAll(
       List(
-        MOV(Reg(Rdi, DWord), exprGen(expr, asmBuilder)), // expr can be assumed to be an int
-        AND(Reg(Rsp, QWord), Imm(STACK_ALIGN)),       // exit can only take an int
+        MOV(Reg(Rdi, DWord), exprGen(expr, asmBuilder)), 
+        AND(Reg(Rsp, QWord), Imm(STACK_ALIGN)),
         CALL(Label("exit@plt"))
       )
     )

@@ -24,7 +24,8 @@ object parser {
   private lazy val pairType = PairType("pair" ~> "(" ~> pairElemType, "," ~> pairElemType <~ ")")
 
   private lazy val atoms =
-    stringLiteral
+    "(" ~> expr <~ ")"
+    | stringLiteral
     | charLiteral
     | intLiteral
     | boolLiteral
@@ -86,8 +87,7 @@ object parser {
       atoms,
       atomic(arrayElem),
       ident,
-      "(" ~> expr <~ ")"
-  )(unaryOps, mulDivModOps, addSubOps, comparisonOps, equalOps, logicOps)
+  )(unaryOps, mulDivModOps, addSubOps, comparisonOps, equalOps, andOp, orOp)
 
   private lazy val beginBlock = Scope("begin" ~> stmts <~ "end")
 

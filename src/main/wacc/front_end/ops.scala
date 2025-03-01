@@ -38,7 +38,10 @@ val equalOps:Ops[Expr, Expr] = Ops(InfixL)(
   ("!=" as ((l, r) => NotEq(l,r)))
 )
 
-val logicOps: Ops[Expr, Expr] = Ops(InfixR)(
-  ("&&" as ((l, r) => And(l,r))),
+val andOp: Ops[Expr, Expr] = Ops(InfixR)(
+  ("&&" as ((l, r) => And(l,r)))
+)
+
+val orOp: Ops[Expr, Expr] = Ops(InfixR)(
   ("||" as ((l, r) => Or(l,r)))
 )

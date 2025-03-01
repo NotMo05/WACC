@@ -3,7 +3,7 @@ package wacc.back_end
 sealed trait Instr
 
 enum Cond {
-  case E, NE, L, LE, G, GE, A, AE, B, BE, S, NS, O, NO, P, NP
+  case E, NE, L, LE, G, GE, A, AE, B, BE, S, NS, O, NO, P, NP, AL
 
   override def toString(): String = s"J${this.productPrefix.toLowerCase}"
 }
@@ -32,16 +32,15 @@ case class POP(op: Location) extends Instr
 
 case class CMP(ops: FullOps) extends Instr
 case class SETCond(cond: Cond, op: Location) extends Instr
-case class JCond(cond: Cond, label: Label) extends Instr
+case class JCond(cond: Cond, label: Label | WhileIfLabel) extends Instr
 
 case class CALL(op: Label) extends Instr
 case class LEA(ops: (Reg, Location)) extends Instr
 
+
 case object RET extends Instr
 case object CDQ extends Instr
 
-// TODO
-// case class CALL() extends Instr
-// case class JMP() extends Instr
-
-
+case class WhileIfLabel(num: Int) extends Instr {
+  override def toString(): String = s".L$num"
+}

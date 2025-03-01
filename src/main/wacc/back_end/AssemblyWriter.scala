@@ -14,13 +14,11 @@ object AssemblyWriter {
     val finalAssembly = assemblyBuilder.result()
     assemblyBuilder.clear()
     
-    val sectionstuff = ""
     val writer = new PrintWriter(s"$folder${file.dropRight(5)}.s")
     val boilerplate = List(
       ".intel_syntax noprefix",
       ".globl main",
       ".section .rodata",
-      sectionstuff,
       ".text")
     boilerplate.foreach(writer.println)
     finalAssembly.foreach(writer.println)
@@ -45,26 +43,26 @@ object AssemblyWriter {
   def instructionHandler(instr: Instr) = {
     assemblyBuilder += (
       (instr: @unchecked) match
-        case ADD((op1, op2)) => s"add $op1, $op2 "
-        case SUB((op1, op2)) => s"sub $op1, $op2 "
-        case IDIV(op) => s"idiv $op"
-        case IMUL((op1, op2)) => s"imul $op1, $op2 "
-        case AND((op1, op2)) => s"and $op1, $op2 "
-        case OR((op1, op2)) => s"or $op1, $op2"
-        case XOR((op1, op2)) => s"xor $op1, $op2"
-        case NEG(op) => s"neg $op"
-        case NOT(op) => s"not $op"
-        case MOV((op1, op2)) => s"mov $op1, $op2 "
-        case PUSH(op) => s"push $op"
-        case POP(op) => s"pop $op"
-        case CMP((op1, op2)) => s"cmp $op1, $op2 "
-        case SETCond(cond, op) => "SET" + condToAsm(cond) + s"$op"
-        case RET => s"ret"
-        case CALL(op) => s"call $op"
-        case CDQ => "cdq"
-        case JCond(cond, label) => "j" + condToAsm(cond) + s"$label"
-        case LEA((op1, op2)) => s"lea $op1, $op2 "
-
+        case ADD((op1, op2)) => s"  add $op1, $op2"
+        case SUB((op1, op2)) => s"  sub $op1, $op2"
+        case IDIV(op) => s"  idiv $op"
+        case IMUL((op1, op2)) => s"  imul $op1, $op2"
+        case AND((op1, op2)) => s"  and $op1, $op2"
+        case OR((op1, op2)) => s" or $op1, $op2"
+        case XOR((op1, op2)) => s"  xor $op1, $op2"
+        case NEG(op) => s"  neg $op"
+        case NOT(op) => s"  not $op"
+        case MOV((op1, op2)) => s"  mov $op1, $op2"
+        case PUSH(op) => s"  push $op"
+        case POP(op) => s"  pop $op"
+        case CMP((op1, op2)) => s"  cmp $op1, $op2"
+        case SETCond(cond, op) => s"  set${condToAsm(cond)} $op"
+        case RET => "  ret"
+        case CALL(op) => s" call $op"
+        case CDQ => "  dq"
+        case JCond(cond, label) => s"  j${condToAsm(cond)} $label"
+        case LEA((op1, op2)) => s"  lea $op1, $op2"
+        case WhileIfLabel(num) => s".L$num:"
     )
   }
 
@@ -86,5 +84,6 @@ object AssemblyWriter {
       case NO => "no"
       case P => "p"
       case NP => "np"
+      case AL => "mp"
   }
 }

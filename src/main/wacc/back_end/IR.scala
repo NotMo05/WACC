@@ -8,13 +8,17 @@ import wacc.back_end.Stack.typeToSize
 import scala.collection.mutable.{Builder}
 import wacc.front_end.semantic.getExprType
 
-class Section(val text: String) {
-  override def toString(): String = text
+
+class Section(val text: String, val len: Int, strCount: Int) {
+  
 }
 
+var strCounter: Int = 0
 
 object IR {
   val STACK_ALIGN = -16
+  var localLabelCounter = 0
+
   def generateIR(prog: Prog): (List[Section], List[LabelDef]) = {
 
     val funcLabelDefs = 
@@ -34,62 +38,61 @@ object IR {
       case imm: Imm => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), imm)
   }
 
-  def RO_helper(stmt: Stmt): List[Section] = {
-    stmt match
-      case Return(expr) => (ROExprHelper(expr))
-      case Print(expr) =>  ROExprHelper(expr)
-      case Println(expr) =>  ROExprHelper(expr) 
-      case WhileDo(condition, stmts) => ROExprHelper(condition) 
-      case IfElse(condition, thenStmts, elseStmts) => ROExprHelper(condition)
-      // case Assgn(t, identifier, rValue) => return ROExprHelper(rValue)
-      // case ReAssgn(lValue, rValue) => return ROExprHelper(rValue)
-      case _ => return List()
-      
-  }
-
-
   def generateROData(stmts: List[Stmt]): List[Section] = { // CHANGED TO LIST OF SECTIONS FOR NOW
     // This will generate the boilerplate at the beginning of the asm file and
     // the string+len of string stuff to go in that section
+    // For each section, have a counter that keeps track of string number, the raw string and the length
 
 
     // Remind me to change stringGen in ExprGen
     // make a map of string to section
     return stmts.foldLeft(List.empty[Section])((list: List[Section], stmt: Stmt) => 
       (stmt match
-        case Return(expr) => (ROExprHelper(expr))
+        case Return(expr) => ROExprHelper(expr)
         case Print(expr) =>  ROExprHelper(expr)
         case Println(expr) =>  ROExprHelper(expr) 
         case WhileDo(condition, stmts) => ROExprHelper(condition) 
         case IfElse(condition, thenStmts, elseStmts) => ROExprHelper(condition)
-        // case Assgn(t, identifier, rValue) => return ROExprHelper(rValue)
-        // case ReAssgn(lValue, rValue) => return ROExprHelper(rValue)
-        case _ => List()
+        case Assgn(t, identifier, rValue) => RORValueHelper(rValue)
+        case ReAssgn(lValue, rValue) => RORValueHelper(rValue)
+        case _ => Nil
       ) ++ list)
-
-
   }
+
+  def RORValueHelper(rvalue: RValue): List[Section] =  {
+    return rvalue match
+      case Call(funcName: QualifiedFunc, args: List[Expr]) => args.map(i => ROExprHelper(i)).flatten
+      case Fst(lValue: LValue) => ROLValueHelper(lValue)
+      case Snd(lValue: LValue) => ROLValueHelper(lValue)
+      case NewPair(fst: Expr, snd: Expr) => ROExprHelper(fst) ++ ROExprHelper(snd)
+      case expr: Expr => ROExprHelper(expr)
+      case _ => Nil
+  }
+
+  def ROLValueHelper(lvalue: LValue): List[Section] =  {
+    return lvalue match
+      case Fst(lValue: LValue) => ROLValueHelper(lValue)
+      case Snd(lValue: LValue) => ROLValueHelper(lValue)
+      case _ => Nil
+}
 
   def ROExprHelper(expr: Expr): List[Section] = {
     expr match
-      case StringLiteral(string) => List(Section(string))
-      case qn: QualifiedName => {
-        if (qn.t == StringType) {
-          ???// List(Section(qn.num))
-        } else {
-          List()
-        }
-      } ///qn.t
-      case ArrayElem(arrayName, index) => ???//arrayName.t.asInstanceOf[ArrayType] ArrayType(string, ) string[][][][][][]
+      case StringLiteral(string) => {
+        val temp = strCounter
+        strCounter += 1
+        List(Section(string, string.length(), temp))
+      }
       case op: Operator => {
-        op match
+        op match 
           case Not(x) => ROExprHelper(x)
           case Eq(l, r) => ROExprHelper(l) ++ ROExprHelper(r)
           case NotEq(l, r) => ROExprHelper(l) ++ ROExprHelper(r) 
           case And(l, r) => ROExprHelper(l) ++ ROExprHelper(r) 
           case Or(l, r) => ROExprHelper(l) ++ ROExprHelper(r)
+          case _ => Nil
       }
-      case _ => List()
+      case _ => Nil
     }   
 
     def funcGenerate(stmts: List[Stmt], funcName: String = ""): FuncLabelDef = {
@@ -142,7 +145,7 @@ object IR {
         )
         asmBuilder ++= popRbp
       }
-      case WhileDo(condition, stmts) => ???
+      case WhileDo(condition, stmts) => whileGen(condition, stmts, asmBuilder, localLabelBuilder)
       case IfElse(condition, thenStmts, elseStmts) => ???
     }
 
@@ -253,6 +256,7 @@ object IR {
   }
 
   def readFunc(dataWidth: Int,asmBuilder: Builder[Instr, List[Instr]]) = {
+    val formatMode = if dataWidth == 1 then 0x006325 else 0x006425
     asmBuilder.addAll(pushRbp)
     asmBuilder.addAll(
       List(
@@ -260,7 +264,10 @@ object IR {
         SUB(Reg(Rsp, QWord), Imm(-STACK_ALIGN)),
         MOV(OffsetAddr(dataWidth, Reg(Rsp, QWord)), Reg(Rdi, dataWidth)),
         LEA(Reg(Rsi, QWord), OffsetAddr(MemOpModifier.QWordPtr, Reg(Rsp, QWord))),
-      //LEA(Reg(Rsi, QWord), [rip + .L._readi_str0]), lea rdi, [rip + .L._readi_str0],
+        SUB(Reg(Rsp, QWord), Imm(8)),
+        MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(Rsp, QWord)), Imm(formatMode)),
+        MOV(Reg(Rdi, QWord), Reg(Rsp, QWord)),
+        ADD(Reg(Rsp, QWord), Imm(8)),
         MOV(Reg(Rax, Byte), Imm(0)),
         CALL(Label("scanf@plt")),
         MOV(Reg(Rax, dataWidth), OffsetAddr(dataWidth, Reg(Rsp, QWord))),
@@ -460,4 +467,23 @@ object IR {
       case BoolType => ???
       case CharType => 0x006325
   }
+
+  def whileGen(cond: Expr, loopStmts: List[Stmt], asmBuilder: Builder[Instr, List[Instr]], localLabelBuilder: Builder[LocalLabelDef, List[LocalLabelDef]]) = {
+    
+    // Properly named Labels
+    val n = localLabelCounter
+    localLabelCounter += 2 // because n and n+1 are reserved for this while
+
+    asmBuilder += JCond(Cond.AL, WhileIfLabel(n))
+    asmBuilder += WhileIfLabel(n + 1)
+    scopeGen(loopStmts, asmBuilder, localLabelBuilder)
+
+    asmBuilder += WhileIfLabel(n)
+    exprGenRegister(cond, asmBuilder)
+    asmBuilder += CMP(Reg(R10, Byte), Imm(1))
+    asmBuilder += JCond(Cond.E, WhileIfLabel(n + 1))
+  }
 }
+
+
+

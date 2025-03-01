@@ -38,7 +38,7 @@ object ExprGen {
       }
       case StringLiteral(string) => {
         // LEA(Reg(regNum, QWord), OffsetAddr(MemOpModifier.QWordPtr, Reg(Rip, QWord), .L))
-        ???
+        Reg(regNum, QWord)
       }
 
   }
@@ -59,7 +59,7 @@ object ExprGen {
       case Mul(l, r) => arithmeticNonImm(l, r, regNum, asmBuilder, IMUL.apply) 
       case Div(l, r) => divMod(l, r, regNum, Rax, asmBuilder)
       case Mod(l, r) => divMod(l, r, regNum, Rdx, asmBuilder)
-      case Less(l, r) => cmpOp(l, r, regNum, asmBuilder,  L)       
+      case Less(l, r) => cmpOp(l, r, regNum, asmBuilder,  L)  
       case LessE(l, r) => cmpOp(l, r, regNum, asmBuilder,  LE)
       case Greater(l, r) => cmpOp(l, r, regNum, asmBuilder,  G)
       case GreaterE(l, r) => cmpOp(l, r, regNum, asmBuilder,  GE)
@@ -152,7 +152,7 @@ object ExprGen {
   def cmpOp(l: Expr, r: Expr, regNum: Int, asmBuilder: Builder[Instr, List[Instr]], cond: Cond) = {
     binOpHelper(l,r, regNum, asmBuilder)
     asmBuilder += CMP(Reg(regNum, DWord), Reg(regNum+1, DWord))
-    SETCond(cond, Reg(regNum, Byte))
+    asmBuilder += SETCond(cond, Reg(regNum, Byte))
     Reg(regNum, Byte)
   }
 

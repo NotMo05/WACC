@@ -115,7 +115,7 @@ object IR {
   def stmtGen(stmt: Stmt, asmBuilder: Builder[Instr, List[Instr]]): Unit =
     (stmt: @unchecked) match {
       case Skip => ()
-      case Assgn(t, qn: QualifiedName, rValue) => assgnGen(t, qn, rValue, asmBuilder)
+      case Assgn(t, qn: QualifiedName, rValue) => assgnGen(qn, rValue, asmBuilder, t)
       case ReAssgn(lValue, rValue) => reassgnGen(lValue, rValue, asmBuilder)
       case Exit(expr) => exitGen(expr, asmBuilder)
       case Return(expr) => returnGen(expr, asmBuilder)
@@ -145,21 +145,9 @@ object IR {
       case IfElse(condition, thenStmts, elseStmts) => ifElseGen(condition, thenStmts, elseStmts, asmBuilder)
     }
 
-  def assgnGen(
-    t: Type, 
-    qn: QualifiedName, 
-    rValue: RValue, 
-    asmBuilder: Builder[Instr, List[Instr]]) : 
-    Builder[Instr, List[Instr]] = 
-  {
-    val offset = Stack.getOffset(qn)
-    val dataWidth = Stack.typeToSize(t)
-    storeOnStack(qn, rValue, asmBuilder, t)
-  } //       case reg: RegName => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(reg, dataWidth))
-
   def reassgnGen(lValue: LValue, rValue: RValue, asmBuilder: Builder[Instr, List[Instr]]) = {
     (lValue: @unchecked) match
-        case qn: QualifiedName => assgnGen(qn.t, qn, rValue, asmBuilder)
+        case qn: QualifiedName => assgnGen(qn, rValue, asmBuilder, qn.t)
         case ArrayElem(qn: QualifiedName, index) => {
           val (dataWidth, pointer) = repeatAccessArray(qn, index, asmBuilder)
           asmBuilder += MOV(pointer, rValueGen(rValue, asmBuilder, qn.t))
@@ -214,23 +202,15 @@ object IR {
       case Call(qn: QualifiedFunc, args) => callGen(qn, args, asmBuilder)
   }
 
-  def storeOnStack(qn: QualifiedName, rValue: RValue, asmBuilder: Builder[Instr, List[Instr]], t: Type = Undefined) = {
-    val offset = Stack.getOffset(qn)
+  def assgnGen(qn: QualifiedName, rValue: RValue, asmBuilder: Builder[Instr, List[Instr]], t: Type = Undefined) = {
     val dataWidth = Stack.typeToSize(t)
-    //       case reg: RegName => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(reg, dataWidth))
-
-    
-    
-    (rValue: @unchecked) match
-      // case expr: Expr => asmBuilder += movRegOrImmToMem(exprGen(expr, asmBuilder), qn, dataWidth)
-      case expr: Expr => asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), exprGen(expr, asmBuilder))
-      // case Fst(lValue) => fstSndAddress(lValue, asmBuilder); asmBuilder += movRegOrImmToMem(R10, qn, )
-
-      case Fst(lValue) => fstSndAddress(lValue, asmBuilder); asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(R10, dataWidth))
-      case Snd(lValue) => fstSndAddress(lValue, asmBuilder, 8); asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(R10, dataWidth))
-      case ArrayLiter(elems) => mallocArrayLiter(elems, t.asInstanceOf[ArrayType], asmBuilder); asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(Rax, dataWidth))
-      case NewPair(fst, snd) => mallocNewPair(fst, snd, asmBuilder); asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(Rax, dataWidth))
-      case Call(qn: QualifiedFunc, args) => callGen(qn, args, asmBuilder); asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), offset), Reg(Rax, dataWidth))
+    asmBuilder += ((rValue: @unchecked) match
+      case expr: Expr => movRegOrImmToMem(exprGen(expr, asmBuilder), qn, dataWidth)
+      case Fst(lValue) => movRegOrImmToMem(fstSndAddress(lValue, asmBuilder), qn, dataWidth)
+      case Snd(lValue) => movRegOrImmToMem(fstSndAddress(lValue, asmBuilder, 8), qn, dataWidth)
+      case ArrayLiter(elems) => movRegOrImmToMem(mallocArrayLiter(elems, t.asInstanceOf[ArrayType], asmBuilder), qn, dataWidth)
+      case NewPair(fst, snd) => movRegOrImmToMem(mallocNewPair(fst, snd, asmBuilder), qn, dataWidth)
+      case Call(qnFunc: QualifiedFunc, args) => movRegOrImmToMem(callGen(qnFunc, args, asmBuilder), qn, dataWidth))
   }  
 
   def mallocArrayLiter(elems: List[Expr], arrayType: ArrayType, asmBuilder: Builder[Instr, List[Instr]]) = {

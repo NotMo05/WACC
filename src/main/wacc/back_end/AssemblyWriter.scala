@@ -7,7 +7,7 @@ import java.nio.file.Paths
 object AssemblyWriter {
   val assemblyBuilder = List.newBuilder[String]
 
-  def generateAsmFile(ir: (List[Section], List[LabelDef]), filename: String, folder: String = "") = {
+  def generateAsmFile(ir: (List[IR.Section], List[FuncLabelDef]), filename: String, folder: String = "") = {
     print(filename)
     val file = Paths.get(filename).getFileName.toString
     ir._2.map(labelHandler(_))
@@ -26,19 +26,10 @@ object AssemblyWriter {
     
   }
 
-  def labelHandler(labelDef: LabelDef): Unit = {
-    labelDef match 
-      case FuncLabelDef(name, instructions, localLabelDefs) => {
-        assemblyBuilder += (s"$name:")
-        instructions.result.map(instructionHandler(_))
-        localLabelDefs.result.map(labelHandler(_))
-      }
-      case wacc.back_end.LocalLabelDef(name, instructions) => {
-        assemblyBuilder += (s"$name:")
-        instructions.result.map(instructionHandler(_))
-      }
+  def labelHandler(label: FuncLabelDef): Unit = {
+        assemblyBuilder += (s"${label.name}:")
+        label.instructions.result.map(instructionHandler(_))
   }
-
 
   def instructionHandler(instr: Instr) = {
     assemblyBuilder += (

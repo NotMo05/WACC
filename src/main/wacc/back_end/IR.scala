@@ -9,17 +9,17 @@ import scala.collection.mutable.{Builder}
 import wacc.front_end.semantic.getExprType
 
 
-class Section(val text: String, val len: Int, strCount: Int) {
-  
-}
 
-var strCounter: Int = 0
+
 
 object IR {
   val STACK_ALIGN = -16
   var localLabelCounter = 0
+  var strCounter: Int = 0
 
-  def generateIR(prog: Prog): (List[Section], List[LabelDef]) = {
+  class Section(val text: String, val len: Int, strCount: Int)
+  
+  def generateIR(prog: Prog): (List[Section], List[FuncLabelDef]) = {
 
     val funcLabelDefs = 
     funcGenerate(prog.main) :: prog.funcs.map(func => funcGenerate(func.stmts, func.identifier.identifier))
@@ -97,12 +97,11 @@ object IR {
 
     def funcGenerate(stmts: List[Stmt], funcName: String = ""): FuncLabelDef = {
     val asmBuilder = List.newBuilder[Instr]
-    val localLabelBuilder = List.newBuilder[LocalLabelDef]
     Stack.initialise(stmts)
     asmBuilder += PUSH(Reg(Rbp, QWord))
     asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
     asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
-    stmts.map(stmtGen(_, asmBuilder, localLabelBuilder))
+    stmts.map(stmtGen(_, asmBuilder))
     
     val funcLabel = if (funcName == "") {
       asmBuilder += MOV(Reg(Rax, QWord), Imm(0))
@@ -113,10 +112,10 @@ object IR {
     asmBuilder += POP(Reg(Rbp, QWord)) 
     asmBuilder += RET 
     
-    return FuncLabelDef(funcLabel, asmBuilder, localLabelBuilder)
+    return FuncLabelDef(funcLabel, asmBuilder)
   }
 
-  def stmtGen(stmt: Stmt, asmBuilder: Builder[Instr, List[Instr]], localLabelBuilder: Builder[LocalLabelDef, List[LocalLabelDef]]): Unit =
+  def stmtGen(stmt: Stmt, asmBuilder: Builder[Instr, List[Instr]]): Unit =
     (stmt: @unchecked) match {
       case Skip => ()
       case Assgn(t, qn: QualifiedName, rValue) => assgnGen(t, qn, rValue, asmBuilder)
@@ -125,7 +124,7 @@ object IR {
       case Return(expr) => returnGen(expr, asmBuilder)
       case Read(lValue) => readGen(lValue, asmBuilder)
       case Free(expr) => freeGen(expr, asmBuilder)
-      case Scope(stmts) => scopeGen(stmts, asmBuilder, localLabelBuilder)
+      case Scope(stmts) => scopeGen(stmts, asmBuilder)
       case Print(expr) => {
         printGen(expr, asmBuilder)
         asmBuilder ++= popRbp
@@ -145,7 +144,7 @@ object IR {
         )
         asmBuilder ++= popRbp
       }
-      case WhileDo(condition, stmts) => whileGen(condition, stmts, asmBuilder, localLabelBuilder)
+      case WhileDo(condition, stmts) => whileGen(condition, stmts, asmBuilder)
       case IfElse(condition, thenStmts, elseStmts) => ???
     }
 
@@ -387,12 +386,12 @@ object IR {
       }
     }
 
-  def scopeGen(stmts: List[Stmt], asmBuilder: Builder[Instr, List[Instr]], localLabelBuilder: Builder[LocalLabelDef, List[LocalLabelDef]]) = {
+  def scopeGen(stmts: List[Stmt], asmBuilder: Builder[Instr, List[Instr]]) = {
     val prevFrame = Stack.frames.last
     Stack.frames += StackFrame(stmts, prevFrame.identTable, prevFrame.absoluteDepth())
     print(Stack.frames.last.identTable)
     asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
-    stmts.map(stmtGen(_, asmBuilder, localLabelBuilder))
+    stmts.map(stmtGen(_, asmBuilder))
     asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
     Stack.frames.dropRightInPlace(1)
   }
@@ -458,25 +457,30 @@ object IR {
     )
 
   def formatMap(t: Type): Int = {
+    // The below are for C style printing ie
+    // printf("%d", num) to print an int in C
+    val p = 0x007025 // p for pointers
+    val s = 0x732A2E25 // s for strings
+    val c = 0x006325 // c for chars
+    val d = 0x006425 // d for ints
     t match
-      case PairType(t1, t2) => 0x007025
-      case ArrayType(CharType, 1) => 0x732A2E25
-      case ArrayType(t, d) => 0x007025
-      case IntType => 0x006425
-      case StringType => 0x732A2E25
+      case PairType(t1, t2) => p
+      case ArrayType(CharType, 1) => s
+      case ArrayType(t, d) => p
+      case IntType => d
+      case StringType => s
       case BoolType => ???
-      case CharType => 0x006325
+      case CharType => c
   }
 
-  def whileGen(cond: Expr, loopStmts: List[Stmt], asmBuilder: Builder[Instr, List[Instr]], localLabelBuilder: Builder[LocalLabelDef, List[LocalLabelDef]]) = {
+  def whileGen(cond: Expr, loopStmts: List[Stmt], asmBuilder: Builder[Instr, List[Instr]]) = {
     
-    // Properly named Labels
     val n = localLabelCounter
     localLabelCounter += 2 // because n and n+1 are reserved for this while
 
     asmBuilder += JCond(Cond.AL, WhileIfLabel(n))
     asmBuilder += WhileIfLabel(n + 1)
-    scopeGen(loopStmts, asmBuilder, localLabelBuilder)
+    scopeGen(loopStmts, asmBuilder)
 
     asmBuilder += WhileIfLabel(n)
     exprGenRegister(cond, asmBuilder)
@@ -484,6 +488,3 @@ object IR {
     asmBuilder += JCond(Cond.E, WhileIfLabel(n + 1))
   }
 }
-
-
-

@@ -39,12 +39,11 @@ object IR {
       case reg: Reg => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), reg)
   }
 
-  def generateROData(stmts: List[Stmt]): List[StringInfo] = {
-    // This will generate the Read Only Data at the beginning of the asm file and
-    // with raw string, its length and the label
-
-                        // Remind me to change stringGen in ExprGen
-                        // make a map of string to section
+  def generateROData(stmts: List[Stmt]): List[StringInfo] = { // CHANGED TO LIST OF SECTIONS FOR NOW
+    // This will generate the boilerplate labels at the beginning of assembly file that contain string data
+    // Including raw string, string length and the label number 
+                // Remind me to change stringGen in ExprGen
+                // make a map of string to section
     return stmts.foldLeft(List.empty[StringInfo])((list: List[StringInfo], stmt: Stmt) => 
       (stmt match
         case Return(expr) => ROExprHelper(expr)
@@ -292,24 +291,23 @@ object IR {
   }
 
   def readGen(lValue: LValue, asmBuilder: Builder[Instr, List[Instr]]) = {
-      (lValue: @unchecked) match
-        case qn: QualifiedName => {
-          val dataWidth = typeToSize(qn.t)
-          asmBuilder += movQnToReg(Rdi, qn, dataWidth)
-          readFunc(dataWidth, asmBuilder)
-          asmBuilder += movRegOrImmToMem(Rax, qn, dataWidth) 
-        }
-        case ArrayElem(qn: QualifiedName, index) => {
-          val arrayBaseType = qn.t.asInstanceOf[ArrayType].t
-          val arrayPointer = OffsetAddr(MemOpModifier.QWordPtr, Reg(Rbp, QWord), Stack.getOffset(qn))
-          val (dataWidth, pointer) =  arrayIndexAccess(arrayPointer, index.last, arrayBaseType, asmBuilder)
-          asmBuilder += MOV(Reg(Rdi, dataWidth), pointer)
-          readFunc(dataWidth, asmBuilder)
-          asmBuilder += MOV(pointer, Reg(Rax, dataWidth))
-        }
-        case Fst(lValue) => readPair(lValue, asmBuilder, 0)
-
-        case Snd(lValue) => readPair(lValue, asmBuilder , 8)
+    (lValue: @unchecked) match
+      case qn: QualifiedName => {
+        val dataWidth = typeToSize(qn.t)
+        asmBuilder += movQnToReg(Rdi, qn, dataWidth) 
+        readFunc(dataWidth, asmBuilder)
+        asmBuilder += movRegOrImmToMem(Rax, qn, dataWidth) 
+      }
+      case ArrayElem(qn: QualifiedName, index) => {
+        val arrayBaseType = qn.t.asInstanceOf[ArrayType].t
+        val arrayPointer = OffsetAddr(MemOpModifier.QWordPtr, Reg(Rbp, QWord), Stack.getOffset(qn))
+        val (dataWidth, pointer) =  arrayIndexAccess(arrayPointer, index.last, arrayBaseType, asmBuilder)
+        asmBuilder += MOV(Reg(Rdi, dataWidth), pointer)
+        readFunc(dataWidth, asmBuilder)
+        asmBuilder += MOV(pointer, Reg(Rax, dataWidth))
+      }
+      case Fst(lValue) => readPair(lValue, asmBuilder, 0)
+      case Snd(lValue) => readPair(lValue, asmBuilder , 8)
     }
 
   def fstSndAddress(lValue: LValue, asmBuilder: Builder[Instr, List[Instr]], fstOrSnd: Int = 0): Reg = {
@@ -358,7 +356,6 @@ object IR {
   }
 
   def exitGen(expr: Expr, asmBuilder: Builder[Instr, List[Instr]]) = {
-
     asmBuilder += MOV(Reg(Rdi, DWord), exprGen(expr, asmBuilder))
     asmBuilder ++= pushRbp
     asmBuilder.addAll(

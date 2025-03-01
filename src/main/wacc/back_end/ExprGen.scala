@@ -17,6 +17,13 @@ import wacc.back_end.IR.strMap
 // divByZeroErr Instructions (At Bottom)
 // Remove debug prints
 
+/**
+ * The `ExprGen` object is responsible for generating assembly instructions
+ * for various expressions in the WACC language. It provides methods to handle
+ * different types of expressions, including literals, operators, and qualified names.
+ * The generated instructions are added to an assembly builder, which is used to 
+ * construct the final assembly code.
+ */
 object ExprGen {
   // Generates and appends any required assembly IR for evaluating the given expression
   def exprGen(expr: Expr, asmBuilder: Builder[Instr, List[Instr]], regNum: Int = 10): (Reg | Imm) = {
@@ -162,7 +169,6 @@ object ExprGen {
   }
 
   def divMod(l: Expr, r: Expr, regNum: Int, reg: RegName, asmBuilder: Builder[Instr, List[Instr]]) = {
-    // Reference doesn't save Rax, Rdx?
     asmBuilder.addAll(
       List(
         PUSH(Reg(Rax, QWord)),
@@ -181,7 +187,6 @@ object ExprGen {
       POP(Reg(Rax, QWord)))
     )
     Reg(reg, DWord)
-    // So doesn't need to push em
   }
 
   def overflowErr(regNum: Int): List[Instr] = Nil

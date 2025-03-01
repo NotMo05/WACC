@@ -36,14 +36,13 @@ object AssemblyWriter {
     writer.println(".text")
     finalAssembly.foreach(writer.println)
     writer.close()
-    
   }
     
   // TODO: rename label handler to label def handler
   // Appends assembly text for given label definition
   def labelHandler(label: FuncLabelDef): Unit = {
-        assemblyBuilder += (s"${label.name}:")
-        label.instructions.result.map(instructionHandler(_))
+    assemblyBuilder += (s"${label.name}:")
+    label.instructions.result.map(instructionHandler(_))
   }
 
   // Appends assembly text for given instruction
@@ -73,8 +72,8 @@ object AssemblyWriter {
     )
   }
 
-  // Returns assembly text for given jump instruction type
-  def condToAsm(cond: Cond): String = {
+  // Adding conditional jumps to assembly file
+  def condToAsm(cond: Cond) = {
     cond match
       case E => "e"
       case NE => "ne"

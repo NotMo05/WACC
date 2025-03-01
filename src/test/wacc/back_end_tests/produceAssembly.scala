@@ -14,11 +14,13 @@ import scala.sys.process._
 import wacc.back_end.IR.generateIR
 import org.scalatest.BeforeAndAfter
 
-class produceAssembly extends AnyFlatSpec with BeforeAndAfter{
+class produceAssembly extends AnyFlatSpec with BeforeAndAfter {
 
-  val binDir: String = "src/test/wacc/back_end_tests/bin"
-  val assDir: String = "src/test/wacc/back_end_tests/assemblyFiles"
+  // Temp Directories for Assembly and Binary Files
+  val assemblyDir: String = "src/test/wacc/back_end_tests/assemblyFiles"
+  val binDir: String = "src/test/wacc/back_end_tests/binFiles"
 
+  /** Function to delete a directory and its contents **/
   def deleteDirectory(directory: File): Boolean = {
     if (directory.exists()) {
       val files = directory.listFiles()
@@ -37,12 +39,13 @@ class produceAssembly extends AnyFlatSpec with BeforeAndAfter{
     }
   }
 
+  /** Function to find output values from a file **/
   def findOutputValues(filePath: String): List[String] = {
     val source = Source.fromFile(filePath)
     try {
       val lines = source.getLines()
-        .filter(_.startsWith("#")) // Find all lines starting with "#"
-        .map(_.stripPrefix("#").trim) // Remove "#" and trim whitespace
+        .filter(_.startsWith("#"))          // Find all lines starting with "#"
+        .map(_.stripPrefix("#").trim)       // Remove "#" and trim whitespace
         .map(line => "  " + line)
         .toList
 
@@ -50,29 +53,28 @@ class produceAssembly extends AnyFlatSpec with BeforeAndAfter{
       val outputIndex = lines.indexWhere(_.contains("Output:"))
 
       if (outputIndex >= 0) {
-        lines.drop(outputIndex + 1) // Take all lines after "Output:"
-          .filter(!_.contains("Program:")) // Filter out lines containing "Program:"
-          .filter(_.nonEmpty) // Remove empty lines
-          .map(_.replaceAll("\\s", "")) // Remove all whitespace characters
+        lines.drop(outputIndex + 1)         // Take all lines after "Output:"
+          .filter(!_.contains("Program:"))  // Filter out lines containing "Program:"
+          .filter(_.nonEmpty)               // Remove empty lines
+          .map(_.replaceAll("\\s", ""))     // Remove all whitespace characters
       } else {
-        List() // Return empty list if marker not found
+        List() // Return empty list if no ouput is listed
       }
     } finally {
       source.close()
     }
   }
 
-    /** Function to dynamically register tests for a given folder **/
+  /** Function to dynamically register tests for a given folder **/
   def runTest(directoryPath: String, isPending: Boolean, persist: Boolean): Unit = {
     try {
-      val path = Paths.get(assDir)
+      val path = Paths.get(assemblyDir)
       if (!Files.exists(path)) {
         Files.createDirectory(path)
       }
       val files = FileUtils.listAllFiles(new File(directoryPath)).filter(_.isFile)
 
       for (file <- files if file.getPath.endsWith(".wacc")) {
-        // Your existing test code
         val fileName = file.getPath
     
         it should s"successfully produce assembly for $fileName" in {
@@ -86,10 +88,10 @@ class produceAssembly extends AnyFlatSpec with BeforeAndAfter{
               assert(errors.isEmpty && semantic.analyse(newProg).isEmpty)
               
               val IR = generateIR(newProg)
-              generateAsmFile(IR, fileName, s"$assDir/")
+              generateAsmFile(IR, fileName, s"$assemblyDir/")
               
               val baseName = new File(fileName).getName.replace(".wacc", "")
-              val assemblyFilepath = s"$assDir/$baseName.s"
+              val assemblyFilepath = s"$assemblyDir/$baseName.s"
     
               if (!new File(binDir).exists()) {
                 new File(binDir).mkdirs()
@@ -112,21 +114,12 @@ class produceAssembly extends AnyFlatSpec with BeforeAndAfter{
                 println(s"Expecting exit code of $expected")
                 assert(expected == exitCode.toString)
               }
-              // Replace deleteDirectory calls with this
-              // if (!persist) {
-                
-              //   // Create a fresh directory for next run
-              //   Process(s"rm -rf $assDir").!
-              //   Process(s"rm -rf $binDir").!
-              // }
-    
             case Failure(msg) => fail(s"Parsing failed: $msg")
           }
         }
       }
-    } 
-    finally {
-
+    } finally {
+      // Clean up resources if needed
     }
   }
 
@@ -143,16 +136,16 @@ class produceAssembly extends AnyFlatSpec with BeforeAndAfter{
   val variablesPath = "src/test/wacc/wacc-examples/valid/variables"
   val whilePath = "src/test/wacc/wacc-examples/valid/while"
 
-  // runTest(advancedPath, true, false)
-  // runTest(arrayPath, true, false)
+  // runTest(advancedPath, false, true)
+  // runTest(arrayPath, false, true)
   runTest(basicPath, false, true)
   // runTest(expressionPath, false, true)
-  // runTest(functionPath, true, false)
-  // runTest(ifPath, true, false)
-  // runTest(IOPath, true, false)
-  // runTest(pairsPath, true, false)
-  // runTest(runtimeErrPath, true, false)
-  // runTest(scopePath, true, false)
-  // runTest(variablesPath, true, false)
-  // runTest(whilePath, true, false)
+  // runTest(functionPath, false, true)
+  // runTest(ifPath, false, true)
+  // runTest(IOPath, false, true)
+  // runTest(pairsPath, false, true)
+  // runTest(runtimeErrPath, false, true)
+  // runTest(scopePath, false, true)
+  // runTest(variablesPath, false, true)
+  // runTest(whilePath, false, true)
 }

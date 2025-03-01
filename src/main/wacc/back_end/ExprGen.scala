@@ -189,7 +189,7 @@
         POP(Reg(Rdx, QWord)),
         POP(Reg(Rax, QWord)))
       )
-      Reg(reg, DWord)
+      Reg(regNum, DWord)
     }
 
     def overflowErr(regNum: Int): List[Instr] = Nil

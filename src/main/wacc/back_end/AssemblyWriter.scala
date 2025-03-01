@@ -19,7 +19,13 @@ object AssemblyWriter {
     val boilerplate = List(
       ".intel_syntax noprefix",
       ".globl main",
-      ".section .rodata")
+      ".section .rodata",
+      "   .int 5",
+      ".L.strfalse:",
+      "   .asciz \"false\"",
+      "   .int 4",
+      ".L.strtrue:",
+      "   .asciz \"true\"")
     boilerplate.foreach(writer.println)
     
     // Write string info directives into ro section

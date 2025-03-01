@@ -43,14 +43,13 @@ object IR {
     // This will generate the boilerplate labels at the beginning of assembly file that contain string data
     // Including raw string, string length and the label number 
                 // Remind me to change stringGen in ExprGen
-                // make a map of string to section
     return stmts.foldLeft(List.empty[StringInfo])((list: List[StringInfo], stmt: Stmt) => 
       (stmt match
         case Return(expr) => ROExprHelper(expr)
         case Print(expr) => ROExprHelper(expr)
         case Println(expr) => ROExprHelper(expr) 
-        case WhileDo(condition, stmts) => ROExprHelper(condition) 
-        case IfElse(condition, thenStmts, elseStmts) => ROExprHelper(condition)
+        case WhileDo(condition, stmts) => ROExprHelper(condition) ++ generateROData(stmts)
+        case IfElse(condition, thenStmts, elseStmts) => ROExprHelper(condition) ++ generateROData(thenStmts) ++ generateROData(elseStmts)
         case Assgn(t, identifier, rValue) => RORValueHelper(rValue)
         case ReAssgn(lValue, rValue) => RORValueHelper(rValue)
         case _ => Nil
@@ -432,17 +431,26 @@ object IR {
   def printGen(expr: Expr, asmBuilder: Builder[Instr, List[Instr]]) = {
     val t = getExprType(expr).get
     if (t == BoolType) {
-      CMP(exprGenRegister(expr, asmBuilder), Imm(0))
-    }
-
+      val n = localLabelCounter
+      localLabelCounter += 2
+      asmBuilder += CMP(exprGenRegister(expr, asmBuilder), Imm(0))
+      asmBuilder += JCond(Cond.NE, WhileIfLabel(n))
+      asmBuilder += LEA(Reg(R10, QWord), StringAddr("false")) // FALSE
+      asmBuilder += JCond(Cond.AL, WhileIfLabel(n+1))
+      asmBuilder += WhileIfLabel(n)
+      asmBuilder += LEA(Reg(R10, QWord), StringAddr("true")) // TRUE
+      asmBuilder += WhileIfLabel(n+1)
+      asmBuilder ++= pushRbp
+      printString(Reg(R10, QWord), formatMap(StringType), asmBuilder) 
+    } else {
     val formatMode = formatMap(t)
     val reg = exprGenRegister(expr, asmBuilder) 
     val dataWidth = reg.dataWidth
     asmBuilder ++= pushRbp
-    
     if (t == StringType || t == ArrayType(CharType, 1)) 
-    then printString(reg, dataWidth, formatMode, asmBuilder) 
+    then printString(reg, formatMode, asmBuilder) 
     else printNonString(reg, dataWidth, formatMode, asmBuilder)
+    }
   }
 
 
@@ -521,10 +529,10 @@ object IR {
     )
   }
 
-  def printString(reg: Reg, dataWidth: DataWidth, formatMode: Int, asmBuilder: Builder[Instr, List[Instr]]) = {
+  def printString(reg: Reg, formatMode: Int, asmBuilder: Builder[Instr, List[Instr]]) = {
     asmBuilder.addAll(
       List(
-        MOV(Reg(Rdx, dataWidth), reg),
+        MOV(Reg(Rdx, QWord), reg),
         MOV(Reg(Rsi, DWord), OffsetAddr(MemOpModifier.DWordPtr, Reg(Rdx, QWord), -4)),
         SUB(Reg(Rsp, QWord), Imm(8)),
         MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(Rsp, QWord)), Imm(formatMode)),

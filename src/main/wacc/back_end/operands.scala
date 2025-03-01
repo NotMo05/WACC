@@ -100,7 +100,7 @@ case class OffsetAddr(modifer: MemOpModifier, reg1: Reg, disp: Int = 0) extends 
 case class RegScale(modifer: MemOpModifier, reg1: Reg, scale: Int, reg2: Reg) extends MemAddr
 case class RegScaleImm(modifer: MemOpModifier, reg1: Reg, scale: Int, reg2: Reg, imm: Int) extends MemAddr
 case class ScaleImm(modifer: MemOpModifier, reg: Reg, scale: Int, imm: Int) extends MemAddr
-case class StringAddr(strCount: Int, reg: Reg = Reg(RegName.Rip, DataWidth.QWord)) extends MemAddr
+case class StringAddr(strCount: String, reg: Reg = Reg(RegName.Rip, DataWidth.QWord)) extends MemAddr
 
 object MemOpModifier {
   implicit def intToMemOpModifier(size: Int): MemOpModifier = {

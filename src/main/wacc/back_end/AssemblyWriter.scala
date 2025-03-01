@@ -30,7 +30,7 @@ object AssemblyWriter {
       ".L.str_errNull:",
       "   .asciz \"fatal error: null pair dereferenced or freed\\n\"",
       "   .int 27",
-      ".L.str_errOutOfMemory:",
+      ".L.str_errOutOfMem:",
       "   .asciz \"fatal error: out of memory\\n\"",
       "   .int 52",
       ".L.str_errOverflow:",

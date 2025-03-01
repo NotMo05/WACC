@@ -7,7 +7,6 @@ enum RegName:
 enum DataWidth:
   case Byte, Word, DWord, QWord
 
-
 enum MemOpModifier:
   case BytePtr, WordPtr, DWordPtr, QWordPtr
   override def toString(): String = { 
@@ -18,8 +17,8 @@ enum MemOpModifier:
       case QWordPtr => "qword ptr"
   }
 
-
-sealed trait Operand // Operand is a location or immediate
+// Operand is a location or immediate
+sealed trait Operand 
 sealed trait Location extends Operand {
   override def toString: String = this match {
     case indAddr: IndexedAddr => ???
@@ -94,7 +93,7 @@ sealed trait MemAddr extends Location
 case class IndexedAddr(modifer: MemOpModifier, reg1: Reg, reg2: Reg) extends MemAddr 
 // ie mov qword ptr rax, [rbx + rsi]
 
-case class OffsetAddr(modifer: MemOpModifier, reg1: Reg, disp: Int = 0) extends MemAddr // displacement/offset [reg - offset]
+case class OffsetAddr(modifer: MemOpModifier, reg1: Reg, disp: Int = 0) extends MemAddr 
 // ie mov qword ptr [rsp + 8], r12
 
 case class RegScale(modifer: MemOpModifier, reg1: Reg, scale: Int, reg2: Reg) extends MemAddr
@@ -115,7 +114,7 @@ object MemOpModifier {
       case DataWidth.Word => WordPtr
       case DataWidth.DWord => DWordPtr
       case DataWidth.QWord => QWordPtr
-}
+  }
 }
 
 object DataWidth {

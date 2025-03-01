@@ -7,6 +7,7 @@ import java.nio.file.Paths
 object AssemblyWriter {
   val assemblyBuilder = List.newBuilder[String]
 
+  // Function to generate the assembly file
   def generateAsmFile(ir: (List[IR.Section], List[FuncLabelDef]), filename: String, folder: String = "") = {
     val file = Paths.get(filename).getFileName.toString
     ir._2.map(labelHandler(_))
@@ -14,20 +15,23 @@ object AssemblyWriter {
     assemblyBuilder.clear()
     
     val writer = new PrintWriter(s"$folder${file.dropRight(5)}.s")
+    
+    // The starting labels in assembly files
     val boilerplate = List(
       ".intel_syntax noprefix",
       ".globl main",
       ".section .rodata",
-      ".text")
+      ".text"
+    )
+
     boilerplate.foreach(writer.println)
     finalAssembly.foreach(writer.println)
     writer.close()
-    
   }
 
   def labelHandler(label: FuncLabelDef): Unit = {
-        assemblyBuilder += (s"${label.name}:")
-        label.instructions.result.map(instructionHandler(_))
+    assemblyBuilder += (s"${label.name}:")
+    label.instructions.result.map(instructionHandler(_))
   }
 
   def instructionHandler(instr: Instr) = {
@@ -56,6 +60,7 @@ object AssemblyWriter {
     )
   }
 
+  // Adding conditional jumps to assembly file
   def condToAsm(cond: Cond) = {
     cond match
       case E => "e"

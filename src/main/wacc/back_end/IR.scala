@@ -24,9 +24,22 @@ object IR {
   def generateIR(prog: Prog): (List[StringInfo], List[FuncLabelDef]) = {
     val sections = generateROData(prog.main) :: prog.funcs.map(func => generateROData(func.stmts))
     val funcLabelDefs = funcGenerate(prog.main) :: prog.funcs.map(func => funcGenerate(func.stmts, func.identifier.identifier))
+    val errorList = List("_errBadChar","_errNull","_errOutOfMem","_errOutOfBounds","_errOverflow","_errDivZero")
+    val allFuncLabelDefs: List[FuncLabelDef] = funcLabelDefs ++ errorList.map(generateErrorLabels(_))
+
     // each section is .rodata (read only)
     // what follows is .text
-    return(sections.flatten, funcLabelDefs)
+    return(sections.flatten, allFuncLabelDefs)
+  }
+
+  def generateErrorLabels(name: String): FuncLabelDef = {
+    val asmBuilder = List.newBuilder[Instr]
+    asmBuilder += AND(Reg(Rsp, QWord), Imm(STACK_ALIGN))
+    asmBuilder += LEA(Reg(Rdi, QWord), StringAddr(s"${name}"))
+    printString(Reg(Rdi, QWord), formatMap(StringType), asmBuilder)
+    asmBuilder += MOV(Reg(Rdi, Word), Imm(-1))
+    asmBuilder += CALL(Label("exit@plt"))
+    FuncLabelDef(name, asmBuilder)
   }
 
   // Data width defaults to QWord for moving pointers in registers
@@ -184,9 +197,9 @@ object IR {
       List(
         MOV(Reg(R8, DWord), exprGen(index, asmBuilder)),
         CMP(Reg(R8, DWord), Imm(0)),
-        // JCond(Cond.L, Label("_outOfBounds")),
+        JCond(Cond.L, Label("_errOutOfBounds")),
         CMP(Reg(R8, DWord), OffsetAddr(MemOpModifier.DWordPtr, Reg(R9, QWord), -4)),
-        // JCond(Cond.GE, Label("_outOfBounds"))
+        JCond(Cond.GE, Label("_errOutOfBounds"))
       )
     )
     (dataWidth, RegScale(dataWidth, Reg(R9, QWord), typeToSize(t), Reg(R8, QWord)))
@@ -292,7 +305,7 @@ object IR {
   def fstSndAddress(lValue: LValue, asmBuilder: Builder[Instr, List[Instr]], fstOrSnd: Int = 0): Reg = {
     val storeInstrs = List(
       CMP(Reg(10, QWord), Imm(0)),
-      // JCond(Cond.E, Label("_errNull")),
+      JCond(Cond.E, Label("_errNull")),
       MOV(Reg(10, QWord), OffsetAddr(MemOpModifier.QWordPtr, Reg(R10, QWord), fstOrSnd))
     )
     (lValue: @unchecked) match
@@ -368,7 +381,7 @@ object IR {
           List(
             AND(Reg(Rsp, QWord), Imm(-16)),
             CMP(Reg(Rdi, QWord), Imm(0)),
-            // JCond(Cond.E, Label("_errNull")),
+            JCond(Cond.E, Label("_errNull")),
             CALL(Label("free@plt")),
             MOV(Reg(Rax, QWord), Imm(0))
           )
@@ -454,7 +467,7 @@ object IR {
     val s = 0x732A2E25 // s for strings
     val c = 0x006325 // c for chars
     val d = 0x006425 // d for ints
-    t match
+    (t: @unchecked) match
       case PairType(t1, t2) => p
       case ArrayType(CharType, 1) => s
       case ArrayType(t, d) => p
@@ -534,7 +547,7 @@ object IR {
         AND(Reg(Rsp, QWord), Imm(STACK_ALIGN)),
         CALL(Label("malloc@plt")),
         CMP(Reg(Rax, QWord), Imm(0)),
-        // JCond(Cond.E, Label("_errOutOfMem"))
+        JCond(Cond.E, Label("_errOutOfMem"))
       )
     )
     asmBuilder ++= popRbp

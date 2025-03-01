@@ -25,7 +25,31 @@ object AssemblyWriter {
       "   .asciz \"false\"",
       "   .int 4",
       ".L.strtrue:",
-      "   .asciz \"true\"")
+      "   .asciz \"true\"",
+      "   .int 45",
+      ".L.str_errNull:",
+      "   .asciz \"fatal error: null pair dereferenced or freed\\n\"",
+      "   .int 27",
+      ".L.str_errOutOfMemory:",
+      "   .asciz \"fatal error: out of memory\\n\"",
+      "   .int 52",
+      ".L.str_errOverflow:",
+      "   .asciz \"fatal error: integer overflow or underflow occurred\\n\"",
+      "   .int 47",
+      ".L.str_errBadChar:",
+      "   .asciz \"fatal error: int is not ascii character 0-127 \\n\"",
+      "   .int 42",
+      ".L.str_errOutOfBounds:",
+      "   .asciz \"fatal error: array index %d out of bounds\\n\"",
+      "   .int 40",
+      ".L.str_errDivZero:",
+      "   .asciz \"fatal error: division or modulo by zero\\n\""
+      )
+
+
+
+
+
     boilerplate.foreach(writer.println)
     
     // Write string info directives into ro section
@@ -33,10 +57,7 @@ object AssemblyWriter {
       s =>
         writer.println(s"   .int ${s.len}")
         writer.println(s".L.str${s.strCount}:")
-        writer.println(s"   .asciz \"${s.string}\" ")
-
-
-
+        writer.println(s"   .asciz \"${s.string}\" ") 
     }
     // Write assembly instructions section
     writer.println(".text")

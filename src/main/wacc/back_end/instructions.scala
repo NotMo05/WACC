@@ -42,3 +42,7 @@ case object CDQ extends Instr
 case class WhileIfLabel(num: Int) extends Instr {
   override def toString(): String = s".L$num"
 }
+
+case class ErrLabel(name: String) extends Instr {
+  override def toString(): String = s".L$name"
+}

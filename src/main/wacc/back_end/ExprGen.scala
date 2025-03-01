@@ -106,9 +106,9 @@
           asmBuilder.addAll(
             List(
               CMP(Reg(R10, DWord), Imm(127)),
-              // JCond(G, Label("_errBadChar")),
+              JCond(G, Label("_errBadChar")),
               CMP(Reg(R10, DWord), Imm(0)),
-              // JCond(L, Label("_errBadChar")),
+              JCond(L, Label("_errBadChar")),
             )
           )
           Reg(R10, Byte)

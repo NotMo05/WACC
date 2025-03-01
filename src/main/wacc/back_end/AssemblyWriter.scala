@@ -3,33 +3,50 @@ package wacc.back_end
 import Cond._
 import java.io.PrintWriter
 import java.nio.file.Paths
+import wacc.back_end.IR.StringInfo
 
 object AssemblyWriter {
   val assemblyBuilder = List.newBuilder[String]
 
-  def generateAsmFile(ir: (List[IR.Section], List[FuncLabelDef]), filename: String, folder: String = "") = {
+  // Writes the assembly file
+  def generateAsmFile(ir: (List[StringInfo], List[FuncLabelDef]), filename: String, folder: String = "") = {
     val file = Paths.get(filename).getFileName.toString
-    ir._2.map(labelHandler(_))
+    ir._2.map(labelHandler(_)) // Generates the assembly for each label definition  
     val finalAssembly = assemblyBuilder.result()
     assemblyBuilder.clear()
-    
     val writer = new PrintWriter(s"$folder${file.dropRight(5)}.s")
+    // Write boilerplate header assembly
     val boilerplate = List(
       ".intel_syntax noprefix",
       ".globl main",
-      ".section .rodata",
-      ".text")
+      ".section .rodata")
     boilerplate.foreach(writer.println)
+    
+    // Write string info directives into ro section
+    ir._1.foreach {
+      s =>
+        writer.println(s"   .int ${s.len}")
+        writer.println(s".L.str${s.strCount}:")
+        writer.println(s"   .asciz \"${s.string}\" ")
+
+
+
+    }
+    // Write assembly instructions section
+    writer.println(".text")
     finalAssembly.foreach(writer.println)
     writer.close()
     
   }
-
+    
+  // TODO: rename label handler to label def handler
+  // Appends assembly text for given label definition
   def labelHandler(label: FuncLabelDef): Unit = {
         assemblyBuilder += (s"${label.name}:")
         label.instructions.result.map(instructionHandler(_))
   }
 
+  // Appends assembly text for given instruction
   def instructionHandler(instr: Instr) = {
     assemblyBuilder += (
       (instr: @unchecked) match
@@ -56,7 +73,8 @@ object AssemblyWriter {
     )
   }
 
-  def condToAsm(cond: Cond) = {
+  // Returns assembly text for given jump instruction type
+  def condToAsm(cond: Cond): String = {
     cond match
       case E => "e"
       case NE => "ne"

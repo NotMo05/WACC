@@ -27,6 +27,7 @@ sealed trait Location extends Operand {
     case OffsetAddr(memOpModifier, reg1, disp) if disp > 0 => s"$memOpModifier [$reg1 + $disp]" //mov \byte ptr [rax + 16]\ rsi 
     case OffsetAddr(memOpModifier, reg1, disp) if disp == 0 => s"$memOpModifier [$reg1]" //mov \byte ptr [rax + 16]\ rsi 
     case OffsetAddr(memOpModifier, reg1, disp) => s"$memOpModifier [$reg1 - ${-disp}]"
+    case StringAddr(strCount, reg) => s"[$reg + .L.str${strCount}]"
 
     case regScaleImm: RegScaleImm => ???
     case scaleImm: ScaleImm => ???
@@ -100,6 +101,7 @@ case class OffsetAddr(modifer: MemOpModifier, reg1: Reg, disp: Int = 0) extends 
 case class RegScale(modifer: MemOpModifier, reg1: Reg, scale: Int, reg2: Reg) extends MemAddr
 case class RegScaleImm(modifer: MemOpModifier, reg1: Reg, scale: Int, reg2: Reg, imm: Int) extends MemAddr
 case class ScaleImm(modifer: MemOpModifier, reg: Reg, scale: Int, imm: Int) extends MemAddr
+case class StringAddr(strCount: Int, reg: Reg = Reg(RegName.Rip, DataWidth.QWord)) extends MemAddr
 
 object MemOpModifier {
   implicit def intToMemOpModifier(size: Int): MemOpModifier = {

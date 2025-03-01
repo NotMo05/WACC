@@ -5,6 +5,7 @@ import wacc.back_end.DataWidth._
 import wacc.back_end.Cond._
 import scala.collection.mutable.Builder
 import wacc.back_end.IR.repeatAccessArray
+import wacc.back_end.IR.strMap
 
 // Complete:
 // All Ops / Len
@@ -14,8 +15,10 @@ import wacc.back_end.IR.repeatAccessArray
 // String needs Implementation
 // overflowErr Instructions (At Bottom)
 // divByZeroErr Instructions (At Bottom)
+// Remove debug prints
 
 object ExprGen {
+  // Generates and appends any required assembly IR for evaluating the given expression
   def exprGen(expr: Expr, asmBuilder: Builder[Instr, List[Instr]], regNum: Int = 10): (Reg | Imm) = {
     (expr: @unchecked) match 
       case NullLiteral => Imm(0)
@@ -33,11 +36,13 @@ object ExprGen {
       }
       case ArrayElem(qn: QualifiedName, index) => {
         val (dataWidth, pointer) = repeatAccessArray(qn, index, asmBuilder)
-        asmBuilder += MOV(Reg(regNum, QWord), pointer)
+        asmBuilder += MOV(Reg(regNum, dataWidth), pointer)
         Reg(regNum, dataWidth)
       }
       case StringLiteral(string) => {
-        // LEA(Reg(regNum, QWord), OffsetAddr(MemOpModifier.QWordPtr, Reg(Rip, QWord), .L))
+        print(strMap)
+        val n = IR.strMap(string)
+        asmBuilder += LEA(Reg(regNum, QWord), StringAddr(n))
         Reg(regNum, QWord)
       }
 
@@ -92,9 +97,9 @@ object ExprGen {
         asmBuilder.addAll(
           List(
             CMP(Reg(R10, DWord), Imm(127)),
-            JCond(G, Label("_errBadChar")),
+            // JCond(G, Label("_errBadChar")),
             CMP(Reg(R10, DWord), Imm(0)),
-            JCond(L, Label("_errBadChar")),
+            // JCond(L, Label("_errBadChar")),
           )
         )
         Reg(R10, Byte)

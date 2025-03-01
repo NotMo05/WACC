@@ -8,7 +8,6 @@ object AssemblyWriter {
   val assemblyBuilder = List.newBuilder[String]
 
   def generateAsmFile(ir: (List[IR.Section], List[FuncLabelDef]), filename: String, folder: String = "") = {
-    print(filename)
     val file = Paths.get(filename).getFileName.toString
     ir._2.map(labelHandler(_))
     val finalAssembly = assemblyBuilder.result()
@@ -50,7 +49,7 @@ object AssemblyWriter {
         case SETCond(cond, op) => s"  set${condToAsm(cond)} $op"
         case RET => "  ret"
         case CALL(op) => s" call $op"
-        case CDQ => "  dq"
+        case CDQ => "  cdq"
         case JCond(cond, label) => s"  j${condToAsm(cond)} $label"
         case LEA((op1, op2)) => s"  lea $op1, $op2"
         case WhileIfLabel(num) => s".L$num:"

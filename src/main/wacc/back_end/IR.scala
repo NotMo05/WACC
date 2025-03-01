@@ -145,7 +145,7 @@ object IR {
         asmBuilder ++= popRbp
       }
       case WhileDo(condition, stmts) => whileGen(condition, stmts, asmBuilder)
-      case IfElse(condition, thenStmts, elseStmts) => ???
+      case IfElse(condition, thenStmts, elseStmts) => ifElseGen(condition, thenStmts, elseStmts, asmBuilder)
     }
 
   def assgnGen(t: Type, qn: QualifiedName, rValue: RValue, asmBuilder: Builder[Instr, List[Instr]]) : Builder[Instr, List[Instr]] = {
@@ -389,7 +389,6 @@ object IR {
   def scopeGen(stmts: List[Stmt], asmBuilder: Builder[Instr, List[Instr]]) = {
     val prevFrame = Stack.frames.last
     Stack.frames += StackFrame(stmts, prevFrame.identTable, prevFrame.absoluteDepth())
-    print(Stack.frames.last.identTable)
     asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
     stmts.map(stmtGen(_, asmBuilder))
     asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
@@ -474,7 +473,6 @@ object IR {
   }
 
   def whileGen(cond: Expr, loopStmts: List[Stmt], asmBuilder: Builder[Instr, List[Instr]]) = {
-    
     val n = localLabelCounter
     localLabelCounter += 2 // because n and n+1 are reserved for this while
 
@@ -487,4 +485,58 @@ object IR {
     asmBuilder += CMP(Reg(R10, Byte), Imm(1))
     asmBuilder += JCond(Cond.E, WhileIfLabel(n + 1))
   }
+
+  def ifElseGen(cond: Expr, thenStmts: List[Stmt], elseStmts: List[Stmt], asmBuilder: Builder[Instr, List[Instr]]) = {
+    val n = localLabelCounter
+    localLabelCounter += 2 // because n, and n+2, are reserved for this ifelse block
+
+    exprGenRegister(cond, asmBuilder)
+    asmBuilder += CMP(Reg(R10, Byte), Imm(1))
+    asmBuilder += JCond(Cond.E, WhileIfLabel(n))
+    scopeGen(elseStmts, asmBuilder) //else
+    asmBuilder += JCond(Cond.AL, WhileIfLabel(n+1))
+    asmBuilder += WhileIfLabel(n) 
+    scopeGen(thenStmts, asmBuilder) //if condition is true
+    asmBuilder += WhileIfLabel(n+1)
+  }
 }
+
+
+/* 
+main:
+	push rbp
+	# push {rbx, r12}
+	sub rsp, 16
+	mov qword ptr [rsp], rbx
+	mov qword ptr [rsp + 8], r12
+	mov rbp, rsp
+
+
+	mov al, 1 // Jump to Then if condition
+	cmp al, 1
+	je .L0  
+
+	mov r12d, 3 // Else Stmts
+	
+  jmp .L1
+
+.L0: THEN
+	mov r12d, 5
+.L1: 
+	mov rax, 0
+	# pop/peek {rbx, r12}
+	mov rbx, qword ptr [rsp]
+	mov r12, qword ptr [rsp + 8]
+	add rsp, 16
+	pop rbp
+	ret
+ */
+
+ /* 
+
+if true then
+  int x = 5
+else
+  int x = 3
+
+*/

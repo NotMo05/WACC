@@ -11,6 +11,8 @@ import wacc.front_end.semantic.getExprType
 
 
 object IR {
+  // Add at the top of IR.scala
+  val CALLEE_SAVED_REGS = List(Rbx, R12, R13, R14, R15)
   val STACK_ALIGN = -16
   var localLabelCounter = 0
   var strCounter: Int = 0
@@ -106,12 +108,26 @@ object IR {
       case _ => Nil
     }
 
-    def funcGenerate(stmts: List[Stmt], funcName: String = ""): FuncLabelDef = {
+  def funcGenerate(stmts: List[Stmt], funcName: String = ""): FuncLabelDef = {
     val asmBuilder = List.newBuilder[Instr]
     Stack.initialise(stmts)
     asmBuilder += PUSH(Reg(Rbp, QWord))
+    
+    // Push callee-saved registers
+    val regsToPush = CALLEE_SAVED_REGS.take(2) // Start with 2 registers, adjust as needed
+    val regSize = regsToPush.length * 8
+    asmBuilder += SUB(Reg(Rsp, QWord), Imm(regSize))
+    regsToPush.zipWithIndex.foreach { case (reg, i) =>
+      asmBuilder += MOV(OffsetAddr(QWord, Reg(Rsp, QWord), i * 8), Reg(reg, QWord))
+    }
+    
     asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
-    asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
+    // Only allocate stack space if needed
+    val stackSpace = -Stack.frames.last.currentDepth
+    if (stackSpace > 0) {
+      asmBuilder += SUB(Reg(Rsp, QWord), Imm(stackSpace))
+    }
+    
     stmts.map(stmtGen(_, asmBuilder))
 
     val funcLabel = if (funcName == "") {
@@ -119,11 +135,21 @@ object IR {
       "main"
     } else s"wacc_$funcName"
 
-    asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
+    // Only adjust stack if we allocated space
+    if (stackSpace > 0) {
+      asmBuilder += ADD(Reg(Rsp, QWord), Imm(stackSpace))
+    }
+    
+    // Restore callee-saved registers
+    regsToPush.zipWithIndex.reverse.foreach { case (reg, i) =>
+      asmBuilder += MOV(Reg(reg, QWord), OffsetAddr(QWord, Reg(Rsp, QWord), i * 8))
+    }
+    asmBuilder += ADD(Reg(Rsp, QWord), Imm(regSize))
+    
     asmBuilder += POP(Reg(Rbp, QWord))
     asmBuilder += RET
 
-    return FuncLabelDef(funcLabel, asmBuilder)
+    FuncLabelDef(funcLabel, asmBuilder)
   }
 
   def stmtGen(stmt: Stmt, asmBuilder: Builder[Instr, List[Instr]]): Unit =
@@ -393,21 +419,32 @@ object IR {
   def scopeGen(stmts: List[Stmt], asmBuilder: Builder[Instr, List[Instr]]) = {
     val prevFrame = Stack.frames.last
     Stack.frames += StackFrame(stmts, prevFrame.identTable, prevFrame.absoluteDepth())
-    asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
+    
+    // Only add stack adjustment if actually needed
+    val stackAdjust = -Stack.frames.last.currentDepth
+    if (stackAdjust > 0) {
+      asmBuilder += SUB(Reg(Rsp, QWord), Imm(stackAdjust))
+    }
+    
     stmts.map(stmtGen(_, asmBuilder))
-    asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
+    
+    // Only add stack cleanup if we adjusted it
+    if (stackAdjust > 0) {
+      asmBuilder += ADD(Reg(Rsp, QWord), Imm(stackAdjust))
+    }
+    
     Stack.frames.dropRightInPlace(1)
   }
 
   def returnGen(expr: Expr, asmBuilder: Builder[Instr, List[Instr]]) = {
+    // Put return value in EAX/RAX directly
     val reg = exprGenRegister(expr, asmBuilder)
     asmBuilder += MOV(Reg(Rax, reg.dataWidth), reg)
-
-
-    asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
+    
+    // Reset stack pointer to base pointer before returning
+    asmBuilder += MOV(Reg(Rsp, QWord), Reg(Rbp, QWord))
     asmBuilder += POP(Reg(Rbp, QWord))
     asmBuilder += RET
-
   }
 
   def callGen(qn: QualifiedFunc, args: List[Expr], asmBuilder: Builder[Instr, List[Instr]]) = {
@@ -557,5 +594,91 @@ object IR {
       )
     )
     asmBuilder ++= popRbp
+  }
+
+  // Add these helper methods in IR.scala
+  def generatePrintFunctions(): List[FuncLabelDef] = {
+    List(
+      generatePrintIntFunction(),
+      generatePrintStringFunction(),
+      generatePrintlnFunction()
+    )
+  }
+
+  def generatePrintIntFunction(): FuncLabelDef = {
+    val asmBuilder = List.newBuilder[Instr]
+    
+    // Function prologue
+    asmBuilder += PUSH(Reg(Rbp, QWord))
+    asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
+    
+    // Stack alignment for external call
+    asmBuilder += AND(Reg(Rsp, QWord), Imm(STACK_ALIGN))
+    
+    // Set up printf arguments
+    asmBuilder += MOV(Reg(Rsi, DWord), Reg(Rdi, DWord))
+    asmBuilder += LEA(Reg(Rdi, QWord), StringAddr("_printi_str0"))
+    asmBuilder += MOV(Reg(Rax, Byte), Imm(0))
+    
+    // Call printf
+    asmBuilder += CALL(Label("printf@plt"))
+    asmBuilder += MOV(Reg(Rdi, QWord), Imm(0))
+    asmBuilder += CALL(Label("fflush@plt"))
+    
+    // Function epilogue
+    asmBuilder += MOV(Reg(Rsp, QWord), Reg(Rbp, QWord))
+    asmBuilder += POP(Reg(Rbp, QWord))
+    asmBuilder += RET
+    
+    FuncLabelDef("_printi", asmBuilder)
+  }
+
+  // In your IR.scala file
+  def generatePrintStringFunction(): FuncLabelDef = {
+    val asmBuilder = List.newBuilder[Instr]
+    
+    // Function prologue
+    asmBuilder += PUSH(Reg(Rbp, QWord))
+    asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
+    
+    // Print string implementation
+    asmBuilder += MOV(Reg(Rax, DWord), Imm(4))      // syscall number for write
+    asmBuilder += MOV(Reg(Rbx, DWord), Imm(1))      // file descriptor (stdout)
+    asmBuilder += MOV(Reg(Rcx, QWord), Reg(Rdi, QWord)) // string address from first parameter
+    asmBuilder += ADD(Reg(Rcx, QWord), Imm(4))      // skip string length
+    asmBuilder += MOV(Reg(Rdx, DWord), OffsetAddr(MemOpModifier.DWordPtr, Reg(Rdi, QWord), 0)) // string length
+    asmBuilder += CALL(Label("write@plt"))            // system call
+    
+    // Function epilogue
+    asmBuilder += POP(Reg(Rbp, QWord))
+    asmBuilder += RET
+    
+    FuncLabelDef("_printString", asmBuilder)
+  }
+
+  def generatePrintlnFunction(): FuncLabelDef = {
+    val asmBuilder = List.newBuilder[Instr]
+    
+    // Function prologue
+    asmBuilder += PUSH(Reg(Rbp, QWord))
+    asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
+    
+    // Stack alignment for external call
+    asmBuilder += AND(Reg(Rsp, QWord), Imm(STACK_ALIGN))
+    
+    // Call puts with empty string to just print a newline
+    asmBuilder += LEA(Reg(Rdi, QWord), StringAddr(""))
+    asmBuilder += CALL(Label("puts@plt"))
+    
+    // Flush stdout
+    asmBuilder += MOV(Reg(Rdi, QWord), Imm(0))
+    asmBuilder += CALL(Label("fflush@plt"))
+    
+    // Function epilogue
+    asmBuilder += MOV(Reg(Rsp, QWord), Reg(Rbp, QWord))
+    asmBuilder += POP(Reg(Rbp, QWord))
+    asmBuilder += RET
+    
+    FuncLabelDef("_println", asmBuilder)
   }
 }

@@ -11,7 +11,18 @@ object AssemblyWriter {
   // Writes the assembly file
   def generateAsmFile(ir: (List[StringInfo], List[FuncLabelDef]), filename: String, folder: String = "") = {
     val file = Paths.get(filename).getFileName.toString
-    ir._2.map(labelHandler(_)) // Generates the assembly for each label definition  
+    
+    // Convert the optimized instructions list to a Builder
+    val optimizedFuncs = ir._2.map(func => {
+      val optimizedInstructions = optimizeInstructions(func.instructions.result)
+      val builder = List.newBuilder[Instr]
+      optimizedInstructions.foreach(builder += _)
+      FuncLabelDef(func.name, builder)
+    })
+    
+    // Rest of the function remains unchanged
+    optimizedFuncs.map(labelHandler(_))
+    
     val finalAssembly = assemblyBuilder.result()
     assemblyBuilder.clear()
     val writer = new PrintWriter(s"$folder${file.dropRight(5)}.s")
@@ -70,7 +81,16 @@ object AssemblyWriter {
   // TODO: rename label handler to label def handler
   // Appends assembly text for given label definition
   def labelHandler(label: FuncLabelDef): Unit = {
-    assemblyBuilder += (s"${label.name}:")
+    // Add descriptive comment for the function
+    if (label.name.startsWith("wacc_") || label.name == "main") {
+      assemblyBuilder += s"# Function: ${label.name}"
+    } else if (label.name.startsWith("_err")) {
+      assemblyBuilder += s"# Error handler: ${label.name}"
+    } else if (label.name.startsWith("_print")) {
+      assemblyBuilder += s"# Helper function: ${label.name}"
+    }
+    
+    assemblyBuilder += s"${label.name}:"
     label.instructions.result.map(instructionHandler(_))
   }
 
@@ -122,5 +142,28 @@ object AssemblyWriter {
       case P => "p"
       case NP => "np"
       case AL => "mp"
+  }
+
+  def optimizeInstructions(instrs: List[Instr]): List[Instr] = {
+    val result = List.newBuilder[Instr]
+    var foundRet = false
+    var inDeadCode = false
+    
+    for (instr <- instrs) {
+      instr match {
+        case RET if !inDeadCode => 
+          result += instr
+          foundRet = true
+          inDeadCode = true
+        case WhileIfLabel(_) => 
+          // Labels reset dead code tracking as they could be jump targets
+          inDeadCode = false
+          result += instr
+        case _ if !inDeadCode =>
+          result += instr
+      }
+    }
+    
+    result.result()
   }
 }

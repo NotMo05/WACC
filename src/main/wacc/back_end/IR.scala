@@ -23,7 +23,7 @@ object IR {
     
   def generateIR(prog: Prog): (List[StringInfo], List[FuncLabelDef]) = {
     val sections = generateROData(prog.main) :: prog.funcs.map(func => generateROData(func.stmts))
-    val funcLabelDefs = funcGenerate(prog.main) :: prog.funcs.map(func => funcGenerate(func.stmts, func.identifier.identifier, func.params))
+    val funcLabelDefs = mainGenerate(prog.main) :: prog.funcs.map(func => funcGenerate(func.stmts, func.identifier.identifier, func.params))
     val errorList = List("_errBadChar","_errNull","_errOutOfMem","_errOutOfBounds","_errOverflow","_errDivZero")
     val allFuncLabelDefs: List[FuncLabelDef] = funcLabelDefs ++ errorList.map(generateErrorLabels(_))
 
@@ -108,6 +108,8 @@ object IR {
       case _ => Nil
     }   
 
+
+
   def funcGenerate(stmts: List[Stmt], funcName: String = "", params: List[Param] = Nil): FuncLabelDef = {
     val sortedParams = params.sortBy(p => p.t.toString())
     val assignedParams = if !params.isEmpty then {
@@ -120,22 +122,29 @@ object IR {
     } else Nil
     val asmBuilder = List.newBuilder[Instr]
     Stack.initialise(assignedParams ++ stmts)
-    println(Stack.frames.last.identTable)
+    asmBuilder += PUSH(Reg(Rbp, QWord))
+    asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
+    stmts.map(stmtGen(_, asmBuilder))
+    asmBuilder += NL
+    asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth)) 
+    asmBuilder += RET 
+    
+    return FuncLabelDef(s"wacc_$funcName", asmBuilder)
+  }
+
+  def mainGenerate(stmts: List[Stmt], funcName: String = ""): FuncLabelDef = {
+    val asmBuilder = List.newBuilder[Instr]
+    Stack.initialise(stmts)
     asmBuilder += PUSH(Reg(Rbp, QWord))
     asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
     asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
     stmts.map(stmtGen(_, asmBuilder))
-    
-    val funcLabel = if (funcName == "") {
-      asmBuilder += MOV(Reg(Rax, QWord), Imm(0))
-      "main"
-    } else s"wacc_$funcName"
-
+    asmBuilder += NL
     asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth)) 
     asmBuilder ++= popRbp
     asmBuilder += RET 
     
-    return FuncLabelDef(funcLabel, asmBuilder)
+    return FuncLabelDef("main", asmBuilder)
   }
 
   def stmtGen(stmt: Stmt, asmBuilder: Builder[Instr, List[Instr]]): Unit =
@@ -207,8 +216,9 @@ object IR {
   {
     asmBuilder += MOV(Reg(R9, QWord), pointerAddress)
     val dataWidth = typeToSize(t)
-    // println(index)
+    asmBuilder += PUSH(Reg(R9, QWord))
     val reg = exprGen(index, asmBuilder)
+    asmBuilder += POP(Reg(R9, QWord))
     asmBuilder += MOV(Reg(R8, DWord), reg)
     asmBuilder.addAll(
       List(
@@ -236,7 +246,7 @@ object IR {
     asmBuilder += ((rValue: @unchecked) match
       case expr: Expr => {
         exprGen(expr, asmBuilder) match
-          case Reg(num, dataWidth) => print(MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(num, dataWidth))); MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(num, dataWidth))
+          case Reg(num, dataWidth) => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(num, dataWidth))
           case Imm(value) => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Imm(value))
       }        
       case Fst(lValue) => fstSndAddress(lValue, asmBuilder); movRegOrImmToMem(R10, qn, dataWidth)
@@ -245,7 +255,6 @@ object IR {
         t match
           case StringType => mallocArrayLiter(elems, ArrayType(CharType, 1), asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
           case _ => mallocArrayLiter(elems, t.asInstanceOf[ArrayType], asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
-
       }
       case NewPair(fst, snd) => mallocNewPair(fst, snd, asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
       case Call(qnFunc: QualifiedFunc, args) => callGen(qnFunc, args, asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth))
@@ -335,9 +344,10 @@ object IR {
 
   def fstSndAddress(lValue: LValue, asmBuilder: Builder[Instr, List[Instr]], fstOrSnd: Int = 0): Reg = {
     val storeInstrs = List(
-      CMP(Reg(10, QWord), Imm(0)),
-      JCond(Cond.E, Label("_errNull")),
-      MOV(Reg(10, QWord), OffsetAddr(MemOpModifier.QWordPtr, Reg(R10, QWord), fstOrSnd))
+    CMP(Reg(10, QWord), Imm(0)),
+    JCond(Cond.E, Label("_errNull")),
+    // Remove the MOV instruction that dereferences the address
+    MOV(Reg(10, QWord), OffsetAddr(MemOpModifier.QWordPtr, Reg(R10, QWord), fstOrSnd))
     )
     (lValue: @unchecked) match
       case qn: QualifiedName => {
@@ -439,15 +449,13 @@ object IR {
   }
 
   def callGen(qn: QualifiedFunc, args: List[Expr], asmBuilder: Builder[Instr, List[Instr]]) = {
-    asmBuilder += PUSH(Reg(Rbp, QWord))
-    asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
+    asmBuilder ++= pushRbp
     val spaceNeeded = qn.paramTypes.foldLeft(0)(_ + typeToSize(_))
     asmBuilder += SUB(Reg(Rsp, QWord), Imm(spaceNeeded))
     var currentDepth = 0
     val sortedArgs = args.sortBy(getExprType(_).toString())
     val sortedParams = qn.paramTypes.sortBy(_.toString())
     for ((paramType, i) <- sortedParams.zipWithIndex) {
-      println(qn.paramTypes.sortBy(_.toString()))
       val dataWidth = typeToSize(paramType)
       currentDepth -= dataWidth
       asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), currentDepth), exprGen(sortedArgs(i), asmBuilder))

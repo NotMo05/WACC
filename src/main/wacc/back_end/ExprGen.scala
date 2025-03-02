@@ -5,7 +5,6 @@
   import wacc.back_end.Cond._
   import scala.collection.mutable.Builder
   import wacc.back_end.IR.repeatAccessArray
-  import wacc.back_end.IR.strMap
   import wacc.front_end.semantic.getExprType
   import wacc.back_end.Stack.typeToSize
 
@@ -45,6 +44,7 @@
         }
         case ArrayElem(qn: QualifiedName, index) => {
           val (dataWidth, pointer) = repeatAccessArray(qn, index, asmBuilder)
+          // println(pointer)
           // print(dataWidth, pointer)
           asmBuilder += MOV(Reg(regNum, dataWidth), pointer)
 

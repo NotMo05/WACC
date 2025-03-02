@@ -111,7 +111,7 @@ object IR {
   def funcGenerate(stmts: List[Stmt], funcName: String = "", params: List[Param] = Nil): FuncLabelDef = {
     val assignedParams = if !params.isEmpty then {
       params.reverse.map( p =>
-        p match
+        (p: @unchecked) match
           case Param(t, qn: QualifiedName) => {
             Assgn(t, qn, IntLiteral(0))
           }
@@ -137,6 +137,7 @@ object IR {
   }
 
   def stmtGen(stmt: Stmt, asmBuilder: Builder[Instr, List[Instr]]): Unit =
+    asmBuilder += NL
     (stmt: @unchecked) match {
       case Skip => ()
       case Assgn(t, qn: QualifiedName, rValue) => assgnGen(qn, rValue, asmBuilder, t)
@@ -203,12 +204,10 @@ object IR {
     (Int, MemAddr) = 
   {
     asmBuilder += MOV(Reg(R9, QWord), pointerAddress)
-    asmBuilder += PUSH(Reg(R9, QWord))
     val dataWidth = typeToSize(t)
     // println(index)
     val reg = exprGen(index, asmBuilder)
     asmBuilder += MOV(Reg(R8, DWord), reg)
-    asmBuilder += POP(Reg(R9, QWord))
     asmBuilder.addAll(
       List(
         CMP(Reg(R8, DWord), Imm(0)),
@@ -233,7 +232,11 @@ object IR {
   def assgnGen(qn: QualifiedName, rValue: RValue, asmBuilder: Builder[Instr, List[Instr]], t: Type = Undefined) = {
     val dataWidth = Stack.typeToSize(t)
     asmBuilder += ((rValue: @unchecked) match
-      case expr: Expr => movRegOrImmToMem(exprGen(expr, asmBuilder), qn, dataWidth)
+      case expr: Expr => {
+        exprGen(expr, asmBuilder) match
+          case Reg(num, dataWidth) => print(MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(num, dataWidth))); MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(num, dataWidth))
+          case Imm(value) => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Imm(value))
+      }        
       case Fst(lValue) => fstSndAddress(lValue, asmBuilder); movRegOrImmToMem(R10, qn, dataWidth)
       case Snd(lValue) => fstSndAddress(lValue, asmBuilder, 8); movRegOrImmToMem(R10, qn, dataWidth)
       case ArrayLiter(elems) => {
@@ -273,20 +276,21 @@ object IR {
   }
 
 
-  def repeatAccessArray(qn: QualifiedName, index: List[Expr], asmBuilder: Builder[Instr, List[Instr]]): (Int, MemAddr) = {
-    val ArrayType(t,d) = qn.t.asInstanceOf[ArrayType]
-    var dimensionAccess = 0
-    var pointer: MemAddr = OffsetAddr(MemOpModifier.QWordPtr, Reg(Rbp, QWord), Stack.getOffset(qn))
-    for (i <- 1 to index.size - 1) {
+def repeatAccessArray(qn: QualifiedName, index: List[Expr], asmBuilder: Builder[Instr, List[Instr]]): (Int, MemAddr) = {
+  val ArrayType(t, d) = qn.t.asInstanceOf[ArrayType]
+  var dimensionAccess = 0
+  var pointer: MemAddr = OffsetAddr(MemOpModifier.QWordPtr, Reg(Rbp, QWord), Stack.getOffset(qn))
+  
+  if (index.size > 1) {
+    for (i <- 0 until index.size - 1) {
       pointer = arrayIndexAccess(pointer, index(i), ArrayType(t, d - dimensionAccess), asmBuilder)._2
       dimensionAccess += 1
     }
-    // print(d, dimensionAccess)
-    val finalType = 
-    if d - dimensionAccess == 1 then t
-    else ArrayType(t, d - dimensionAccess)
-    arrayIndexAccess(pointer, index.last, finalType, asmBuilder)
   }
+
+  val finalType = if (d - dimensionAccess == 1) t else ArrayType(t, d - dimensionAccess)
+  arrayIndexAccess(pointer, index.last, finalType, asmBuilder)
+}
 
   def readFunc(dataWidth: Int,asmBuilder: Builder[Instr, List[Instr]]) = {
     val formatMode = if dataWidth == 1 then "c" else "d"

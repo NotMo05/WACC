@@ -105,6 +105,7 @@ object AssemblyWriter {
         case JCond(cond, label) => s"  j${condToAsm(cond)} $label"
         case LEA((op1, op2)) => s"  lea $op1, $op2"
         case WhileIfLabel(num) => s".L$num:"
+        case NL => s"\n"
     )
   }
 

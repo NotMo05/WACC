@@ -21,17 +21,17 @@ object IR {
     override def toString(): String = s"$strCount$string$len"
   }
     
+  // Generates intermediate representation (IR) for the given program
   def generateIR(prog: Prog): (List[StringInfo], List[FuncLabelDef]) = {
     val sections = generateROData(prog.main) :: prog.funcs.map(func => generateROData(func.stmts))
     val funcLabelDefs = funcGenerate(prog.main) :: prog.funcs.map(func => funcGenerate(func.stmts, func.identifier.identifier, func.params))
     val errorList = List("_errBadChar","_errNull","_errOutOfMem","_errOutOfBounds","_errOverflow","_errDivZero")
     val allFuncLabelDefs: List[FuncLabelDef] = funcLabelDefs ++ errorList.map(generateErrorLabels(_))
 
-    // each section is .rodata (read only)
-    // what follows is .text
     return(sections.flatten, allFuncLabelDefs)
   }
 
+  // Generates a function label definition for error handling based on the provided name
   def generateErrorLabels(name: String): FuncLabelDef = {
     val asmBuilder = List.newBuilder[Instr]
     asmBuilder += AND(Reg(Rsp, QWord), Imm(STACK_ALIGN))
@@ -43,9 +43,11 @@ object IR {
     FuncLabelDef(name, asmBuilder)
   }
 
-  // Data width defaults to QWord for moving pointers in registers
+  // Moves a qualified name to a destination register with an optional data width (default is QWord)
   def movQnToReg(destReg: RegName, qn: QualifiedName, dataWidth: DataWidth = QWord) =
    MOV(Reg(destReg, dataWidth), OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)))
+
+  // Moves a register or immediate value to memory at the specified qualified name with an optional data width.
   def movRegOrImmToMem(srcRegOrImm: RegName | Imm | Reg, qn: QualifiedName, dataWidth: DataWidth = QWord) = {
     srcRegOrImm match
       case reg: RegName => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(reg, dataWidth))
@@ -53,10 +55,8 @@ object IR {
       case reg: Reg => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), reg)
   }
 
-  def generateROData(stmts: List[Stmt]): List[StringInfo] = { // CHANGED TO LIST OF SECTIONS FOR NOW
-    // This will generate the boilerplate labels at the beginning of assembly file that contain string data
-    // Including raw string, string length and the label number 
-                // Remind me to change stringGen in ExprGen
+  // Generates read-only data section from a list of statements
+  def generateROData(stmts: List[Stmt]): List[StringInfo] = {
     return stmts.foldLeft(List.empty[StringInfo])((list: List[StringInfo], stmt: Stmt) => 
       (stmt match
         case Return(expr) => ROExprHelper(expr)
@@ -71,6 +71,9 @@ object IR {
       ) ++ list)
   }
 
+  // Helpers for generating read-only data section
+
+  // Helper for RValues
   def RORValueHelper(rvalue: RValue): List[StringInfo] = {
     return rvalue match
       case Call(funcName: QualifiedFunc, args: List[Expr]) => args.map(i => ROExprHelper(i)).flatten
@@ -82,6 +85,7 @@ object IR {
       case _ => Nil
   }
 
+  // Helper for LValues
   def ROLValueHelper(lvalue: LValue): List[StringInfo] = {
     return lvalue match
       case Fst(lValue: LValue) => ROLValueHelper(lValue)
@@ -89,6 +93,7 @@ object IR {
       case _ => Nil
 }
 
+  // Helper for expressions
   def ROExprHelper(expr: Expr): List[StringInfo] = {
     expr match
       case StringLiteral(string) => {
@@ -108,8 +113,10 @@ object IR {
       case _ => Nil
     }   
 
+  // Generates a function label definition from a list of statements and parameters.
   def funcGenerate(stmts: List[Stmt], funcName: String = "", params: List[Param] = Nil): FuncLabelDef = {
     val sortedParams = params.sortBy(p => p.t.toString())
+
     val assignedParams = if !params.isEmpty then {
       sortedParams.map( p =>
         (p: @unchecked) match
@@ -118,6 +125,7 @@ object IR {
           }
       )
     } else Nil
+    
     val asmBuilder = List.newBuilder[Instr]
     Stack.initialise(assignedParams ++ stmts)
     println(Stack.frames.last.identTable)
@@ -138,8 +146,8 @@ object IR {
     return FuncLabelDef(funcLabel, asmBuilder)
   }
 
+  // Generates assembly instructions for a given statement
   def stmtGen(stmt: Stmt, asmBuilder: Builder[Instr, List[Instr]]): Unit =
-    asmBuilder += NL
     (stmt: @unchecked) match {
       case Skip => ()
       case Assgn(t, qn: QualifiedName, rValue) => assgnGen(qn, rValue, asmBuilder, t)
@@ -172,46 +180,49 @@ object IR {
       case IfElse(condition, thenStmts, elseStmts) => ifElseGen(condition, thenStmts, elseStmts, asmBuilder)
     }
 
+  // Generates assembly instructions for reassigning a value to a variable
   def reassgnGen(lValue: LValue, rValue: RValue, asmBuilder: Builder[Instr, List[Instr]]) = {
     (lValue: @unchecked) match
-        case qn: QualifiedName => assgnGen(qn, rValue, asmBuilder, qn.t)
-        case ArrayElem(qn: QualifiedName, index) => {
-          val (dataWidth, pointer) = repeatAccessArray(qn, index, asmBuilder)
-          asmBuilder += MOV(pointer, rValueGen(rValue, asmBuilder, qn.t))
-        }
-        case Fst(lValue2) => {
-          fstSndAddress(lValue2, asmBuilder)
-          asmBuilder += MOV(Reg(R9, QWord), Reg(R10, QWord))
-          val regOrImm: (Reg | Imm) =
-          rValueGen(rValue, asmBuilder) match
-            case Reg(num, dataWidth) => Reg(num, QWord)
-            case Imm(value) => Imm(value)
-          asmBuilder += MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(R9, QWord)), regOrImm) 
-        }
-        case Snd(lValue2) => {
-          fstSndAddress(lValue2, asmBuilder, 8)
-          asmBuilder += MOV(Reg(R9, QWord), Reg(R10, QWord))
-          val regOrImm: (Reg | Imm) =
-          rValueGen(rValue, asmBuilder) match
-            case Reg(num, dataWidth) => Reg(num, QWord)
-            case Imm(value) => Imm(value)
-          asmBuilder += MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(R9, QWord)), regOrImm)
-        }
+      case qn: QualifiedName => assgnGen(qn, rValue, asmBuilder, qn.t)
+      case ArrayElem(qn: QualifiedName, index) => {
+        val (dataWidth, pointer) = repeatAccessArray(qn, index, asmBuilder)
+        asmBuilder += MOV(pointer, rValueGen(rValue, asmBuilder, qn.t))
+      }
+
+      case Fst(lValue2) => {
+        fstSndAddress(lValue2, asmBuilder)
+        asmBuilder += MOV(Reg(R9, QWord), Reg(R10, QWord))
+        val regOrImm: (Reg | Imm) =
+        rValueGen(rValue, asmBuilder) match
+          case Reg(num, dataWidth) => Reg(num, QWord)
+          case Imm(value) => Imm(value)
+        asmBuilder += MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(R9, QWord)), regOrImm) 
+      }
+
+      case Snd(lValue2) => {
+        fstSndAddress(lValue2, asmBuilder, 8)
+        asmBuilder += MOV(Reg(R9, QWord), Reg(R10, QWord))
+        val regOrImm: (Reg | Imm) =
+        rValueGen(rValue, asmBuilder) match
+          case Reg(num, dataWidth) => Reg(num, QWord)
+          case Imm(value) => Imm(value)
+        asmBuilder += MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(R9, QWord)), regOrImm)
+      }
   }
 
+  // Accesses an element at a specific index in an array
   def arrayIndexAccess(
     pointerAddress: MemAddr, 
     index: Expr, t: Type, 
-    asmBuilder: Builder[Instr, List[Instr]]): 
-    (Int, MemAddr) = 
-  {
+    asmBuilder: Builder[Instr, List[Instr]]
+  ): (Int, MemAddr) = {
     asmBuilder += MOV(Reg(R9, QWord), pointerAddress)
     val dataWidth = typeToSize(t)
-    // println(index)
     asmBuilder += PUSH(Reg(R9, QWord))
     val reg = exprGen(index, asmBuilder)
     asmBuilder += POP(Reg(R9, QWord))
     asmBuilder += MOV(Reg(R8, DWord), reg)
+
     asmBuilder.addAll(
       List(
         CMP(Reg(R8, DWord), Imm(0)),
@@ -223,7 +234,12 @@ object IR {
     (dataWidth, RegScale(dataWidth, Reg(R9, QWord), typeToSize(t), Reg(R8, QWord)))
   }
 
-  def rValueGen(rValue: RValue, asmBuilder: Builder[Instr, List[Instr]], t: Type = Undefined): (Reg | Imm) = {
+  // Generates the intermediate representation (IR) for an r-value expression
+  def rValueGen(
+    rValue: RValue, 
+    asmBuilder: Builder[Instr, List[Instr]], 
+    t: Type = Undefined
+  ): (Reg | Imm) = {
     (rValue: @unchecked) match
       case expr: Expr => exprGen(expr, asmBuilder)
       case Fst(lValue) => fstSndAddress(lValue, asmBuilder)
@@ -233,43 +249,62 @@ object IR {
       case Call(qn: QualifiedFunc, args) => callGen(qn, args, asmBuilder)
   }
 
-  def assgnGen(qn: QualifiedName, rValue: RValue, asmBuilder: Builder[Instr, List[Instr]], t: Type = Undefined) = {
+  // Generates assembly instructions for an assignment operation
+  def assgnGen(
+    qn: QualifiedName, 
+    rValue: RValue, 
+    asmBuilder: Builder[Instr, List[Instr]], 
+    t: Type = Undefined
+  ) = {
     val dataWidth = Stack.typeToSize(t)
     asmBuilder += ((rValue: @unchecked) match
       case expr: Expr => {
         exprGen(expr, asmBuilder) match
-          case Reg(num, dataWidth) => print(MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(num, dataWidth))); MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(num, dataWidth))
+          case Reg(num, dataWidth) => {
+            print(MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(num, dataWidth)))
+            MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(num, dataWidth))
+          }
+
           case Imm(value) => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Imm(value))
-      }        
+      }
+
       case Fst(lValue) => fstSndAddress(lValue, asmBuilder); movRegOrImmToMem(R10, qn, dataWidth)
       case Snd(lValue) => fstSndAddress(lValue, asmBuilder, 8); movRegOrImmToMem(R10, qn, dataWidth)
+
       case ArrayLiter(elems) => {
         t match
           case StringType => mallocArrayLiter(elems, ArrayType(CharType, 1), asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
           case _ => mallocArrayLiter(elems, t.asInstanceOf[ArrayType], asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
-
       }
+
       case NewPair(fst, snd) => mallocNewPair(fst, snd, asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
       case Call(qnFunc: QualifiedFunc, args) => callGen(qnFunc, args, asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth))
   }  
 
-  def mallocArrayLiter(elems: List[Expr], arrayType: ArrayType, asmBuilder: Builder[Instr, List[Instr]]) = {
-
+  // Allocates memory for an array literal and generates corresponding assembly instructions.
+  def mallocArrayLiter(
+    elems: List[Expr], 
+    arrayType: ArrayType, 
+    asmBuilder: Builder[Instr, List[Instr]]
+  ) = {
     val arrayTypeSize = if arrayType.d != 1 then typeToSize(arrayType) else typeToSize(arrayType.t)
     asmBuilder += MOV(Reg(Rdi, DWord), Imm(arrayTypeSize*(elems.size) + 4))
     malloc(asmBuilder)
+
     asmBuilder.addAll(
       List(
         MOV(OffsetAddr(MemOpModifier.DWordPtr, Reg(Rax, QWord)), Imm(elems.size)),
         ADD(Reg(Rax, QWord), Imm(4))
-        )
+      )
     )
+    
     elems.indices.map(i => {
       asmBuilder += MOV(OffsetAddr(arrayTypeSize, Reg(Rax, QWord), i*arrayTypeSize), exprGen(elems(i), asmBuilder))
     })
     Reg(Rax, QWord)
   }
 
+  // Allocates memory for a new pair and initializes it with the given expressions.
   def mallocNewPair(fst: Expr, snd: Expr, asmBuilder: Builder[Instr, List[Instr]]) = {
     val (fstSize, sndSize) = (8, 8)
     asmBuilder += MOV(Reg(Rdi, DWord), Imm(fstSize+sndSize))
@@ -279,8 +314,12 @@ object IR {
     Reg(Rax, QWord)
   }
 
-
-  def repeatAccessArray(qn: QualifiedName, index: List[Expr], asmBuilder: Builder[Instr, List[Instr]]): (Int, MemAddr) = {
+  // Generates assembly instructions for array element access
+  def repeatAccessArray(
+    qn: QualifiedName, 
+    index: List[Expr], 
+    asmBuilder: Builder[Instr, List[Instr]]
+  ): (Int, MemAddr) = {
     val ArrayType(t, d) = qn.t.asInstanceOf[ArrayType]
     var dimensionAccess = 0
     var pointer: MemAddr = OffsetAddr(MemOpModifier.QWordPtr, Reg(Rbp, QWord), Stack.getOffset(qn))
@@ -296,6 +335,7 @@ object IR {
     arrayIndexAccess(pointer, index.last, finalType, asmBuilder)
   }
 
+  // Generates assembly instructions for a function call
   def readFunc(dataWidth: Int,asmBuilder: Builder[Instr, List[Instr]]) = {
     val formatMode = if dataWidth == 1 then "c" else "d"
     asmBuilder.addAll(pushRbp)
@@ -315,6 +355,7 @@ object IR {
     asmBuilder.addAll(popRbp)
   }
 
+  // Generates assembly instructions for read call (for inputs)
   def readGen(lValue: LValue, asmBuilder: Builder[Instr, List[Instr]]) = {
     (lValue: @unchecked) match
       case qn: QualifiedName => {
@@ -323,6 +364,7 @@ object IR {
         readFunc(dataWidth, asmBuilder)
         asmBuilder += movRegOrImmToMem(Rax, qn, dataWidth) 
       }
+
       case ArrayElem(qn: QualifiedName, index) => {
         val arrayBaseType = qn.t.asInstanceOf[ArrayType].t
         val arrayPointer = OffsetAddr(MemOpModifier.QWordPtr, Reg(Rbp, QWord), Stack.getOffset(qn))
@@ -331,11 +373,17 @@ object IR {
         readFunc(dataWidth, asmBuilder)
         asmBuilder += MOV(pointer, Reg(Rax, dataWidth))
       }
+
       case Fst(lValue) => readPair(lValue, asmBuilder, 0)
       case Snd(lValue) => readPair(lValue, asmBuilder , 8)
     }
 
-  def fstSndAddress(lValue: LValue, asmBuilder: Builder[Instr, List[Instr]], fstOrSnd: Int = 0): Reg = {
+  // Generates assembly instructions for accessing a pair element
+  def fstSndAddress(
+    lValue: LValue, 
+    asmBuilder: Builder[Instr, List[Instr]], 
+    fstOrSnd: Int = 0
+  ): Reg = {
     val storeInstrs = List(
       CMP(Reg(10, QWord), Imm(0)),
       JCond(Cond.E, Label("_errNull")),
@@ -362,6 +410,7 @@ object IR {
       Reg(R10, QWord)
     }
 
+  // Generates assembly instructions for reading a pair
   def readPair(lValue: LValue, asmBuilder: Builder[Instr, List[Instr]], fstOrSnd: Int) = {
     (lValue: @unchecked) match
       case qn: QualifiedName => {
@@ -380,6 +429,7 @@ object IR {
       }
   }
 
+  // Generates assembly instructions for program exit
   def exitGen(expr: Expr, asmBuilder: Builder[Instr, List[Instr]]) = {
     asmBuilder += MOV(Reg(Rdi, DWord), exprGen(expr, asmBuilder))
     asmBuilder ++= pushRbp
@@ -392,6 +442,7 @@ object IR {
     asmBuilder ++= popRbp
   }
 
+  // Generates assembly instructions for free call
   def freeGen(expr: Expr, asmBuilder:Builder[Instr, List[Instr]]) = {
     (expr: @unchecked) match
       case qn: QualifiedName if qn.t.isInstanceOf[ArrayType] => {
@@ -421,7 +472,7 @@ object IR {
         )
         asmBuilder ++= popRbp
       }
-    }
+  }
 
   def scopeGen(stmts: List[Stmt], asmBuilder: Builder[Instr, List[Instr]]) = {
     val prevFrame = Stack.frames.last
@@ -432,6 +483,7 @@ object IR {
     Stack.frames.dropRightInPlace(1)
   }
 
+  // Generates assembly instructions for return call
   def returnGen(expr: Expr, asmBuilder: Builder[Instr, List[Instr]]) = {
     val reg = exprGenRegister(expr, asmBuilder)
     asmBuilder += MOV(Reg(Rax, reg.dataWidth), reg)
@@ -499,13 +551,13 @@ object IR {
       POP(Reg(Rbp, QWord)),
     )
 
+  // The below are for C style printing ie
+  // printf("%d", num) to print an int in C
   def formatMap(t: Type): Int = {
-    // The below are for C style printing ie
-    // printf("%d", num) to print an int in C
-    val p = 0x007025 // p for pointers
+    val p = 0x007025   // p for pointers
     val s = 0x732A2E25 // s for strings
-    val c = 0x006325 // c for chars
-    val d = 0x006425 // d for ints
+    val c = 0x006325   // c for chars
+    val d = 0x006425   // d for ints
     (t: @unchecked) match
       case PairType(t1, t2) => p
       case ArrayType(CharType, 1) => s
@@ -516,9 +568,11 @@ object IR {
       case CharType => c
   }
 
+  // Generates assembly for while loops
   def whileGen(cond: Expr, loopStmts: List[Stmt], asmBuilder: Builder[Instr, List[Instr]]) = {
     val n = localLabelCounter
-    localLabelCounter += 2 // because n and n+1 are reserved for this while
+    // Added 2 since n and n+1 labels are reserved for this while's blocks (conditional jumps)
+    localLabelCounter += 2 
 
     asmBuilder += JCond(Cond.AL, WhileIfLabel(n))
     asmBuilder += WhileIfLabel(n + 1)
@@ -530,9 +584,11 @@ object IR {
     asmBuilder += JCond(Cond.E, WhileIfLabel(n + 1))
   }
 
+  // Generates assembly for if else statements
   def ifElseGen(cond: Expr, thenStmts: List[Stmt], elseStmts: List[Stmt], asmBuilder: Builder[Instr, List[Instr]]) = {
     val n = localLabelCounter
-    localLabelCounter += 2 // because n, and n+2, are reserved for this ifelse block
+    // Added 2 since n and n+1 are reserved for this if-else blocks (conditional jumps)
+    localLabelCounter += 2 
 
     exprGenRegister(cond, asmBuilder)
     asmBuilder += CMP(Reg(R10, Byte), Imm(1))
@@ -544,6 +600,7 @@ object IR {
     asmBuilder += WhileIfLabel(n+1)
   }
 
+  // Generates assembly for non-string prints
   def printNonString(reg: Reg, dataWidth: DataWidth, formatMode: Int, asmBuilder: Builder[Instr, List[Instr]]) = {
     asmBuilder.addAll(
       List(
@@ -561,6 +618,7 @@ object IR {
     )
   }
 
+  // Generates assembly for string prints
   def printString(reg: Reg, formatMode: Int, asmBuilder: Builder[Instr, List[Instr]]) = {
     asmBuilder.addAll(
       List(
@@ -579,6 +637,7 @@ object IR {
     )
   }
 
+  // Generates assembly for malloc call
   def malloc(asmBuilder: Builder[Instr, List[Instr]]) = {
     asmBuilder ++= pushRbp
     asmBuilder.addAll(

@@ -11,11 +11,13 @@ object AssemblyWriter {
   // Writes the assembly file
   def generateAsmFile(ir: (List[StringInfo], List[FuncLabelDef]), filename: String, folder: String = "") = {
     val file = Paths.get(filename).getFileName.toString
-    ir._2.map(labelHandler(_)) // Generates the assembly for each label definition  
+    // Generates the assembly for each label definition  
+    ir._2.map(labelHandler(_)) 
     val finalAssembly = assemblyBuilder.result()
     assemblyBuilder.clear()
     val writer = new PrintWriter(s"$folder${file.dropRight(5)}.s")
-    // Write boilerplate header assembly
+    
+    // This adds a boilerplate header assembly
     val boilerplate = List(
       ".intel_syntax noprefix",
       ".globl main",
@@ -52,13 +54,9 @@ object AssemblyWriter {
       "   .asciz \"fatal error: division or modulo by zero\\n\""
       )
 
-
-
-
-
     boilerplate.foreach(writer.println)
     
-    // Write string info directives into ro section
+    // Write string info directives into read-only section
     ir._1.foreach {
       s =>
 
@@ -67,13 +65,13 @@ object AssemblyWriter {
         writer.println(s".L.str${s.strCount}:")
         writer.println(s"   .asciz \"$x\" ")
     }
+
     // Write assembly instructions section
     writer.println(".text")
     finalAssembly.foreach(writer.println)
     writer.close()
   }
     
-  // TODO: rename label handler to label def handler
   // Appends assembly text for given label definition
   def labelHandler(label: FuncLabelDef): Unit = {
     assemblyBuilder += (s"${label.name}:")
@@ -105,7 +103,6 @@ object AssemblyWriter {
         case JCond(cond, label) => s"  j${condToAsm(cond)} $label"
         case LEA((op1, op2)) => s"  lea $op1, $op2"
         case WhileIfLabel(num) => s".L$num:"
-        case NL => s"\n"
     )
   }
 

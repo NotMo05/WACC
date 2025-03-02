@@ -1,5 +1,6 @@
 package wacc.back_end
 import scala.language.implicitConversions
+import scala.collection.mutable.{Builder}
 
 enum RegName:
   case Rax, Rbx, Rcx, Rdx, Rsi, Rdi, Rsp, Rbp, Rip, R8, R9, R10, R11, R12, R13, R14, R15
@@ -20,18 +21,12 @@ enum MemOpModifier:
 // Operand is a location or immediate
 sealed trait Operand 
 sealed trait Location extends Operand {
-  override def toString: String = this match {
-    case indAddr: IndexedAddr => ???
-    // Needs refactoring
-    case OffsetAddr(memOpModifier, reg1, disp) if disp > 0 => s"$memOpModifier [$reg1 + $disp]" //mov \byte ptr [rax + 16]\ rsi 
-    case OffsetAddr(memOpModifier, reg1, disp) if disp == 0 => s"$memOpModifier [$reg1]" //mov \byte ptr [rax + 16]\ rsi 
+  override def toString: String = (this: @unchecked) match {
+    case OffsetAddr(memOpModifier, reg1, disp) if disp > 0 => s"$memOpModifier [$reg1 + $disp]" 
+    case OffsetAddr(memOpModifier, reg1, disp) if disp == 0 => s"$memOpModifier [$reg1]" 
     case OffsetAddr(memOpModifier, reg1, disp) => s"$memOpModifier [$reg1 - ${-disp}]"
     case StringAddr(strCount, reg) => s"[$reg + .L.str${strCount}]"
-
-    case regScaleImm: RegScaleImm => ???
-    case scaleImm: ScaleImm => ???
-    case wacc.back_end.Reg(_, _) => ???
-    case wacc.back_end.RegScale(memOpModifier, reg1, scale, reg2) => s"$memOpModifier [$reg1 + $scale*$reg2]"
+    case RegScale(memOpModifier, reg1, scale, reg2) => s"$memOpModifier [$reg1 + $scale*$reg2]"
   }
 
 }
@@ -91,15 +86,9 @@ case class Label(name: String) extends Operand {
 }
 
 sealed trait MemAddr extends Location
-case class IndexedAddr(modifer: MemOpModifier, reg1: Reg, reg2: Reg) extends MemAddr 
-// ie mov qword ptr rax, [rbx + rsi]
 
 case class OffsetAddr(modifer: MemOpModifier, reg1: Reg, disp: Int = 0) extends MemAddr 
-// ie mov qword ptr [rsp + 8], r12
-
 case class RegScale(modifer: MemOpModifier, reg1: Reg, scale: Int, reg2: Reg) extends MemAddr
-case class RegScaleImm(modifer: MemOpModifier, reg1: Reg, scale: Int, reg2: Reg, imm: Int) extends MemAddr
-case class ScaleImm(modifer: MemOpModifier, reg: Reg, scale: Int, imm: Int) extends MemAddr
 case class StringAddr(strCount: String, reg: Reg = Reg(RegName.Rip, DataWidth.QWord)) extends MemAddr
 
 object MemOpModifier {
@@ -152,3 +141,8 @@ object RegName {
 object Reg {
   implicit def regNameToReg(regName: RegName): Reg = Reg(regName, DataWidth.QWord)
 }
+
+case class FuncLabelDef(
+  name: String,
+  instructions: Builder[Instr, List[Instr]]
+)

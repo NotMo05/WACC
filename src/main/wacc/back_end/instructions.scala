@@ -4,7 +4,6 @@ sealed trait Instr
 
 enum Cond {
   case E, NE, L, LE, G, GE, A, AE, B, BE, S, NS, O, NO, P, NP, AL
-
   override def toString(): String = s"J${this.productPrefix.toLowerCase}"
 }
 
@@ -44,4 +43,3 @@ case class WhileIfLabel(num: Int) extends Instr {
   override def toString(): String = s".L$num"
 }
 
-case object NL extends Instr

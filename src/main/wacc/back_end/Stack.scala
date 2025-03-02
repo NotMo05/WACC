@@ -33,7 +33,6 @@ object Stack {
       case IntType => 4
       case BoolType => 1
       case CharType => 1
-      case AnyType => ???
   }
 }
 
@@ -61,7 +60,6 @@ case class StackFrame(stmts: List[Stmt], prevTable: mutable.Map[QualifiedName, I
   for (stmt <- stmts) {
     stmt match {
       case Assgn(t, qn: QualifiedName, rValue) =>
-        //Check order
         currentDepth -= typeToSize(t)
         identTable(qn) = absoluteDepth()
       case _ => None

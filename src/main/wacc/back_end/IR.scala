@@ -45,7 +45,7 @@ object IR {
 
   // Data width defaults to QWord for moving pointers in registers
   def movQnToReg(destReg: RegName, qn: QualifiedName, dataWidth: DataWidth = QWord) =
-   MOV(Reg(destReg, QWord), OffsetAddr(MemOpModifier.QWordPtr, Reg(Rbp, QWord), Stack.getOffset(qn)))
+   MOV(Reg(destReg, dataWidth), OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)))
   def movRegOrImmToMem(srcRegOrImm: RegName | Imm | Reg, qn: QualifiedName, dataWidth: DataWidth = QWord) = {
     srcRegOrImm match
       case reg: RegName => MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(reg, dataWidth))
@@ -232,11 +232,17 @@ object IR {
 
   def assgnGen(qn: QualifiedName, rValue: RValue, asmBuilder: Builder[Instr, List[Instr]], t: Type = Undefined) = {
     val dataWidth = Stack.typeToSize(t)
+    print(t)
     asmBuilder += ((rValue: @unchecked) match
       case expr: Expr => movRegOrImmToMem(exprGen(expr, asmBuilder), qn, dataWidth)
       case Fst(lValue) => fstSndAddress(lValue, asmBuilder); movRegOrImmToMem(R10, qn, dataWidth)
       case Snd(lValue) => fstSndAddress(lValue, asmBuilder, 8); movRegOrImmToMem(R10, qn, dataWidth)
-      case ArrayLiter(elems) => mallocArrayLiter(elems, t.asInstanceOf[ArrayType], asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
+      case ArrayLiter(elems) => {
+        t match
+          case StringType => mallocArrayLiter(elems, ArrayType(CharType, 1), asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
+          case _ => mallocArrayLiter(elems, t.asInstanceOf[ArrayType], asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
+
+      }
       case NewPair(fst, snd) => mallocNewPair(fst, snd, asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
       case Call(qnFunc: QualifiedFunc, args) => callGen(qnFunc, args, asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth))
   }  
@@ -284,17 +290,15 @@ object IR {
   }
 
   def readFunc(dataWidth: Int,asmBuilder: Builder[Instr, List[Instr]]) = {
-    val formatMode = if dataWidth == 1 then 0x006325 else 0x006425
+    val formatMode = if dataWidth == 1 then "c" else "d"
     asmBuilder.addAll(pushRbp)
     asmBuilder.addAll(
       List(
         AND(Reg(Rsp, QWord), Imm(STACK_ALIGN)),
-        SUB(Reg(Rsp, QWord), Imm(8)),
-        MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(Rsp, QWord)), Imm(formatMode)),
-        MOV(Reg(Rdi, QWord), Reg(Rsp, QWord)),
-        SUB(Reg(Rsp, QWord), Imm(8)),
+        SUB(Reg(Rsp, QWord), Imm(-STACK_ALIGN)),
         MOV(OffsetAddr(dataWidth, Reg(Rsp, QWord)), Reg(Rdi, dataWidth)),
         LEA(Reg(Rsi, QWord), OffsetAddr(MemOpModifier.QWordPtr, Reg(Rsp, QWord))),
+        LEA(Reg(Rdi, QWord), StringAddr(formatMode)),
         MOV(Reg(Rax, Byte), Imm(0)),
         CALL(Label("scanf@plt")),
         MOV(Reg(Rax, dataWidth), OffsetAddr(dataWidth, Reg(Rsp, QWord))),
@@ -308,8 +312,12 @@ object IR {
     (lValue: @unchecked) match
       case qn: QualifiedName => {
         val dataWidth = typeToSize(qn.t)
+        print(dataWidth, "AAAAAAA")
         asmBuilder += movQnToReg(Rdi, qn, dataWidth) 
+        print(movQnToReg(Rdi, qn, dataWidth))
+        print("ABOUT TO READ")
         readFunc(dataWidth, asmBuilder)
+        print("READ")
         asmBuilder += movRegOrImmToMem(Rax, qn, dataWidth) 
       }
       case ArrayElem(qn: QualifiedName, index) => {

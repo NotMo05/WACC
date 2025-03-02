@@ -167,6 +167,8 @@
 
     def cmpOp(l: Expr, r: Expr, regNum: Int, asmBuilder: Builder[Instr, List[Instr]], cond: Cond) = {
       val dataWidth = typeToSize(getExprType(l).get)
+      print(dataWidth)
+      print(l, r)
       binOpHelper(l,r, regNum, asmBuilder)
       asmBuilder += CMP(Reg(regNum, dataWidth), Reg(regNum+1, dataWidth))
       asmBuilder += SETCond(cond, Reg(regNum, Byte))

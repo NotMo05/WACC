@@ -122,9 +122,7 @@ object IR {
     asmBuilder += PUSH(Reg(Rbp, QWord))
     asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
     asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
-    println(funcName)
     stmts.map(stmtGen(_, asmBuilder))
-    println("WE FINSIHED REC")
     
     val funcLabel = if (funcName == "") {
       asmBuilder += MOV(Reg(Rax, QWord), Imm(0))
@@ -176,9 +174,7 @@ object IR {
         case qn: QualifiedName => assgnGen(qn, rValue, asmBuilder, qn.t)
         case ArrayElem(qn: QualifiedName, index) => {
           val (dataWidth, pointer) = repeatAccessArray(qn, index, asmBuilder)
-          print(dataWidth)
           asmBuilder += MOV(pointer, rValueGen(rValue, asmBuilder, qn.t))
-          asmBuilder += CDQ
         }
         case Fst(lValue2) => {
           fstSndAddress(lValue2, asmBuilder)
@@ -207,10 +203,14 @@ object IR {
     (Int, MemAddr) = 
   {
     asmBuilder += MOV(Reg(R9, QWord), pointerAddress)
+    asmBuilder += PUSH(Reg(R9, QWord))
     val dataWidth = typeToSize(t)
+    // println(index)
+    val reg = exprGen(index, asmBuilder)
+    asmBuilder += MOV(Reg(R8, DWord), reg)
+    asmBuilder += POP(Reg(R9, QWord))
     asmBuilder.addAll(
       List(
-        MOV(Reg(R8, DWord), exprGen(index, asmBuilder)),
         CMP(Reg(R8, DWord), Imm(0)),
         JCond(Cond.L, Label("_errOutOfBounds")),
         CMP(Reg(R8, DWord), OffsetAddr(MemOpModifier.DWordPtr, Reg(R9, QWord), -4)),
@@ -232,7 +232,6 @@ object IR {
 
   def assgnGen(qn: QualifiedName, rValue: RValue, asmBuilder: Builder[Instr, List[Instr]], t: Type = Undefined) = {
     val dataWidth = Stack.typeToSize(t)
-    print(t)
     asmBuilder += ((rValue: @unchecked) match
       case expr: Expr => movRegOrImmToMem(exprGen(expr, asmBuilder), qn, dataWidth)
       case Fst(lValue) => fstSndAddress(lValue, asmBuilder); movRegOrImmToMem(R10, qn, dataWidth)
@@ -278,13 +277,13 @@ object IR {
     val ArrayType(t,d) = qn.t.asInstanceOf[ArrayType]
     var dimensionAccess = 0
     var pointer: MemAddr = OffsetAddr(MemOpModifier.QWordPtr, Reg(Rbp, QWord), Stack.getOffset(qn))
-    print(index.size)
     for (i <- 1 to index.size - 1) {
       pointer = arrayIndexAccess(pointer, index(i), ArrayType(t, d - dimensionAccess), asmBuilder)._2
-      dimensionAccess -= 1
+      dimensionAccess += 1
     }
+    // print(d, dimensionAccess)
     val finalType = 
-    if d - dimensionAccess == 0 then t
+    if d - dimensionAccess == 1 then t
     else ArrayType(t, d - dimensionAccess)
     arrayIndexAccess(pointer, index.last, finalType, asmBuilder)
   }
@@ -312,12 +311,8 @@ object IR {
     (lValue: @unchecked) match
       case qn: QualifiedName => {
         val dataWidth = typeToSize(qn.t)
-        print(dataWidth, "AAAAAAA")
         asmBuilder += movQnToReg(Rdi, qn, dataWidth) 
-        print(movQnToReg(Rdi, qn, dataWidth))
-        print("ABOUT TO READ")
         readFunc(dataWidth, asmBuilder)
-        print("READ")
         asmBuilder += movRegOrImmToMem(Rax, qn, dataWidth) 
       }
       case ArrayElem(qn: QualifiedName, index) => {

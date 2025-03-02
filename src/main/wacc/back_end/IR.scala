@@ -109,8 +109,9 @@ object IR {
     }   
 
   def funcGenerate(stmts: List[Stmt], funcName: String = "", params: List[Param] = Nil): FuncLabelDef = {
+    val sortedParams = params.sortBy(p => p.t.toString())
     val assignedParams = if !params.isEmpty then {
-      params.reverse.map( p =>
+      sortedParams.map( p =>
         (p: @unchecked) match
           case Param(t, qn: QualifiedName) => {
             Assgn(t, qn, IntLiteral(0))
@@ -119,6 +120,7 @@ object IR {
     } else Nil
     val asmBuilder = List.newBuilder[Instr]
     Stack.initialise(assignedParams ++ stmts)
+    println(Stack.frames.last.identTable)
     asmBuilder += PUSH(Reg(Rbp, QWord))
     asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
     asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
@@ -130,7 +132,7 @@ object IR {
     } else s"wacc_$funcName"
 
     asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth)) 
-    asmBuilder += POP(Reg(Rbp, QWord)) 
+    asmBuilder ++= popRbp
     asmBuilder += RET 
     
     return FuncLabelDef(funcLabel, asmBuilder)
@@ -276,21 +278,21 @@ object IR {
   }
 
 
-def repeatAccessArray(qn: QualifiedName, index: List[Expr], asmBuilder: Builder[Instr, List[Instr]]): (Int, MemAddr) = {
-  val ArrayType(t, d) = qn.t.asInstanceOf[ArrayType]
-  var dimensionAccess = 0
-  var pointer: MemAddr = OffsetAddr(MemOpModifier.QWordPtr, Reg(Rbp, QWord), Stack.getOffset(qn))
-  
-  if (index.size > 1) {
-    for (i <- 0 until index.size - 1) {
-      pointer = arrayIndexAccess(pointer, index(i), ArrayType(t, d - dimensionAccess), asmBuilder)._2
-      dimensionAccess += 1
+  def repeatAccessArray(qn: QualifiedName, index: List[Expr], asmBuilder: Builder[Instr, List[Instr]]): (Int, MemAddr) = {
+    val ArrayType(t, d) = qn.t.asInstanceOf[ArrayType]
+    var dimensionAccess = 0
+    var pointer: MemAddr = OffsetAddr(MemOpModifier.QWordPtr, Reg(Rbp, QWord), Stack.getOffset(qn))
+    
+    if (index.size > 1) {
+      for (i <- 0 until index.size - 1) {
+        pointer = arrayIndexAccess(pointer, index(i), ArrayType(t, d - dimensionAccess), asmBuilder)._2
+        dimensionAccess += 1
+      }
     }
-  }
 
-  val finalType = if (d - dimensionAccess == 1) t else ArrayType(t, d - dimensionAccess)
-  arrayIndexAccess(pointer, index.last, finalType, asmBuilder)
-}
+    val finalType = if (d - dimensionAccess == 1) t else ArrayType(t, d - dimensionAccess)
+    arrayIndexAccess(pointer, index.last, finalType, asmBuilder)
+  }
 
   def readFunc(dataWidth: Int,asmBuilder: Builder[Instr, List[Instr]]) = {
     val formatMode = if dataWidth == 1 then "c" else "d"
@@ -432,7 +434,7 @@ def repeatAccessArray(qn: QualifiedName, index: List[Expr], asmBuilder: Builder[
     val reg = exprGenRegister(expr, asmBuilder)
     asmBuilder += MOV(Reg(Rax, reg.dataWidth), reg)
     asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
-    asmBuilder += POP(Reg(Rbp, QWord))
+    asmBuilder ++= popRbp
     asmBuilder += RET
   }
 
@@ -442,14 +444,17 @@ def repeatAccessArray(qn: QualifiedName, index: List[Expr], asmBuilder: Builder[
     val spaceNeeded = qn.paramTypes.foldLeft(0)(_ + typeToSize(_))
     asmBuilder += SUB(Reg(Rsp, QWord), Imm(spaceNeeded))
     var currentDepth = 0
-    for ((paramType, i) <- qn.paramTypes.zipWithIndex) {
+    val sortedArgs = args.sortBy(getExprType(_).toString())
+    val sortedParams = qn.paramTypes.sortBy(_.toString())
+    for ((paramType, i) <- sortedParams.zipWithIndex) {
+      println(qn.paramTypes.sortBy(_.toString()))
       val dataWidth = typeToSize(paramType)
       currentDepth -= dataWidth
-      asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), currentDepth), exprGen(args(i), asmBuilder))
+      asmBuilder += MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), currentDepth), exprGen(sortedArgs(i), asmBuilder))
     }
     asmBuilder += CALL(Label(s"wacc_${qn.funcName}"))
     asmBuilder += ADD(Reg(Rsp, QWord), Imm(spaceNeeded))
-    asmBuilder += POP(Reg(Rbp, QWord))
+    asmBuilder ++= popRbp
     Reg(Rax, typeToSize(qn.t))
   }
 

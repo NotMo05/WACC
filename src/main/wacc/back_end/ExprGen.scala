@@ -86,7 +86,7 @@
         case Neg(x) => 
           exprGenRegister(x, asmBuilder, regNum)
           asmBuilder += (NEG(Reg(regNum, DWord)))
-          overflowErr(regNum)
+          asmBuilder += JCond(Cond.O, Label("_errOverflow"))
           Reg(regNum, DWord)
 
         case Not(x) => 
@@ -137,7 +137,7 @@
         case IntLiteral(int) =>
           exprGenRegister(l, asmBuilder, regNum) 
           asmBuilder += op(Reg(regNum, DWord), Imm(int))
-          overflowErr(regNum)
+          asmBuilder += JCond(Cond.O, Label("_errOverflow"))
           Reg(regNum, DWord)
         case _ => arithmeticNonImm(l, r, regNum, asmBuilder, op)
 
@@ -147,7 +147,7 @@
     def arithmeticNonImm(l: Expr, r: Expr, regNum: Int, asmBuilder: Builder[Instr, List[Instr]], op: LocationOps => Instr) = {
       binOpHelper(l, r, regNum, asmBuilder)
       asmBuilder += op(Reg(regNum, DWord), Reg(regNum + 1, DWord))
-      overflowErr(regNum)
+      asmBuilder += JCond(Cond.O, Label("_errOverflow"))
       Reg(regNum, DWord)
     }
 
@@ -180,8 +180,8 @@
       )
       exprGenRegister(l, asmBuilder, regNum) 
       asmBuilder += MOV(Reg(Rax, DWord), Reg(regNum, DWord))
-      exprGenRegister(r, asmBuilder, regNum) 
-      divByZeroErr(regNum) 
+      asmBuilder += CMP(exprGenRegister(r, asmBuilder, regNum), Imm(0))
+      asmBuilder += JCond(Cond.E, Label("_errDivZero"))
       asmBuilder.addAll(
         List(CDQ,
         IDIV(Reg(regNum, DWord)),
@@ -192,7 +192,5 @@
       Reg(regNum, DWord)
     }
 
-    def overflowErr(regNum: Int): List[Instr] = Nil
-    def divByZeroErr(regNum: Int): List[Instr] = Nil
 
   }

@@ -37,7 +37,7 @@ object IR {
     asmBuilder += AND(Reg(Rsp, QWord), Imm(STACK_ALIGN))
     asmBuilder += LEA(Reg(Rdi, QWord), StringAddr(s"${name}"))
     printString(Reg(Rdi, QWord), formatMap(StringType), asmBuilder)
-    asmBuilder += MOV(Reg(Rdi, Word), Imm(-1))
+    asmBuilder += MOV(Reg(Rdi, Byte), Imm(-1))
     asmBuilder += CALL(Label("exit@plt"))
     FuncLabelDef(name, asmBuilder)
   }

@@ -38,9 +38,9 @@ object AssemblyWriter {
       "   .int 47",
       ".L.str_errBadChar:",
       "   .asciz \"fatal error: int is not ascii character 0-127 \\n\"",
-      "   .int 42",
+      "   .int 39",
       ".L.str_errOutOfBounds:",
-      "   .asciz \"fatal error: array index %d out of bounds\\n\"",
+      "   .asciz \"fatal error: array index out of bounds\\n\"",
       "   .int 40",
       ".L.str_errDivZero:",
       "   .asciz \"fatal error: division or modulo by zero\\n\""

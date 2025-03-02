@@ -20,7 +20,7 @@ object IR {
   case class StringInfo(val string: String, val len: Int, val strCount: Int) {
     override def toString(): String = s"$strCount$string$len"
   }
-    
+
   def generateIR(prog: Prog): (List[StringInfo], List[FuncLabelDef]) = {
     val sections = generateROData(prog.main) :: prog.funcs.map(func => generateROData(func.stmts))
     val funcLabelDefs = funcGenerate(prog.main) :: prog.funcs.map(func => funcGenerate(func.stmts, func.identifier.identifier))
@@ -55,13 +55,13 @@ object IR {
 
   def generateROData(stmts: List[Stmt]): List[StringInfo] = { // CHANGED TO LIST OF SECTIONS FOR NOW
     // This will generate the boilerplate labels at the beginning of assembly file that contain string data
-    // Including raw string, string length and the label number 
+    // Including raw string, string length and the label number
                 // Remind me to change stringGen in ExprGen
-    return stmts.foldLeft(List.empty[StringInfo])((list: List[StringInfo], stmt: Stmt) => 
+    return stmts.foldLeft(List.empty[StringInfo])((list: List[StringInfo], stmt: Stmt) =>
       (stmt match
         case Return(expr) => ROExprHelper(expr)
         case Print(expr) => ROExprHelper(expr)
-        case Println(expr) => ROExprHelper(expr) 
+        case Println(expr) => ROExprHelper(expr)
         case WhileDo(condition, stmts) => ROExprHelper(condition) ++ generateROData(stmts)
         case IfElse(condition, thenStmts, elseStmts) => ROExprHelper(condition) ++ generateROData(thenStmts) ++ generateROData(elseStmts)
         case Assgn(t, identifier, rValue) => RORValueHelper(rValue)
@@ -95,16 +95,16 @@ object IR {
         List(StringInfo(string, string.length(), strCounter - 1))
       }
       case op: Operator => {
-        op match 
+        op match
           case Not(x) => ROExprHelper(x)
           case Eq(l, r) => ROExprHelper(l) ++ ROExprHelper(r)
-          case NotEq(l, r) => ROExprHelper(l) ++ ROExprHelper(r) 
-          case And(l, r) => ROExprHelper(l) ++ ROExprHelper(r) 
+          case NotEq(l, r) => ROExprHelper(l) ++ ROExprHelper(r)
+          case And(l, r) => ROExprHelper(l) ++ ROExprHelper(r)
           case Or(l, r) => ROExprHelper(l) ++ ROExprHelper(r)
           case _ => Nil
       }
       case _ => Nil
-    }   
+    }
 
     def funcGenerate(stmts: List[Stmt], funcName: String = ""): FuncLabelDef = {
     val asmBuilder = List.newBuilder[Instr]
@@ -113,16 +113,16 @@ object IR {
     asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
     asmBuilder += SUB(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
     stmts.map(stmtGen(_, asmBuilder))
-    
+
     val funcLabel = if (funcName == "") {
       asmBuilder += MOV(Reg(Rax, QWord), Imm(0))
       "main"
     } else s"wacc_$funcName"
 
-    asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth)) 
-    asmBuilder += POP(Reg(Rbp, QWord)) 
-    asmBuilder += RET 
-    
+    asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
+    asmBuilder += POP(Reg(Rbp, QWord))
+    asmBuilder += RET
+
     return FuncLabelDef(funcLabel, asmBuilder)
   }
 
@@ -173,7 +173,7 @@ object IR {
           rValueGen(rValue, asmBuilder) match
             case Reg(num, dataWidth) => Reg(num, QWord)
             case Imm(value) => Imm(value)
-          asmBuilder += MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(R9, QWord)), regOrImm) 
+          asmBuilder += MOV(OffsetAddr(MemOpModifier.QWordPtr, Reg(R9, QWord)), regOrImm)
         }
         case Snd(lValue2) => {
           fstSndAddress(lValue2, asmBuilder, 8)
@@ -187,10 +187,10 @@ object IR {
   }
 
   def arrayIndexAccess(
-    pointerAddress: MemAddr, 
-    index: Expr, t: Type, 
-    asmBuilder: Builder[Instr, List[Instr]]): 
-    (Int, MemAddr) = 
+    pointerAddress: MemAddr,
+    index: Expr, t: Type,
+    asmBuilder: Builder[Instr, List[Instr]]):
+    (Int, MemAddr) =
   {
     asmBuilder += MOV(Reg(R9, QWord), pointerAddress)
     val dataWidth = typeToSize(t)
@@ -225,7 +225,7 @@ object IR {
       case ArrayLiter(elems) => mallocArrayLiter(elems, t.asInstanceOf[ArrayType], asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
       case NewPair(fst, snd) => mallocNewPair(fst, snd, asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
       case Call(qnFunc: QualifiedFunc, args) => callGen(qnFunc, args, asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth))
-  }  
+  }
 
   def mallocArrayLiter(elems: List[Expr], arrayType: ArrayType, asmBuilder: Builder[Instr, List[Instr]]) = {
 
@@ -286,9 +286,9 @@ object IR {
     (lValue: @unchecked) match
       case qn: QualifiedName => {
         val dataWidth = typeToSize(qn.t)
-        asmBuilder += movQnToReg(Rdi, qn, dataWidth) 
+        asmBuilder += movQnToReg(Rdi, qn, dataWidth)
         readFunc(dataWidth, asmBuilder)
-        asmBuilder += movRegOrImmToMem(Rax, qn, dataWidth) 
+        asmBuilder += movRegOrImmToMem(Rax, qn, dataWidth)
       }
       case ArrayElem(qn: QualifiedName, index) => {
         val arrayBaseType = qn.t.asInstanceOf[ArrayType].t
@@ -402,6 +402,12 @@ object IR {
   def returnGen(expr: Expr, asmBuilder: Builder[Instr, List[Instr]]) = {
     val reg = exprGenRegister(expr, asmBuilder)
     asmBuilder += MOV(Reg(Rax, reg.dataWidth), reg)
+
+
+    asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
+    asmBuilder += POP(Reg(Rbp, QWord))
+    asmBuilder += RET
+
   }
 
   def callGen(qn: QualifiedFunc, args: List[Expr], asmBuilder: Builder[Instr, List[Instr]]) = {
@@ -434,27 +440,27 @@ object IR {
       asmBuilder += LEA(Reg(R10, QWord), StringAddr("true")) // TRUE
       asmBuilder += WhileIfLabel(n+1)
       asmBuilder ++= pushRbp
-      printString(Reg(R10, QWord), formatMap(StringType), asmBuilder) 
+      printString(Reg(R10, QWord), formatMap(StringType), asmBuilder)
     } else {
     val formatMode = formatMap(t)
-    val reg = exprGenRegister(expr, asmBuilder) 
+    val reg = exprGenRegister(expr, asmBuilder)
     val dataWidth = reg.dataWidth
     asmBuilder ++= pushRbp
-    if (t == StringType || t == ArrayType(CharType, 1)) 
-    then printString(reg, formatMode, asmBuilder) 
+    if (t == StringType || t == ArrayType(CharType, 1))
+    then printString(reg, formatMode, asmBuilder)
     else printNonString(reg, dataWidth, formatMode, asmBuilder)
     }
   }
 
 
 
-  val (pushRbp) = 
+  val (pushRbp) =
     List(
       PUSH(Reg(Rbp, QWord)),
       MOV(Reg(Rbp, QWord), Reg(Rsp, QWord))
     )
 
-  val popRbp = 
+  val popRbp =
     List(
       MOV(Reg(Rsp, QWord), Reg(Rbp, QWord)),
       POP(Reg(Rbp, QWord)),
@@ -500,7 +506,7 @@ object IR {
     asmBuilder += JCond(Cond.E, WhileIfLabel(n))
     scopeGen(elseStmts, asmBuilder) //else
     asmBuilder += JCond(Cond.AL, WhileIfLabel(n+1))
-    asmBuilder += WhileIfLabel(n) 
+    asmBuilder += WhileIfLabel(n)
     scopeGen(thenStmts, asmBuilder) //if condition is true
     asmBuilder += WhileIfLabel(n+1)
   }
@@ -553,4 +559,3 @@ object IR {
     asmBuilder ++= popRbp
   }
 }
-

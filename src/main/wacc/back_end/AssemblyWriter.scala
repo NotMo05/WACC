@@ -55,9 +55,11 @@ object AssemblyWriter {
     // Write string info directives into ro section
     ir._1.foreach {
       s =>
+
+        val x = s.string.replace("\"", "\\\"")
         writer.println(s"   .int ${s.len}")
         writer.println(s".L.str${s.strCount}:")
-        writer.println(s"   .asciz \"${s.string}\" ") 
+        writer.println(s"   .asciz \"$x\" ")
     }
     // Write assembly instructions section
     writer.println(".text")
@@ -81,17 +83,18 @@ object AssemblyWriter {
         case IDIV(op) => s"  idiv $op"
         case IMUL((op1, op2)) => s"  imul $op1, $op2"
         case AND((op1, op2)) => s"  and $op1, $op2"
-        case OR((op1, op2)) => s" or $op1, $op2"
+        case OR((op1, op2)) => s"  or $op1, $op2"
         case XOR((op1, op2)) => s"  xor $op1, $op2"
         case NEG(op) => s"  neg $op"
         case NOT(op) => s"  not $op"
         case MOV((op1, op2)) => s"  mov $op1, $op2"
+        case MOVZX((op1, op2)) => s"  movzx $op1, $op2"
         case PUSH(op) => s"  push $op"
         case POP(op) => s"  pop $op"
         case CMP((op1, op2)) => s"  cmp $op1, $op2"
         case SETCond(cond, op) => s"  set${condToAsm(cond)} $op"
         case RET => "  ret"
-        case CALL(op) => s" call $op"
+        case CALL(op) => s"  call $op"
         case CDQ => "  cdq"
         case JCond(cond, label) => s"  j${condToAsm(cond)} $label"
         case LEA((op1, op2)) => s"  lea $op1, $op2"

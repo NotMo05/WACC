@@ -38,6 +38,7 @@ object IR {
     asmBuilder += LEA(Reg(Rdi, QWord), StringAddr(s"${name}"))
     printString(Reg(Rdi, QWord), formatMap(StringType), asmBuilder)
     asmBuilder += MOV(Reg(Rdi, Byte), Imm(-1))
+    asmBuilder += AND(Reg(Rsp, QWord), Imm(STACK_ALIGN))
     asmBuilder += CALL(Label("exit@plt"))
     FuncLabelDef(name, asmBuilder)
   }
@@ -166,8 +167,8 @@ object IR {
           asmBuilder += MOV(pointer, rValueGen(rValue, asmBuilder, qn.t))
         }
         case Fst(lValue2) => {
-          fstSndAddress(lValue2, asmBuilder) 
-          asmBuilder += MOV(Reg(9, QWord), Reg(10, QWord))
+          fstSndAddress(lValue2, asmBuilder)
+          asmBuilder += MOV(Reg(R9, QWord), Reg(R10, QWord))
           val regOrImm: (Reg | Imm) =
           rValueGen(rValue, asmBuilder) match
             case Reg(num, dataWidth) => Reg(num, QWord)
@@ -176,7 +177,7 @@ object IR {
         }
         case Snd(lValue2) => {
           fstSndAddress(lValue2, asmBuilder, 8)
-          asmBuilder += MOV(Reg(9, QWord), Reg(10, QWord))
+          asmBuilder += MOV(Reg(R9, QWord), Reg(R10, QWord))
           val regOrImm: (Reg | Imm) =
           rValueGen(rValue, asmBuilder) match
             case Reg(num, dataWidth) => Reg(num, QWord)
@@ -219,11 +220,11 @@ object IR {
     val dataWidth = Stack.typeToSize(t)
     asmBuilder += ((rValue: @unchecked) match
       case expr: Expr => movRegOrImmToMem(exprGen(expr, asmBuilder), qn, dataWidth)
-      case Fst(lValue) => movRegOrImmToMem(fstSndAddress(lValue, asmBuilder), qn, dataWidth)
-      case Snd(lValue) => movRegOrImmToMem(fstSndAddress(lValue, asmBuilder, 8), qn, dataWidth)
-      case ArrayLiter(elems) => movRegOrImmToMem(mallocArrayLiter(elems, t.asInstanceOf[ArrayType], asmBuilder), qn, dataWidth)
-      case NewPair(fst, snd) => movRegOrImmToMem(mallocNewPair(fst, snd, asmBuilder), qn, dataWidth)
-      case Call(qnFunc: QualifiedFunc, args) => movRegOrImmToMem(callGen(qnFunc, args, asmBuilder), qn, dataWidth))
+      case Fst(lValue) => fstSndAddress(lValue, asmBuilder); movRegOrImmToMem(R10, qn, dataWidth)
+      case Snd(lValue) => fstSndAddress(lValue, asmBuilder, 8); movRegOrImmToMem(R10, qn, dataWidth)
+      case ArrayLiter(elems) => mallocArrayLiter(elems, t.asInstanceOf[ArrayType], asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
+      case NewPair(fst, snd) => mallocNewPair(fst, snd, asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth)
+      case Call(qnFunc: QualifiedFunc, args) => callGen(qnFunc, args, asmBuilder); movRegOrImmToMem(Rax, qn, dataWidth))
   }  
 
   def mallocArrayLiter(elems: List[Expr], arrayType: ArrayType, asmBuilder: Builder[Instr, List[Instr]]) = {
@@ -263,7 +264,6 @@ object IR {
   def readFunc(dataWidth: Int,asmBuilder: Builder[Instr, List[Instr]]) = {
     val formatMode = if dataWidth == 1 then 0x006325 else 0x006425
     asmBuilder.addAll(pushRbp)
-    print(formatMode)
     asmBuilder.addAll(
       List(
         AND(Reg(Rsp, QWord), Imm(STACK_ALIGN)),
@@ -310,7 +310,7 @@ object IR {
     )
     (lValue: @unchecked) match
       case qn: QualifiedName => {
-        movQnToReg(R10, qn)
+        asmBuilder += movQnToReg(R10, qn)
         asmBuilder.addAll(storeInstrs)
       }
       case ArrayElem(qn: QualifiedName, index) => {
@@ -374,7 +374,7 @@ object IR {
         asmBuilder ++= popRbp
         asmBuilder += MOV(Reg(Rax, QWord), Imm(0))
       }
-      case qn: QualifiedName if qn.t.isInstanceOf[PairElemType] => {
+      case qn: QualifiedName if qn.t.isInstanceOf[PairType] => {
         asmBuilder += movQnToReg(Rdi, qn)
         asmBuilder ++= pushRbp
         asmBuilder.addAll(

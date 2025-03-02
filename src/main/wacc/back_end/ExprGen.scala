@@ -49,12 +49,10 @@
           Reg(regNum, dataWidth)
         }
         case StringLiteral(string) => {
-          print(strMap)
           val n = IR.strMap(string).toString()
           asmBuilder += LEA(Reg(regNum, QWord), StringAddr(n))
           Reg(regNum, QWord)
         }
-
     }
 
     def exprGenRegister(expr: Expr, asmBuilder: Builder[Instr, List[Instr]], regNum: Int = 10): Reg = {
@@ -81,7 +79,12 @@
         case NotEq(l, r) => cmpOp(l, r, regNum, asmBuilder,  NE)
         case And(l, r) => logicOp(l, r, regNum, asmBuilder, AND.apply)
         case Or(l, r) => logicOp(l, r, regNum, asmBuilder, OR.apply)
-        case Ord(x) => {exprGenRegister(x, asmBuilder, regNum)}
+
+        
+        case Ord(x) => {
+          asmBuilder += MOVZX(Reg(regNum, DWord), exprGenRegister(x, asmBuilder, regNum+1))
+          Reg(regNum, DWord)
+        }
 
         case Neg(x) => 
           exprGenRegister(x, asmBuilder, regNum)
@@ -93,9 +96,8 @@
           exprGenRegister(x, asmBuilder, regNum)
           asmBuilder.addAll(
             List(
-              CMP(Reg(regNum, Byte), Imm(0)),
-              XOR(Reg(regNum, Byte), Reg(regNum, Byte)),
-              SETCond(E, Reg(regNum, Byte))
+              CMP(Reg(regNum, Byte), Imm(1)),
+              SETCond(NE, Reg(regNum, Byte))
               )
           )
           Reg(regNum, Byte)

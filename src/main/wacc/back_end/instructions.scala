@@ -26,6 +26,7 @@ case class NEG(op: Location) extends Instr
 case class NOT(op: Location) extends Instr
 
 case class MOV(ops: FullOps | (Location, Reg | Imm)) extends Instr
+case class MOVZX(ops: (Reg, Location)) extends Instr
 case class PUSH(op: Operand) extends Instr
 case class POP(op: Location) extends Instr
 

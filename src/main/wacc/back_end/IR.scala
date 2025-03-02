@@ -176,7 +176,9 @@ object IR {
         case qn: QualifiedName => assgnGen(qn, rValue, asmBuilder, qn.t)
         case ArrayElem(qn: QualifiedName, index) => {
           val (dataWidth, pointer) = repeatAccessArray(qn, index, asmBuilder)
+          print(dataWidth)
           asmBuilder += MOV(pointer, rValueGen(rValue, asmBuilder, qn.t))
+          asmBuilder += CDQ
         }
         case Fst(lValue2) => {
           fstSndAddress(lValue2, asmBuilder)
@@ -247,7 +249,7 @@ object IR {
     asmBuilder.addAll(
       List(
         MOV(OffsetAddr(MemOpModifier.DWordPtr, Reg(Rax, QWord)), Imm(elems.size)),
-        ADD(Reg(Rax, DWord), Imm(4))
+        ADD(Reg(Rax, QWord), Imm(4))
         )
     )
     elems.indices.map(i => {
@@ -267,10 +269,18 @@ object IR {
 
 
   def repeatAccessArray(qn: QualifiedName, index: List[Expr], asmBuilder: Builder[Instr, List[Instr]]): (Int, MemAddr) = {
-    val arrayElemType = qn.t.asInstanceOf[ArrayType]
+    val ArrayType(t,d) = qn.t.asInstanceOf[ArrayType]
+    var dimensionAccess = 0
     var pointer: MemAddr = OffsetAddr(MemOpModifier.QWordPtr, Reg(Rbp, QWord), Stack.getOffset(qn))
-    for (i <- 1 to index.size - 1) pointer = arrayIndexAccess(pointer, index(i), arrayElemType, asmBuilder)._2
-    arrayIndexAccess(pointer, index.last, arrayElemType.t, asmBuilder)
+    print(index.size)
+    for (i <- 1 to index.size - 1) {
+      pointer = arrayIndexAccess(pointer, index(i), ArrayType(t, d - dimensionAccess), asmBuilder)._2
+      dimensionAccess -= 1
+    }
+    val finalType = 
+    if d - dimensionAccess == 0 then t
+    else ArrayType(t, d - dimensionAccess)
+    arrayIndexAccess(pointer, index.last, finalType, asmBuilder)
   }
 
   def readFunc(dataWidth: Int,asmBuilder: Builder[Instr, List[Instr]]) = {

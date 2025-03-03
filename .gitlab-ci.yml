@@ -9,6 +9,7 @@ compile:
   artifacts:
     paths:
       - .scala-build/
+  survey: false
 
 test:
   stage: test
@@ -16,3 +17,4 @@ test:
     - scala test .
   dependencies:
     - compile
+  survey: false

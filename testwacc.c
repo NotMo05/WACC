@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -13,26 +14,36 @@ int main(int argc, char *argv[]) {
   // Extract basename without extension
   char *filename = argv[1];
   char basename[256];
-  sscanf(filename, "%[^.]", basename);
+  char *lastSlash = strrchr(filename, '/');
+  if (lastSlash) {
+    sscanf(lastSlash + 1, "%[^.]", basename);
+  } else {
+    sscanf(filename, "%[^.]", basename);
+  }
   
-  // Run scala compiler - fixed the em dash and updated the command structure
-  sprintf(command, "scala . -- %s", filename);  // Or try: sprintf(command, "scala shebang %s", filename);
+  printf("Processing file: %s (basename: %s)\n", filename, basename);
+  
+  // Run scala compiler
+  sprintf(command, "scala . -- %s", filename);
+  printf("Running: %s\n", command);
   status = system(command);
   if (status != 0) {
-    printf("Scala compilation failed\n");
+    printf("Scala compilation failed with status %d\n", status);
     return status;
   }
   
-  // Compile assembly to binary
-  sprintf(command, "gcc -o %s %s.s", basename, basename);
+  // Compile assembly to binary (from root directory)
+  sprintf(command, "gcc -o ./%s ./%s.s", basename, basename);
+  printf("Running: %s\n", command);
   status = system(command);
   if (status != 0) {
     printf("GCC compilation failed\n");
     return status;
   }
   
-  // Run the binary
+  // Run the binary (from root directory)
   sprintf(command, "./%s", basename);
+  printf("Running: %s\n", command);
   status = system(command);
   
   return status;

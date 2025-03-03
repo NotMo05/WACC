@@ -5,16 +5,14 @@ stages:
 compile:
   stage: compile
   script:
-    - scala compile .
+    - scala compile . --server=false
   artifacts:
     paths:
       - .scala-build/
-  survey: false
 
 test:
   stage: test
   script:
-    - scala test .
+    - scala test . --server=false
   dependencies:
     - compile
-  survey: false

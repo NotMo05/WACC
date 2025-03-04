@@ -13,7 +13,7 @@ object parser {
 
   private lazy val program = Prog("begin" ~> many(atomic(func)), stmts <~ "end")
   private lazy val func = Func(
-  typeParser,
+    typeParser,
     ident,
     "(" ~> onceOrEmptyList(paramList) <~ ")",
     "is" ~> stmts.filter(returns(_)) <~ "end"

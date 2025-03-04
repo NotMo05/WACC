@@ -1,5 +1,5 @@
 package wacc.front_end
-
+import scala.collection.mutable.LinkedHashMap
 import scala.collection.mutable
 
 class QualifiedName(val name: String, val num: Int, val t:Type) extends Ident(name) {
@@ -64,9 +64,14 @@ def funcHandler(func: Func): Func = {
 
   val name = func.identifier.identifier
   val params = func.params
-  val paramScope = params.reverse.map(paramHandler(_)).distinctBy(_._1).toMap[String, QualifiedName]
+  val paramScope = params.reverse
+    .map(paramHandler)
+    .foldLeft(LinkedHashMap[String, QualifiedName]()) { (acc, pair) =>
+      acc.getOrElseUpdate(pair._1, pair._2)
+      acc
+    }
   val qParam = paramScope.map((_,qn) => Param(qn.t, qn)).toList
-  Func(func.t, funcTypes(name), qParam, scopeHandler(func.stmts, paramScope))
+  Func(func.t, funcTypes(name), qParam, scopeHandler(func.stmts, paramScope.toMap))
 }
 
 def lValueHandler(

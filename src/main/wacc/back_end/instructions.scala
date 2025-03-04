@@ -9,7 +9,7 @@ enum Cond {
 
 // We've designed operands this way to prevent Memory to Memory Operations
 type LocationOps = (Reg, Location) | (Location, Reg)
-type FullOps = LocationOps | (Location, Imm) 
+type FullOps = LocationOps | (Location, Imm)
 
 
 case class ADD(ops: FullOps) extends Instr
@@ -43,3 +43,4 @@ case class WhileIfLabel(num: Int) extends Instr {
   override def toString(): String = s".L$num"
 }
 
+case class Comment(comment: String) extends Instr

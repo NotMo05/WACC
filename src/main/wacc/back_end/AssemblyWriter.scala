@@ -11,12 +11,12 @@ object AssemblyWriter {
   // Writes the assembly file
   def generateAsmFile(ir: (List[StringInfo], List[FuncLabelDef]), filename: String, folder: String = "") = {
     val file = Paths.get(filename).getFileName.toString
-    // Generates the assembly for each label definition  
-    ir._2.map(labelHandler(_)) 
+    // Generates the assembly for each label definition
+    ir._2.map(labelHandler(_))
     val finalAssembly = assemblyBuilder.result()
     assemblyBuilder.clear()
     val writer = new PrintWriter(s"$folder${file.dropRight(5)}.s")
-    
+
     // This adds a boilerplate header assembly
     val boilerplate = List(
       ".intel_syntax noprefix",
@@ -55,7 +55,7 @@ object AssemblyWriter {
       )
 
     boilerplate.foreach(writer.println)
-    
+
     // Write string info directives into read-only section
     ir._1.foreach {
       s =>
@@ -71,7 +71,7 @@ object AssemblyWriter {
     finalAssembly.foreach(writer.println)
     writer.close()
   }
-    
+
   // Appends assembly text for given label definition
   def labelHandler(label: FuncLabelDef): Unit = {
     assemblyBuilder += (s"${label.name}:")
@@ -103,6 +103,7 @@ object AssemblyWriter {
         case JCond(cond, label) => s"  j${condToAsm(cond)} $label"
         case LEA((op1, op2)) => s"  lea $op1, $op2"
         case WhileIfLabel(num) => s".L$num:"
+        case Comment(comment) => s"# $comment"
     )
   }
 

@@ -6,20 +6,20 @@ import wacc.back_end.Cond._
 import scala.collection.mutable.Builder
 import wacc.back_end.IR.repeatAccessArray
 import wacc.front_end.semantic.getExprType
-import wacc.back_end.Stack.typeToSize
+import wacc.back_end.Stack.{typeToSize, getOffset}
 
 /**
  * The `ExprGen` object is responsible for generating assembly instructions
  * for various expressions in the WACC language. It provides methods to handle
  * different types of expressions, including literals, operators, and qualified names.
- * The generated instructions are added to an assembly builder, which is used to 
+ * The generated instructions are added to an assembly builder, which is used to
  * construct the final assembly code.
  */
 
 object ExprGen {
   // Generates and appends any required assembly IR for evaluating the given expression
   def exprGen(expr: Expr, asmBuilder: Builder[Instr, List[Instr]], regNum: Int = 10): (Reg | Imm) = {
-    (expr: @unchecked) match 
+    (expr: @unchecked) match
       case NullLiteral => Imm(0)
       case IntLiteral(int) => Imm(int)
       case BoolLiteral(bool) => Imm(if bool then 1 else 0)
@@ -28,7 +28,7 @@ object ExprGen {
         opGen(op, regNum, asmBuilder)
       }
       case qn: QualifiedName => {
-        val offset = Stack.frames.last.identTable(qn)
+        val offset = getOffset(qn)
         val dataWidth = Stack.typeToSize(qn.t)
         asmBuilder += MOV(Reg(regNum, dataWidth), OffsetAddr(dataWidth, Reg(Rbp, QWord), offset))
         Reg(regNum, dataWidth)
@@ -47,7 +47,7 @@ object ExprGen {
 
   // Generates assembly instructions for an expression and stores the result in a register
   def exprGenRegister(expr: Expr, asmBuilder: Builder[Instr, List[Instr]], regNum: Int = 10): Reg = {
-    expr match 
+    expr match
       case NullLiteral => asmBuilder += MOV(Reg(regNum, QWord), Imm(0)) ; Reg(regNum, QWord)
       case IntLiteral(int) => asmBuilder += MOV(Reg(regNum, DWord), Imm(int)) ; Reg(regNum, DWord)
       case BoolLiteral(bool) => asmBuilder += MOV(Reg(regNum, Byte), Imm(if bool then 1 else 0)) ; Reg(regNum, Byte)
@@ -60,10 +60,10 @@ object ExprGen {
     op match
       case Add(l, r) => arithmeticOp(l, r, regNum, asmBuilder, ADD.apply)
       case Sub(l, r) => arithmeticOp(l, r, regNum, asmBuilder, SUB.apply)
-      case Mul(l, r) => arithmeticNonImm(l, r, regNum, asmBuilder, IMUL.apply) 
+      case Mul(l, r) => arithmeticNonImm(l, r, regNum, asmBuilder, IMUL.apply)
       case Div(l, r) => divMod(l, r, regNum, Rax, asmBuilder)
       case Mod(l, r) => divMod(l, r, regNum, Rdx, asmBuilder)
-      case Less(l, r) => cmpOp(l, r, regNum, asmBuilder,  L)  
+      case Less(l, r) => cmpOp(l, r, regNum, asmBuilder,  L)
       case LessE(l, r) => cmpOp(l, r, regNum, asmBuilder,  LE)
       case Greater(l, r) => cmpOp(l, r, regNum, asmBuilder,  G)
       case GreaterE(l, r) => cmpOp(l, r, regNum, asmBuilder,  GE)
@@ -71,9 +71,12 @@ object ExprGen {
       case NotEq(l, r) => cmpOp(l, r, regNum, asmBuilder,  NE)
       case And(l, r) => logicOp(l, r, regNum, asmBuilder, AND.apply)
       case Or(l, r) => logicOp(l, r, regNum, asmBuilder, OR.apply)
-      
+
       case Ord(x) => {
-        asmBuilder += MOVZX(Reg(regNum, DWord), exprGenRegister(x, asmBuilder, regNum+1))
+        val srcReg = exprGenRegister(x, asmBuilder, regNum+1)
+        srcReg match
+          case Reg(srcNum, DWord) => MOV(Reg(regNum, DWord), Reg(srcNum, DWord))
+          case reg => MOVZX(Reg(regNum, DWord), reg)
         Reg(regNum, DWord)
       }
 
@@ -95,7 +98,7 @@ object ExprGen {
         Reg(regNum, Byte)
         }
 
-      case Chr(x) => {  
+      case Chr(x) => {
         exprGenRegister(x, asmBuilder, regNum)
         asmBuilder.addAll(
           List(
@@ -132,7 +135,7 @@ object ExprGen {
   def arithmeticOp(l: Expr, r: Expr, regNum: Int, asmBuilder: Builder[Instr, List[Instr]], op: FullOps => Instr) = {
     r match {
       case IntLiteral(int) =>
-        exprGenRegister(l, asmBuilder, regNum) 
+        exprGenRegister(l, asmBuilder, regNum)
         asmBuilder += op(Reg(regNum, DWord), Imm(int))
         asmBuilder += JCond(Cond.O, Label("_errOverflow"))
         Reg(regNum, DWord)
@@ -180,7 +183,7 @@ object ExprGen {
       )
     )
 
-    exprGenRegister(l, asmBuilder, regNum) 
+    exprGenRegister(l, asmBuilder, regNum)
     asmBuilder += MOV(Reg(Rax, DWord), Reg(regNum, DWord))
     asmBuilder += CMP(exprGenRegister(r, asmBuilder, regNum), Imm(0))
     asmBuilder += JCond(Cond.E, Label("_errDivZero"))
@@ -191,7 +194,7 @@ object ExprGen {
       POP(Reg(Rdx, QWord)),
       POP(Reg(Rax, QWord)))
     )
-    
+
     Reg(regNum, DWord)
   }
 }

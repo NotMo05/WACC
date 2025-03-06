@@ -7,15 +7,15 @@ sealed trait Stmt
 sealed trait RValue
 sealed trait LValue
 sealed trait Expr extends RValue
-
+sealed trait TypeOrPairElemValue
 // Expressions
 
-case class IntLiteral(int: BigInt) extends Expr
-case class BoolLiteral(bool: Boolean) extends Expr
-case class StringLiteral(string: String) extends Expr
-case class CharLiteral(char: Char) extends Expr
+case class IntLiteral(int: BigInt) extends Expr, TypeOrPairElemValue
+case class BoolLiteral(bool: Boolean) extends Expr, TypeOrPairElemValue
+case class StringLiteral(string: String) extends Expr, TypeOrPairElemValue
+case class CharLiteral(char: Char) extends Expr, TypeOrPairElemValue
 case class Ident(identifier: String) extends Expr, LValue, RValue
-case class ArrayElem(arrayName: Ident, index: List[Expr]) extends Expr, LValue
+case class ArrayElem(arrayName: Ident, index: List[Expr]) extends Expr, LValue, TypeOrPairElemValue
 
 object IntLiteral extends ParserBridge1[BigInt, IntLiteral]
 object BoolLiteral extends ParserBridge1[Boolean, BoolLiteral]
@@ -132,31 +132,33 @@ sealed trait BinaryBridge extends ParserBridge2[Expr, Expr, Expr]
  */
 sealed trait UnaryBridge extends ParserBridge1[Expr,Expr]
 sealed trait Operator extends Expr
+sealed trait BinaryOperator extends Operator
+sealed trait UnaryOperator extends Operator
 
-case class Neg(x: Expr) extends Operator
-case class Not(x: Expr) extends Operator
-case class Len(x: Expr) extends Operator
-case class Chr(x: Expr) extends Operator
-case class Ord(x: Expr) extends Operator
+case class Neg(x: Expr) extends UnaryOperator
+case class Not(x: Expr) extends UnaryOperator
+case class Len(x: Expr) extends UnaryOperator
+case class Chr(x: Expr) extends UnaryOperator
+case class Ord(x: Expr) extends UnaryOperator
 object Neg extends UnaryBridge
 object Not extends UnaryBridge
 object Len extends UnaryBridge
 object Chr extends UnaryBridge
 object Ord extends UnaryBridge
 
-case class Mul(l: Expr, r: Expr) extends Operator
-case class Div(l: Expr, r: Expr) extends Operator
-case class Mod(l: Expr, r: Expr) extends Operator
-case class Add(l: Expr, r: Expr) extends Operator
-case class Sub(l: Expr, r: Expr) extends Operator
-case class Less(l: Expr, r: Expr) extends Operator
-case class LessE(l: Expr, r: Expr) extends Operator
-case class Greater(l: Expr, r: Expr) extends Operator
-case class GreaterE(l: Expr, r: Expr) extends Operator
-case class Eq(l: Expr, r: Expr) extends Operator
-case class NotEq(l: Expr, r: Expr) extends Operator
-case class And(l: Expr, r: Expr) extends Operator
-case class Or(l: Expr, r: Expr) extends Operator
+case class Mul(l: Expr, r: Expr) extends BinaryOperator
+case class Div(l: Expr, r: Expr) extends BinaryOperator
+case class Mod(l: Expr, r: Expr) extends BinaryOperator
+case class Add(l: Expr, r: Expr) extends BinaryOperator
+case class Sub(l: Expr, r: Expr) extends BinaryOperator
+case class Less(l: Expr, r: Expr) extends BinaryOperator
+case class LessE(l: Expr, r: Expr) extends BinaryOperator
+case class Greater(l: Expr, r: Expr) extends BinaryOperator
+case class GreaterE(l: Expr, r: Expr) extends BinaryOperator
+case class Eq(l: Expr, r: Expr) extends BinaryOperator
+case class NotEq(l: Expr, r: Expr) extends BinaryOperator
+case class And(l: Expr, r: Expr) extends BinaryOperator
+case class Or(l: Expr, r: Expr) extends BinaryOperator
 object Mul extends BinaryBridge
 object Div extends BinaryBridge
 object Mod extends BinaryBridge

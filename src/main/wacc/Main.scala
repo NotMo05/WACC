@@ -4,35 +4,66 @@ import parsley.{Success, Failure}
 import java.io.File
 import wacc.back_end.IR.generateIR
 import wacc.back_end.AssemblyWriter.generateAsmFile
-val SUCCESS = 0
-val SYNTAX_ERR = 100
-val SEMANTIC_ERR = 200
+import wacc.interpreter.Interpreter
+final val SUCCESS = 0
+final val SYNTAX_ERR = 100
+final val SEMANTIC_ERR = 200
 
 def main(args: Array[String]): Unit = {
-  val fileName = args(0)
-  val file = new File(fileName)
-  val fileContent = Array(Source.fromFile(file).mkString)
-  fileContent.headOption match {
-    // Parse and conduct syntax analysis on the program string
-    case Some(progString) => parser.parse(progString) match {
-      case Success(ast) => {
-        val (newProg, errors) = rename(ast)
-        if !(errors.isEmpty && semantic.analyse(newProg).isEmpty) then {
-          println("Semantic Errors:")
-          semantic.analyse(newProg).foreach(println(_))
-          sys.exit(SEMANTIC_ERR)
-        } else {
-          val IR = generateIR(newProg)
-          generateAsmFile(IR, fileName)
-          print("No Error")
-          sys.exit(SUCCESS)
-        }
-      }
-      case Failure(msg) => {
-        print("Syntax Error")
-        print(msg)
-        sys.exit(SYNTAX_ERR)}
-    }
-      case None => println("Please enter an expression")
+  if args(0) == "interpreter" then {
+    processFileArg(args, 1).foreach { fileContent => //file path should be second argument
+      val fileName = args(1)
+      val prog = genAST(fileContent, fileName)
+      Interpreter.execute(prog)
     }
   }
+
+  processFileArg(args, 0).foreach { fileContent =>
+    val fileName = args(0)
+    val prog = genAST(fileContent, fileName)
+    compileAST(prog, fileName)
+  }
+}
+
+def processFileArg(args: Array[String], index: Int): Option[String] = {
+  if (args.length > index) {
+    val fileName = args(index)
+    val file = new File(fileName)
+
+    if (!file.exists() || !file.isFile) {
+      println(s"Error: File '$fileName' does not exist or is not a regular file.")
+      None
+    } else {
+      Some(Source.fromFile(file).mkString)
+    }
+  } else {
+    println(s"Error: No argument at index $index.")
+    None
+  }
+}
+
+def genAST(fileContent: String, fileName: String): Prog = {
+  parser.parse(fileContent) match {
+    case Success(ast) =>
+      val (prog, errors) = rename(ast)
+
+      if (errors.nonEmpty || semantic.analyse(prog).nonEmpty) {
+        println("Semantic Errors:")
+        semantic.analyse(prog).foreach(println)
+        sys.exit(SEMANTIC_ERR)
+      } else {
+        prog
+      }
+
+    case Failure(msg) =>
+      println("Syntax Error")
+      println(msg)
+      sys.exit(SYNTAX_ERR)
+  }
+}
+
+def compileAST(prog: Prog, fileName: String) = {
+  val IR = generateIR(prog)
+  generateAsmFile(IR, fileName)
+  sys.exit(SUCCESS)
+}

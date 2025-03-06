@@ -75,8 +75,8 @@ object ExprGen {
       case Ord(x) => {
         val srcReg = exprGenRegister(x, asmBuilder, regNum+1)
         srcReg match
-          case Reg(srcNum, DWord) => MOV(Reg(regNum, DWord), Reg(srcNum, DWord))
-          case reg => MOVZX(Reg(regNum, DWord), reg)
+          case Reg(srcNum, DWord) => asmBuilder += MOV(Reg(regNum, DWord), Reg(srcNum, DWord))
+          case reg => asmBuilder += MOVZX(Reg(regNum, DWord), reg)
         Reg(regNum, DWord)
       }
 

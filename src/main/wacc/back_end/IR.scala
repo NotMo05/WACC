@@ -73,7 +73,6 @@ object IR {
                  elseStmts.map(foldConstStmtHelper))
         case other => other
     }
-    stmts
   }
 
   def foldConstStmtHelper(stmt: Stmt): Stmt = {
@@ -134,7 +133,10 @@ object IR {
       case lit: BoolLiteral => lit
       case lit: StringLiteral => lit
       case lit: CharLiteral => lit
-      case id: Ident => id
+      case id: Ident => {
+        if (qnMap.contains(id)) foldConstRValueHelper(qnMap(id)).asInstanceOf[Expr]
+        else id
+      }
       case NullLiteral => NullLiteral
       
       // Array elements - fold the index expressions
@@ -315,15 +317,16 @@ object IR {
     }
   }
 
-  def foldConstRValueHelper(rvalue: RValue) = {
+  def foldConstRValueHelper(rvalue: RValue): RValue = {
     rvalue match{
       // Base cases - literals remain unchanged
       case lit: IntLiteral => lit
       case lit: BoolLiteral => lit
       case lit: StringLiteral => lit
       case lit: CharLiteral => lit
+      // If an ident doesn't change, then replace all occurences with its original assignment
       case id: Ident => {
-        if (qnMap.contains(id)) qnMap(id) //
+        if (qnMap.contains(id)) foldConstRValueHelper(qnMap(id)) //
         else id
       }
       case NullLiteral => NullLiteral

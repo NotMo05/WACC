@@ -37,7 +37,7 @@ object Stack {
       case ArrayType(t, d) => 8
       case StringType => 8
       case IntType => 4
-      case BoolType => 4
+      case BoolType => 1
       case CharType => 4
   }
 }

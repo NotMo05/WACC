@@ -153,16 +153,18 @@ def renameAssign(
   parent: Map[String, QualifiedName]
   ): Stmt = {
   if current.contains(name) then {
+    val newRValue = rValueHandler(rValue, current, parent)
     scopeErrors += s"Illegal redeclaration of variable $name"
     val newName = QualifiedName("", 0, Undefined)
-    Assgn(Undefined, newName, rValueHandler(rValue, current, parent))
+    Assgn(Undefined, newName, newRValue)
   }
 
+  val newRValue = rValueHandler(rValue, current, parent)
   globalNumberingUpdate(name)
 
   val newName = QualifiedName(name, globalNumbering(name), t)
   current(name) = newName
-  return Assgn(t, newName, rValueHandler(rValue, current, parent))
+  return Assgn(t, newName, newRValue)
 }
 
 def exprHandler(

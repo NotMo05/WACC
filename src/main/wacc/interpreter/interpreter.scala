@@ -1,23 +1,24 @@
 package wacc.interpreter
 
 import wacc.front_end._
-import wacc.front_end.Stmt
-import wacc.front_end.QualifiedName
-import wacc.front_end.TypeOrPairElemValue
 import scala.collection.mutable
-import wacc.front_end.lexer.ident
+import scala.collection.immutable
 
 enum PrintType:
   case PrintLn, Print
 
-object Interpreter {
-  val identTable: mutable.Map[QualifiedName, TypeOrPairElemValue] = mutable.Map()
+class Interpreter(prog: Prog) {
+  val identTable: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()
+  lazy val funcTable: immutable.Map[QualifiedFunc, Func] =
+    prog.funcs.map {
+      func => (func.identifier match
+        case qf: QualifiedFunc => qf)
+      -> func }.toMap()
+  identTable.push(mutable.Map())
 
   def stmtsHandler(stmts: List[Stmt]): Unit = stmts.map(stmtHandler(_))
 
-  def execute(prog: Prog): Unit = {
-    stmtsHandler(prog.main)
-  }
+  def execute(): Unit = stmtsHandler(prog.main)
 
   def stmtHandler(stmt: Stmt): Unit = stmt match {
     case Return(expr) => evaluate(expr)
@@ -40,22 +41,25 @@ object Interpreter {
     case Scope(stmts) => stmtsHandler(stmts) // No need to create new stack, renaming already handled
     case assgn: Assgn => assgnHandler(assgn)
     case ReAssgn(lValue, rValue) => reasgnHandler(lValue, rValue)
-    case _ => ???
+    case Skip => ???
+    case Read(_) => ???
+    case Free(_) => ???
+    case Exit(_) => ???
   }
 
   def reasgnHandler(lValue: LValue, rValue: RValue) = {
     val newRValue = rValueHandler(rValue)
 
     (lValue: @unchecked) match
-      case qn: QualifiedName => identTable(qn) = newRValue
+      case qn: QualifiedName => identTable.top(qn) = newRValue
       case ArrayElem(arrayName, index) => ???
       case Fst(lValue) => ???
       case Snd(lValue) => ???
   }
 
-  def rValueHandler(rValue: RValue): TypeOrPairElemValue = rValue match
+  def rValueHandler(rValue: RValue): TypeOrPairElemValue = (rValue: @unchecked) match
     case expr: Expr => evaluate(expr)
-    case Call(_, _) => ???
+    case Call(qf: QualifiedFunc, exprs: List[Expr]) => callHandler(qf, exprs)
     case Fst(_) => ???
     case Snd(_) => ???
     case ArrayLiter(_) => ???
@@ -68,8 +72,12 @@ object Interpreter {
       val qn = identifier match
         case qn: QualifiedName => qn
 
-      identTable(qn) = result
+      identTable.top(qn) = result
     }
+  }
+
+  def callHandler(qf: QualifiedFunc, exprs: List[Expr]): TypeOrPairElemValue = {
+    ???
   }
 
   def evaluate(expr: Expr): TypeOrPairElemValue = (expr: @unchecked) match {
@@ -77,7 +85,7 @@ object Interpreter {
     case bool: BoolLiteral => bool
     case string: StringLiteral => string
     case char: CharLiteral => char
-    case qn: QualifiedName => identTable(qn)
+    case qn: QualifiedName => identTable.top(qn)
     case ArrayElem(arrayName: Ident, index: List[Expr]) => ???
     case NullLiteral => ???
 
@@ -155,7 +163,6 @@ object Interpreter {
       case And(l, r) => evalBinaryLogicalOp(l, r, (a, b) => a && b)
       case Or(l, r) => evalBinaryLogicalOp(l, r, (a, b) => a || b)
   }
-
 
   def printHandler(item: TypeOrPairElemValue, printType: PrintType) = {
     val func: (Any => Unit) = printType match

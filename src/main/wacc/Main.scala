@@ -16,6 +16,7 @@ def main(args: Array[String]): Unit = {
       val prog = genAST(fileContent, fileName)
       Interpreter.execute(prog)
     }
+    return
   }
 
   processFileArg(args, 0).foreach { fileContent =>

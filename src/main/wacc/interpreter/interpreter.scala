@@ -10,7 +10,7 @@ object Interpreter {
   val identTable: mutable.Map[QualifiedName, TypeOrPairElemValue] = mutable.Map()
 
   def execute(prog: Prog): Unit = {
-    prog.main.map(stmt => stmtHandler(stmt))
+    prog.main.map(stmtHandler(_))
   }
 
   def stmtHandler(stmt: Stmt): Unit = stmt match {
@@ -18,7 +18,14 @@ object Interpreter {
     case Print(expr) => printHandler(evaluate(expr))
     case Println(expr) => printlnHandler(evaluate(expr))
     case WhileDo(condition, stmts) => ???
-    case IfElse(condition, thenStmts, elseStmts) => ???
+    case IfElse(condition, thenStmts, elseStmts) => {
+      evaluate(condition: @unchecked) match
+        case BoolLiteral(bool) => {
+          if bool then thenStmts.map(stmtHandler(_))
+          else elseStmts.map(stmtHandler(_))
+        }
+    }
+
     case Scope(stmts) => ???
     case Assgn(t, identifier, rValue) => ???
     case ReAssgn(lValue, rValue) => ???
@@ -27,9 +34,9 @@ object Interpreter {
 
   def evaluate(expr: Expr): TypeOrPairElemValue = expr match {
     case int: IntLiteral => int
-    case BoolLiteral(bool: Boolean) => ???
+    case bool: BoolLiteral => bool
     case string: StringLiteral => string
-    case CharLiteral(char: Char) => ???
+    case char: CharLiteral => char
     case Ident(identifier: String) => ???
     case ArrayElem(arrayName: Ident, index: List[Expr]) => ???
     case NullLiteral => ???

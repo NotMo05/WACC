@@ -19,7 +19,7 @@ object Interpreter {
     case Println(expr) => printlnHandler(evaluate(expr))
     case WhileDo(condition, stmts) => ???
     case IfElse(condition, thenStmts, elseStmts) => {
-      evaluate(condition: @unchecked) match
+      (evaluate(condition): @unchecked) match
         case BoolLiteral(bool) => {
           if bool then thenStmts.map(stmtHandler(_))
           else elseStmts.map(stmtHandler(_))

@@ -20,7 +20,7 @@ object Interpreter {
   }
 
   def stmtHandler(stmt: Stmt): Unit = stmt match {
-    case Return(expr) => ???
+    case Return(expr) => evaluate(expr)
     case Print(expr) => printHandler(evaluate(expr), PrintType.Print)
     case Println(expr) => printHandler(evaluate(expr), PrintType.PrintLn)
     case WhileDo(condition, stmts) => {
@@ -81,47 +81,39 @@ object Interpreter {
     case ArrayElem(arrayName: Ident, index: List[Expr]) => ???
     case NullLiteral => ???
 
-    case Neg(x: Expr) => ???
-    case Not(x: Expr) => ???
-    case Len(x: Expr) => ???
-    case Chr(x: Expr) => ???
-    case Ord(x: Expr) => ???
-
     case unaryOp: UnaryOperator => unaryEvaluator(unaryOp)
     case binaryOp: BinaryOperator => binEvaluator(binaryOp)
   }
 
   def unaryEvaluator(unaryOp: UnaryOperator): TypeOrPairElemValue = unaryOp match {
-    case Neg(x) => ???
-    case Not(x) => ???
-    case Len(x) => ???
-    case Chr(x) => ???
-    case Ord(x) => ???
+    case Neg(expr) => (evaluate(expr): @unchecked) match
+      case IntLiteral(int) => IntLiteral(-int)
+    case Not(expr) => (evaluate(expr): @unchecked) match
+      case BoolLiteral(bool) => BoolLiteral(!bool)
+    case Len(expr) => (evaluate(expr): @unchecked) match
+      case StringLiteral(str) => IntLiteral(str.length)
+    case Chr(expr) => (evaluate(expr): @unchecked) match
+      case CharLiteral(char) => IntLiteral(char.toInt)
+    case Ord(expr) => (evaluate(expr): @unchecked) match
+      case IntLiteral(int) => CharLiteral(int.toChar)
   }
 
   def binEvaluator(binaryOp: BinaryOperator): TypeOrPairElemValue = {
     def evalBinaryArithmeticOp(
       l: Expr, r: Expr, op: (BigInt, BigInt) => BigInt
       ): TypeOrPairElemValue = {
-      (evaluate(l), evaluate(r)) match {
+      evalBinaryOp(l, r) match {
         case (IntLiteral(a: BigInt), IntLiteral(b: BigInt)) => IntLiteral(op(a, b))
         case _ => throw new IllegalArgumentException("Invalid operands for binary operation")
       }
     }
 
-    def evalBinaryCompOp(
-      l: Expr, r: Expr, op: (BigInt, BigInt) => Boolean
-      ): TypeOrPairElemValue = {
-      (evaluate(l), evaluate(r)) match {
-        case (IntLiteral(a: BigInt), IntLiteral(b: BigInt)) => BoolLiteral(op(a, b))
-        case _ => throw new IllegalArgumentException("Invalid operands for binary operation")
-      }
-    }
+    def evalBinaryOp(l: Expr, r: Expr): (TypeOrPairElemValue, TypeOrPairElemValue) = (evaluate(l), evaluate(r))
 
     def evalBinaryLogicalOp(
       l: Expr, r: Expr, op: (Boolean, Boolean) => Boolean
       ): TypeOrPairElemValue = {
-      (evaluate(l), evaluate(r)) match {
+      evalBinaryOp(l, r) match {
         case (BoolLiteral(a: Boolean), BoolLiteral(b: Boolean)) => BoolLiteral(op(a, b))
         case _ => throw new IllegalArgumentException("Invalid operands for binary operation")
       }
@@ -134,12 +126,32 @@ object Interpreter {
       case Add(l, r) => evalBinaryArithmeticOp(l, r, (a, b) => a + b)
       case Sub(l, r) => evalBinaryArithmeticOp(l, r, (a, b) => a - b)
 
-      case Less(l, r) => evalBinaryCompOp(l, r, (a, b) => a < b)
-      case LessE(l, r) => evalBinaryCompOp(l, r, (a, b) => a <= b)
-      case Greater(l, r) => evalBinaryCompOp(l, r, (a, b) => a > b)
-      case GreaterE(l, r) => evalBinaryCompOp(l, r, (a, b) => a >= b)
-      case Eq(l, r) => evalBinaryCompOp(l, r, (a, b) => a == b)
-      case NotEq(l, r) => evalBinaryCompOp(l, r, (a, b) => a != b)
+      case Less(l, r) => (evalBinaryOp(l, r): @unchecked) match
+        case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a < b)
+        case (CharLiteral(a), CharLiteral(b)) => BoolLiteral(a < b)
+
+      case LessE(l, r) => (evalBinaryOp(l, r): @unchecked) match
+        case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a <= b)
+        case (CharLiteral(a), CharLiteral(b)) => BoolLiteral(a <= b)
+
+      case Greater(l, r) => (evalBinaryOp(l, r): @unchecked) match
+        case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a > b)
+        case (CharLiteral(a), CharLiteral(b)) => BoolLiteral(a > b)
+
+      case GreaterE(l, r) => (evalBinaryOp(l, r): @unchecked) match
+        case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a >= b)
+        case (CharLiteral(a), CharLiteral(b)) => BoolLiteral(a >= b)
+
+      case Eq(l, r) => (evalBinaryOp(l, r): @unchecked) match
+        case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a == b)
+        case (CharLiteral(a), CharLiteral(b)) => BoolLiteral(a == b)
+        case (BoolLiteral(a), BoolLiteral(b)) => BoolLiteral(a == b)
+
+      case NotEq(l, r) => (evalBinaryOp(l, r): @unchecked) match
+        case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a != b)
+        case (CharLiteral(a), CharLiteral(b)) => BoolLiteral(a != b)
+        case (BoolLiteral(a), BoolLiteral(b)) => BoolLiteral(a != b)
+
       case And(l, r) => evalBinaryLogicalOp(l, r, (a, b) => a && b)
       case Or(l, r) => evalBinaryLogicalOp(l, r, (a, b) => a || b)
   }
@@ -156,37 +168,5 @@ object Interpreter {
       case StringLiteral(string) => func(string)
       case CharLiteral(char) => func(char)
       case ArrayElem(arrayName, index) => ???
-  }
-
-  def exprHandler(expr: Expr): String = expr match {
-    case IntLiteral(int: BigInt) => ???
-    case BoolLiteral(bool: Boolean) => ???
-    case StringLiteral(string: String) => string
-    case CharLiteral(char: Char) => ???
-    case Ident(identifier: String) => ???
-    case ArrayElem(arrayName: Ident, index: List[Expr]) => ???
-    case NullLiteral => ???
-
-    case Neg(x: Expr) => ???
-    case Not(x: Expr) => ???
-    case Len(x: Expr) => ???
-    case Chr(x: Expr) => ???
-    case Ord(x: Expr) => ???
-
-    case Mul(l: Expr, r: Expr) => ???
-
-    case Div(l: Expr, r: Expr) => ???
-    case Mod(l: Expr, r: Expr) => ???
-    case Add(l: Expr, r: Expr) => ???
-    case Sub(l: Expr, r: Expr) => ???
-    case Less(l: Expr, r: Expr) => ???
-    case LessE(l: Expr, r: Expr) => ???
-    case Greater(l: Expr, r: Expr) => ???
-    case GreaterE(l: Expr, r: Expr) => ???
-    case Eq(l: Expr, r: Expr) => ???
-    case NotEq(l: Expr, r: Expr) => ???
-    case And(l: Expr, r: Expr) => ???
-    case Or(l: Expr, r: Expr) => ???
-
   }
 }

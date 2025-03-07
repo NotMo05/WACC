@@ -7,10 +7,10 @@
 # Program:
 
 begin
-  int x = 1 + 2
-  int y = x + 5
-  int z = x + y
-  println(x)
-  println(y)
+  int x = 200 + 300;
+  int y = x + 400;
+  int z = x + y;
+  println(x);
+  println(y);
   println(z)
 end

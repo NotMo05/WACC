@@ -13,8 +13,10 @@ enum PrintType:
 object Interpreter {
   val identTable: mutable.Map[QualifiedName, TypeOrPairElemValue] = mutable.Map()
 
+  def stmtsHandler(stmts: List[Stmt]): Unit = stmts.map(stmtHandler(_))
+
   def execute(prog: Prog): Unit = {
-    prog.main.map(stmtHandler(_))
+    stmtsHandler(prog.main)
   }
 
   def stmtHandler(stmt: Stmt): Unit = stmt match {
@@ -24,18 +26,18 @@ object Interpreter {
     case WhileDo(condition, stmts) => {
       while ((evaluate(condition): @unchecked) match
         case BoolLiteral(bool) =>  bool) {
-          scopeHandler(stmts)
+          stmtsHandler(stmts)
         }
     }
     case IfElse(condition, thenStmts, elseStmts) => {
       (evaluate(condition): @unchecked) match
         case BoolLiteral(bool) => {
-          if bool then scopeHandler(thenStmts)
-          else scopeHandler(elseStmts)
+          if bool then stmtsHandler(thenStmts)
+          else stmtsHandler(elseStmts)
         }
     }
 
-    case Scope(stmts) => scopeHandler(stmts)
+    case Scope(stmts) => stmtsHandler(stmts) // No need to create new stack, renaming already handled
     case assgn: Assgn => assgnHandler(assgn)
     case ReAssgn(lValue, rValue) => reasgnHandler(lValue, rValue)
     case _ => ???
@@ -49,10 +51,6 @@ object Interpreter {
       case ArrayElem(arrayName, index) => ???
       case Fst(lValue) => ???
       case Snd(lValue) => ???
-  }
-
-  def scopeHandler(stmts: List[Stmt]) = {
-    stmts.map(stmtHandler(_))
   }
 
   def rValueHandler(rValue: RValue): TypeOrPairElemValue = rValue match

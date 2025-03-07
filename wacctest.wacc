@@ -7,8 +7,10 @@
 # Program:
 
 begin
-  pair(pair, pair) p = null ;
-  println p ;
-  p = null ;
-  println p
+  int x = 200 + 300;
+  int y = x + 400;
+  int z = x + y;
+  println(x);
+  println(y);
+  println(z)
 end

@@ -21,35 +21,56 @@ object Interpreter {
     case Return(expr) => ???
     case Print(expr) => printHandler(evaluate(expr), PrintType.Print)
     case Println(expr) => printHandler(evaluate(expr), PrintType.PrintLn)
-    case WhileDo(condition, stmts) => ???
+    case WhileDo(condition, stmts) => {
+      while ((evaluate(condition): @unchecked) match
+        case BoolLiteral(bool) =>  bool) {
+          scopeHandler(stmts)
+        }
+    }
     case IfElse(condition, thenStmts, elseStmts) => {
       (evaluate(condition): @unchecked) match
         case BoolLiteral(bool) => {
-          if bool then thenStmts.map(stmtHandler(_))
-          else elseStmts.map(stmtHandler(_))
+          if bool then scopeHandler(thenStmts)
+          else scopeHandler(elseStmts)
         }
     }
 
-    case Scope(stmts) => ???
+    case Scope(stmts) => scopeHandler(stmts)
     case assgn: Assgn => assgnHandler(assgn)
-    case ReAssgn(lValue, rValue) => ???
+    case ReAssgn(lValue, rValue) => reasgnHandler(lValue, rValue)
     case _ => ???
   }
 
+  def reasgnHandler(lValue: LValue, rValue: RValue) = {
+    val newRValue = rValueHandler(rValue)
+
+    (lValue: @unchecked) match
+      case qn: QualifiedName => identTable(qn) = newRValue
+      case ArrayElem(arrayName, index) => ???
+      case Fst(lValue) => ???
+      case Snd(lValue) => ???
+  }
+
+  def scopeHandler(stmts: List[Stmt]) = {
+    stmts.map(stmtHandler(_))
+  }
+
+  def rValueHandler(rValue: RValue): TypeOrPairElemValue = rValue match
+    case expr: Expr => evaluate(expr)
+    case Call(_, _) => ???
+    case Fst(_) => ???
+    case Snd(_) => ???
+    case ArrayLiter(_) => ???
+    case NewPair(_, _) => ???
+
   def assgnHandler: Assgn => Unit = {
     case Assgn(t, identifier, rValue) => {
-      val result = rValue match
-        case expr: Expr => evaluate(expr)
-        case Call(_, _) => ???
-        case Fst(_) => ???
-        case Snd(_) => ???
-        case ArrayLiter(_) => ???
-        case NewPair(_, _) => ???
+      val result = rValueHandler(rValue)
 
       val qn = identifier match
         case qn: QualifiedName => qn
 
-      identTable.addOne(qn, result)
+      identTable(qn) = result
     }
   }
 

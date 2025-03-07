@@ -8,19 +8,19 @@ enum PrintType:
   case PrintLn, Print
 
 class Interpreter(prog: Prog) {
-  val identTable: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()
-  lazy val funcTable: immutable.Map[QualifiedFunc, Func] =
+  val identTables: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()
+  lazy val funcTable: immutable.Map[QualifiedFunc, Func] = // lazy as  functions may not be called
     prog.funcs.map {
       func => (func.identifier match
         case qf: QualifiedFunc => qf)
       -> func }.toMap()
-  identTable.push(mutable.Map())
+  identTables.push(mutable.Map())
 
-  def stmtsHandler(stmts: List[Stmt]): Unit = stmts.map(stmtHandler(_))
+  def stmtsHandler(stmts: List[Stmt]): Any = stmts.tail.foldLeft(stmtHandler(stmts.head))((_, stmt) => stmtHandler(stmt))
 
   def execute(): Unit = stmtsHandler(prog.main)
 
-  def stmtHandler(stmt: Stmt): Unit = stmt match {
+  def stmtHandler(stmt: Stmt): Any = stmt match {
     case Return(expr) => evaluate(expr)
     case Print(expr) => printHandler(evaluate(expr), PrintType.Print)
     case Println(expr) => printHandler(evaluate(expr), PrintType.PrintLn)
@@ -41,7 +41,7 @@ class Interpreter(prog: Prog) {
     case Scope(stmts) => stmtsHandler(stmts) // No need to create new stack, renaming already handled
     case assgn: Assgn => assgnHandler(assgn)
     case ReAssgn(lValue, rValue) => reasgnHandler(lValue, rValue)
-    case Skip => ???
+    case Skip => 
     case Read(_) => ???
     case Free(_) => ???
     case Exit(_) => ???
@@ -51,7 +51,7 @@ class Interpreter(prog: Prog) {
     val newRValue = rValueHandler(rValue)
 
     (lValue: @unchecked) match
-      case qn: QualifiedName => identTable.top(qn) = newRValue
+      case qn: QualifiedName => identTables.top(qn) = newRValue
       case ArrayElem(arrayName, index) => ???
       case Fst(lValue) => ???
       case Snd(lValue) => ???
@@ -72,12 +72,22 @@ class Interpreter(prog: Prog) {
       val qn = identifier match
         case qn: QualifiedName => qn
 
-      identTable.top(qn) = result
+      identTables.top(qn) = result
     }
   }
 
   def callHandler(qf: QualifiedFunc, exprs: List[Expr]): TypeOrPairElemValue = {
-    ???
+    val func = funcTable(qf)
+    val newIdentTable = (func.params.reverse.zip(exprs).map {
+      (param, expr) => ((param.identifier: @unchecked) match
+        case qn: QualifiedName => qn)
+      -> evaluate(expr)
+    }).to(mutable.Map)
+    identTables.push(newIdentTable)
+    val returnVal = stmtsHandler(func.stmts)
+    identTables.pop()
+    return returnVal match
+      case x: TypeOrPairElemValue => x
   }
 
   def evaluate(expr: Expr): TypeOrPairElemValue = (expr: @unchecked) match {
@@ -85,7 +95,7 @@ class Interpreter(prog: Prog) {
     case bool: BoolLiteral => bool
     case string: StringLiteral => string
     case char: CharLiteral => char
-    case qn: QualifiedName => identTable.top(qn)
+    case qn: QualifiedName => identTables.top(qn)
     case ArrayElem(arrayName: Ident, index: List[Expr]) => ???
     case NullLiteral => ???
 
@@ -100,9 +110,9 @@ class Interpreter(prog: Prog) {
       case BoolLiteral(bool) => BoolLiteral(!bool)
     case Len(expr) => (evaluate(expr): @unchecked) match
       case StringLiteral(str) => IntLiteral(str.length)
-    case Chr(expr) => (evaluate(expr): @unchecked) match
-      case CharLiteral(char) => IntLiteral(char.toInt)
     case Ord(expr) => (evaluate(expr): @unchecked) match
+      case CharLiteral(char) => IntLiteral(char.toInt)
+    case Chr(expr) => (evaluate(expr): @unchecked) match
       case IntLiteral(int) => CharLiteral(int.toChar)
   }
 

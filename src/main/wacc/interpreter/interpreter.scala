@@ -5,6 +5,10 @@ import wacc.front_end.Stmt
 import wacc.front_end.QualifiedName
 import wacc.front_end.TypeOrPairElemValue
 import scala.collection.mutable
+import wacc.front_end.lexer.ident
+
+enum PrintType:
+  case PrintLn, Print
 
 object Interpreter {
   val identTable: mutable.Map[QualifiedName, TypeOrPairElemValue] = mutable.Map()
@@ -15,8 +19,8 @@ object Interpreter {
 
   def stmtHandler(stmt: Stmt): Unit = stmt match {
     case Return(expr) => ???
-    case Print(expr) => printHandler(evaluate(expr))
-    case Println(expr) => printlnHandler(evaluate(expr))
+    case Print(expr) => printHandler(evaluate(expr), PrintType.Print)
+    case Println(expr) => printHandler(evaluate(expr), PrintType.PrintLn)
     case WhileDo(condition, stmts) => ???
     case IfElse(condition, thenStmts, elseStmts) => {
       (evaluate(condition): @unchecked) match
@@ -27,17 +31,34 @@ object Interpreter {
     }
 
     case Scope(stmts) => ???
-    case Assgn(t, identifier, rValue) => ???
+    case assgn: Assgn => assgnHandler(assgn)
     case ReAssgn(lValue, rValue) => ???
     case _ => ???
   }
 
-  def evaluate(expr: Expr): TypeOrPairElemValue = expr match {
+  def assgnHandler: Assgn => Unit = {
+    case Assgn(t, identifier, rValue) => {
+      val result = rValue match
+        case expr: Expr => evaluate(expr)
+        case Call(_, _) => ???
+        case Fst(_) => ???
+        case Snd(_) => ???
+        case ArrayLiter(_) => ???
+        case NewPair(_, _) => ???
+
+      val qn = identifier match
+        case qn: QualifiedName => qn
+
+      identTable.addOne(qn, result)
+    }
+  }
+
+  def evaluate(expr: Expr): TypeOrPairElemValue = (expr: @unchecked) match {
     case int: IntLiteral => int
     case bool: BoolLiteral => bool
     case string: StringLiteral => string
     case char: CharLiteral => char
-    case Ident(identifier: String) => ???
+    case qn: QualifiedName => identTable(qn)
     case ArrayElem(arrayName: Ident, index: List[Expr]) => ???
     case NullLiteral => ???
 
@@ -104,14 +125,19 @@ object Interpreter {
       case Or(l, r) => evalBinaryLogicalOp(l, r, (a, b) => a || b)
   }
 
-  def printlnHandler(item: TypeOrPairElemValue) = printHandler(item); print("\n")
 
-  def printHandler(item: TypeOrPairElemValue) = item match
-    case IntLiteral(int) => print(int)
-    case BoolLiteral(bool) => print(bool)
-    case StringLiteral(string) => print(string)
-    case CharLiteral(char) => print(char)
-    case ArrayElem(arrayName, index) => ???
+  def printHandler(item: TypeOrPairElemValue, printType: PrintType) = {
+    val func: (Any => Unit) = printType match
+      case PrintType.PrintLn => println(_)
+      case wacc.interpreter.PrintType.Print => print(_)
+
+    item match
+      case IntLiteral(int) => func(int)
+      case BoolLiteral(bool) => func(bool)
+      case StringLiteral(string) => func(string)
+      case CharLiteral(char) => func(char)
+      case ArrayElem(arrayName, index) => ???
+  }
 
   def exprHandler(expr: Expr): String = expr match {
     case IntLiteral(int: BigInt) => ???

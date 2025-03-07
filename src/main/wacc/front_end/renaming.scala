@@ -2,7 +2,7 @@ package wacc.front_end
 import scala.collection.mutable.LinkedHashMap
 import scala.collection.mutable
 
-class QualifiedName(val name: String, val num: Int, val t:Type) extends Ident(name) {
+class QualifiedName(val name: String, val num: Int, val t: Type) extends Ident(name) {
 
   override def toString() = s"$name$num"
   override def equals(obj: Any): Boolean = obj match {
@@ -30,7 +30,7 @@ def globalNumberingUpdate(name: String): Option[Int] = {
   }
 }
 
-def rename(prog: Prog) : (Prog, List[String]) = {
+def rename(prog: Prog): (Prog, List[String]) = {
   scopeErrors.clear()
   globalNumbering.clear()
   funcTypes.clear()

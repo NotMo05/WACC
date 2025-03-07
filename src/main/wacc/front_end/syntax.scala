@@ -28,7 +28,31 @@ case object NullLiteral extends Expr
 
 // Statements
 
-case class Prog(funcs: List[Func], main: List[Stmt])
+case class Prog(funcs: List[Func], main: List[Stmt]) {
+  def prettyPrint(): String = {
+    val stringRep = this.toString
+    val indentStep = "  "  // Define the indentation step
+    var indentLevel = 0     // Track the current indentation level
+
+    stringRep.foldLeft("") { (formattedString, char) =>
+      char match {
+        case '(' =>
+          indentLevel += 1
+          formattedString + "(\n" + " " * (indentLevel * indentStep.length)
+        case ')' =>
+          indentLevel -= 1
+          formattedString + "\n" + " " * (indentLevel * indentStep.length) + ")"
+        case ',' =>
+          formattedString + ",\n" + " " * (indentLevel * indentStep.length)
+        case ' ' =>
+          formattedString
+        case _ =>
+          formattedString + char
+      }
+    }
+  }
+}
+
 case class Func(t: Type, identifier: Ident, params: List[Param], stmts: List[Stmt])
 case class Call(ident: Ident, args: List[Expr]) extends RValue
 case class Param(t: Type, identifier: Ident)

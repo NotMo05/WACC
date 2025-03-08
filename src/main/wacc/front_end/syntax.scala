@@ -1,5 +1,6 @@
 package wacc.front_end
 
+import scala.util.control.NoStackTrace
 import scala.language.implicitConversions
 import parsley.generic.{ParserBridge1, ParserBridge2, ParserBridge3, ParserBridge4}
 
@@ -10,7 +11,11 @@ sealed trait Expr extends RValue
 sealed trait TypeOrPairElemValue
 // Expressions
 
-case class IntLiteral(int: BigInt) extends Expr, TypeOrPairElemValue
+case class IntLiteral(int: BigInt) extends Expr, TypeOrPairElemValue {
+  if (int < Int.MinValue || int > Int.MaxValue) {
+    throw new RuntimeException(s"fatal error: integer overflow or underflow occurred, $int out of range") with NoStackTrace
+  }
+}
 case class BoolLiteral(bool: Boolean) extends Expr, TypeOrPairElemValue
 case class StringLiteral(string: String) extends Expr, TypeOrPairElemValue
 case class CharLiteral(char: Char) extends Expr, TypeOrPairElemValue

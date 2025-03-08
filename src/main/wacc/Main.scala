@@ -16,7 +16,11 @@ def main(args: Array[String]): Unit = {
       val prog = genAST(fileContent, fileName)
 
       val interpreter = new Interpreter(prog)
-      interpreter.execute()
+      try {
+        interpreter.execute()
+      } catch {
+        case e: RuntimeException => println(e.getMessage()); sys.exit(1)
+      }
 
     }
     return

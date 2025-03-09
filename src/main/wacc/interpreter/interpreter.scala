@@ -41,7 +41,7 @@ class Interpreter(prog: Prog) {
     case Scope(stmts) => stmtsHandler(stmts) // No need to create new stack, renaming already handled
     case assgn: Assgn => assgnHandler(assgn)
     case ReAssgn(lValue, rValue) => reasgnHandler(lValue, rValue)
-    case Skip => 
+    case Skip =>
     case Read(_) => ???
     case Free(_) => ???
     case Exit(_) => ???
@@ -52,9 +52,20 @@ class Interpreter(prog: Prog) {
 
     (lValue: @unchecked) match
       case qn: QualifiedName => identTables.top(qn) = newRValue
-      case ArrayElem(arrayName, index) => ???
+      case ArrayElem(arrayName: QualifiedName, indexes) => arrayLiterHandler(arrayName, indexes, newRValue)
+
       case Fst(lValue) => ???
       case Snd(lValue) => ???
+  }
+
+  def arrayLiterHandler(arrayName: QualifiedName, indexes: List[Expr], newRValue: TypeOrPairElemValue) = {
+    (identTables.top(arrayName), indexes.map(evaluate(_))) match
+      case (elems, (is: List[IntLiteral] @unchecked)) => {
+        is.init.foldLeft(elems) { 
+          case (ArrayBaseLiteral(elems), index: IntLiteral) => elems(index.int.toInt)
+        } match
+          case ArrayBaseLiteral(elems) => elems(is.last.int.toInt) = newRValue
+      }
   }
 
   def rValueHandler(rValue: RValue): TypeOrPairElemValue = (rValue: @unchecked) match
@@ -62,7 +73,7 @@ class Interpreter(prog: Prog) {
     case Call(qf: QualifiedFunc, exprs: List[Expr]) => callHandler(qf, exprs)
     case Fst(_) => ???
     case Snd(_) => ???
-    case ArrayLiter(_) => ???
+    case ArrayLiter(exprs: List[Expr]) => ArrayBaseLiteral(exprs.map(evaluate(_)).toArray)
     case NewPair(_, _) => ???
 
   def assgnHandler: Assgn => Unit = {
@@ -110,6 +121,7 @@ class Interpreter(prog: Prog) {
       case BoolLiteral(bool) => BoolLiteral(!bool)
     case Len(expr) => (evaluate(expr): @unchecked) match
       case StringLiteral(str) => IntLiteral(str.length)
+      case ArrayBaseLiteral(elems) => IntLiteral(elems.size)
     case Ord(expr) => (evaluate(expr): @unchecked) match
       case CharLiteral(char) => IntLiteral(char.toInt)
     case Chr(expr) => (evaluate(expr): @unchecked) match
@@ -179,11 +191,14 @@ class Interpreter(prog: Prog) {
       case PrintType.PrintLn => println(_)
       case wacc.interpreter.PrintType.Print => print(_)
 
-    item match
-      case IntLiteral(int) => func(int)
-      case BoolLiteral(bool) => func(bool)
-      case StringLiteral(string) => func(string)
-      case CharLiteral(char) => func(char)
-      case ArrayElem(arrayName, index) => ???
+    func(itemStringHandler(item))
   }
+
+  def itemStringHandler(item: TypeOrPairElemValue): String = item match
+    case IntLiteral(int) => int.toString()
+    case BoolLiteral(bool) => bool.toString()
+    case StringLiteral(string) => string
+    case CharLiteral(char) => char.toString()
+    case ArrayBaseLiteral(elems) => elems.map(itemStringHandler(_)).mkString("[", ", ", "]")
+
 }

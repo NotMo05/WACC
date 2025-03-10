@@ -188,11 +188,13 @@ class Interpreter(prog: Prog) {
         case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a == b)
         case (CharLiteral(a), CharLiteral(b)) => BoolLiteral(a == b)
         case (BoolLiteral(a), BoolLiteral(b)) => BoolLiteral(a == b)
+        case (ArrayBaseLiteral(es1), ArrayBaseLiteral(es2)) => BoolLiteral(es1 eq es2) //check referential equality
 
       case NotEq(l, r) => (evalBinaryOp(l, r): @unchecked) match
         case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a != b)
         case (CharLiteral(a), CharLiteral(b)) => BoolLiteral(a != b)
         case (BoolLiteral(a), BoolLiteral(b)) => BoolLiteral(a != b)
+        case (ArrayBaseLiteral(es1), ArrayBaseLiteral(es2)) => BoolLiteral((es1 ne es2)) //check referential equality
 
       case And(l, r) => evalBinaryLogicalOp(l, r, (a, b) => a && b)
       case Or(l, r) => evalBinaryLogicalOp(l, r, (a, b) => a || b)
@@ -211,6 +213,9 @@ class Interpreter(prog: Prog) {
     case BoolLiteral(bool) => bool.toString()
     case StringLiteral(string) => string
     case CharLiteral(char) => char.toString()
-    case ArrayBaseLiteral(elems) => s"0x${System.identityHashCode(elems).toHexString}"
+    case ArrayBaseLiteral(elems) =>
+
+
+      s"0x${System.identityHashCode(elems).toHexString}"
 
 }

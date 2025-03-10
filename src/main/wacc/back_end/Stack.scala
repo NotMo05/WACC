@@ -38,7 +38,7 @@ object Stack {
       case StringType => 8
       case IntType => 4
       case BoolType => 1
-      case CharType => 4
+      case CharType => 1
   }
 }
 

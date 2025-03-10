@@ -1,0 +1,213 @@
+# WACC Standard String Library
+# Contains common string manipulation functions for use in WACC programs
+
+begin
+  # String concatenation
+  string concat(string s1, string s2) is
+    int len1 = len s1;
+    int len2 = len s2;
+    char[] result = newarray char (len1 + len2);
+    
+    int i = 0;
+    # Copy first string
+    while i < len1 do
+      result[i] = s1[i];
+      i = i + 1
+    done;
+    
+    # Copy second string
+    int j = 0;
+    while j < len2 do
+      result[i + j] = s2[j];
+      j = j + 1
+    done;
+    
+    return result
+  end
+  
+  # Check if a string starts with a prefix
+  bool startsWith(string s, string prefix) is
+    int prefixLen = len prefix;
+    int strLen = len s;
+    
+    if prefixLen > strLen then
+      return false
+    fi;
+    
+    int i = 0;
+    bool matches = true;
+    
+    while i < prefixLen && matches do
+      matches = s[i] == prefix[i];
+      i = i + 1
+    done;
+    
+    return matches
+  end
+  
+  # Check if a string ends with a suffix
+  bool endsWith(string s, string suffix) is
+    int suffixLen = len suffix;
+    int strLen = len s;
+    
+    if suffixLen > strLen then
+      return false
+    fi;
+    
+    int i = 0;
+    bool matches = true;
+    
+    while i < suffixLen && matches do
+      matches = s[strLen - suffixLen + i] == suffix[i];
+      i = i + 1
+    done;
+    
+    return matches
+  end
+  
+  # Find index of a character in a string, returns -1 if not found
+  int indexOf(string s, char c) is
+    int strLen = len s;
+    int i = 0;
+    
+    while i < strLen do
+      if s[i] == c then
+        return i
+      fi;
+      i = i + 1
+    done;
+    
+    return -1
+  end
+  
+  # Check if a string contains a substring
+  bool contains(string s, string substr) is
+    int strLen = len s;
+    int subLen = len substr;
+    
+    if subLen > strLen then
+      return false
+    fi;
+    
+    int i = 0;
+    while i <= strLen - subLen do
+      bool found = true;
+      int j = 0;
+      
+      while j < subLen && found do
+        found = s[i + j] == substr[j];
+        j = j + 1
+      done;
+      
+      if found then
+        return true
+      fi;
+      
+      i = i + 1
+    done;
+    
+    return false
+  end
+  
+  # Convert a string to lowercase (ASCII only)
+  string toLowerCase(string s) is
+    int strLen = len s;
+    char[] result = newarray char strLen;
+    
+    int i = 0;
+    while i < strLen do
+      char c = s[i];
+      if 'A' <= c && c <= 'Z' then
+        result[i] = chr(ord c + 32)
+      else
+        result[i] = c
+      fi;
+      i = i + 1
+    done;
+    
+    return result
+  end
+  
+  # Convert a string to uppercase (ASCII only)
+  string toUpperCase(string s) is
+    int strLen = len s;
+    char[] result = newarray char strLen;
+    
+    int i = 0;
+    while i < strLen do
+      char c = s[i];
+      if 'a' <= c && c <= 'z' then
+        result[i] = chr(ord c - 32)
+      else
+        result[i] = c
+      fi;
+      i = i + 1
+    done;
+    
+    return result
+  end
+  
+  # Trim spaces from beginning and end of string
+  string trim(string s) is
+    int strLen = len s;
+    
+    # Find start index (first non-space)
+    int startIdx = 0;
+    while startIdx < strLen && s[startIdx] == ' ' do
+      startIdx = startIdx + 1
+    done;
+    
+    # Find end index (last non-space)
+    int endIdx = strLen - 1;
+    while endIdx >= 0 && s[endIdx] == ' ' do
+      endIdx = endIdx - 1
+    done;
+    
+    # Handle empty string or all spaces
+    if startIdx > endIdx then
+      return ""
+    fi;
+    
+    # Extract the trimmed substring
+    int newLen = endIdx - startIdx + 1;
+    char[] result = newarray char newLen;
+    
+    int i = 0;
+    while i < newLen do
+      result[i] = s[startIdx + i];
+      i = i + 1
+    done;
+    
+    return result
+  end
+  
+  # Extract a substring from start index (inclusive) to end index (exclusive)
+  string substring(string s, int startIdx, int endIdx) is
+    int strLen = len s;
+    
+    # Ensure indices are within bounds
+    if startIdx < 0 then
+      startIdx = 0
+    fi;
+    
+    if endIdx > strLen then
+      endIdx = strLen
+    fi;
+    
+    # Handle invalid range
+    if startIdx >= endIdx || startIdx >= strLen then
+      return ""
+    fi;
+    
+    int subLen = endIdx - startIdx;
+    char[] result = newarray char subLen;
+    
+    int i = 0;
+    while i < subLen do
+      result[i] = s[startIdx + i];
+      i = i + 1
+    done;
+    
+    return result
+  end
+end

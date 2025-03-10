@@ -5,12 +5,14 @@ import scala.collection.mutable
 import scala.collection.immutable
 import cats.implicits._
 
+case class ExitException(code: Option[TypeOrPairElemValue]) extends RuntimeException
+
 enum PrintType:
   case PrintLn, Print
 
-class Interpreter(prog: Prog) {
-  final val exprCouldntEval = throw new RuntimeException("Somehow the expr did not evaluate")
+final val exprCouldntEval = throw new RuntimeException("Somehow the expr did not evaluate")
 
+class Interpreter(prog: Prog) {
   val identTables: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()
   lazy val funcTable: immutable.Map[QualifiedFunc, Func] = // lazy as  functions may not be called
     prog.funcs.map {
@@ -22,7 +24,13 @@ class Interpreter(prog: Prog) {
   def stmtsHandler(stmts: List[Stmt]): Option[TypeOrPairElemValue] =
     stmts.collectFirst { case stmt if stmtHandler(stmt).isDefined => stmtHandler(stmt).get }
 
-  def execute(): Unit = stmtsHandler(prog.main)
+
+  def execute(): Unit = try {
+    stmtsHandler(prog.main)
+  } catch {
+      case ExitException(code) => (code: @unchecked) match
+        case Some(IntLiteral(int)) => println(s"Exited with code: $int")
+  }
 
   def stmtHandler(stmt: Stmt): Option[TypeOrPairElemValue] = stmt match {
     case Return(expr) => evaluate(expr)
@@ -55,7 +63,7 @@ class Interpreter(prog: Prog) {
     case Skip => None
     case Read(_) => ???
     case Free(_) => ???
-    case Exit(_) => ???
+    case Exit(code) => throw new ExitException(evaluate(code))
   }
 
   def reasgnHandler(lValue: LValue, rValue: RValue): Option[TypeOrPairElemValue] = {
@@ -106,7 +114,6 @@ class Interpreter(prog: Prog) {
   def assgnHandler: Assgn => Option[TypeOrPairElemValue] = {
     case Assgn(t, identifier, rValue) => {
       val result = rValueHandler(rValue).getOrElse(exprCouldntEval)
-
       val qn = identifier match
         case qn: QualifiedName => qn
 

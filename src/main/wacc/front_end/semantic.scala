@@ -272,6 +272,16 @@ object semantic {
 
       case Println(expr) => getExprType(expr)
 
+      case Import(filePath) => {
+        import java.nio.file.{Files, Paths}
+        
+        val path = filePath.string
+        
+        if (path.nonEmpty && !Files.exists(Paths.get(path))) {
+          semErrors += s"error: import path '$path' does not exist"
+        }
+      }
+
       case Skip => ()
   }
 

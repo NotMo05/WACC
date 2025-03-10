@@ -58,6 +58,7 @@ case class IfElse(condition: Expr, thenStmts: List[Stmt], elseStmts: List[Stmt])
 case class Assgn(t: Type, identifier: Ident, rValue: RValue) extends Stmt
 case class ReAssgn(lValue: LValue, rValue: RValue) extends Stmt
 case class Scope(stmts: List[Stmt]) extends Stmt
+case class Import(filePath: StringLiteral) extends Stmt // Added import here
 
 object Read extends ParserBridge1[LValue, Stmt]
 object Free extends ParserBridge1[Expr, Stmt]
@@ -70,6 +71,7 @@ object IfElse extends ParserBridge3[Expr, List[Stmt], List[Stmt], Stmt]
 object Assgn extends ParserBridge3[Type, Ident, RValue, Stmt]
 object ReAssgn extends ParserBridge2[LValue, RValue, Stmt]
 object Scope extends ParserBridge1[List[Stmt], Stmt]
+object Import extends ParserBridge1[StringLiteral, Stmt] // Added import here
 
 // Types
 

@@ -45,6 +45,7 @@ object parser {
   private lazy val ifStmt = IfElse("if" ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
   private lazy val arrayElem = ArrayElem(ident, some("[" ~> expr <~ "]"))
   private lazy val pairElem = Fst("fst" ~> lValue) | Snd("snd" ~> lValue)
+  private lazy val importStmt = Import("import" ~> stringLiteral) // import statement matching
 
   private lazy val typeParser = atomic(arrayType) | interimTypes
 
@@ -104,6 +105,7 @@ object parser {
     | ifStmt
     | skipStmt
     | beginBlock
+    | importStmt // Added import stmt
 
   def returns(stmts: List[Stmt]): Boolean =
     stmts.last match
@@ -112,6 +114,7 @@ object parser {
       case Scope(stmts) => returns(stmts)
       case Return(_) => true
       case Exit(_) => true
+      case Import(_) => false // added import stmt
       case _ => false
 
 

@@ -109,6 +109,7 @@ def renameStmt(
 ): Stmt = {
   stmt match
     case Skip => Skip
+    case imp: Import => imp // Added import
     case Assgn(t, Ident(name), rValue) => renameAssign(t, name, rValue, current, parent)
     case ReAssgn(lValue, rValue) =>
       ReAssgn(lValueHandler(lValue, current, parent), rValueHandler(rValue, current, parent))

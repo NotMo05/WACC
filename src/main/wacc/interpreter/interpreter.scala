@@ -52,20 +52,30 @@ class Interpreter(prog: Prog) {
 
     (lValue: @unchecked) match
       case qn: QualifiedName => identTables.top(qn) = newRValue
-      case ArrayElem(arrayName: QualifiedName, indexes) => arrayLiterHandler(arrayName, indexes, newRValue)
+      case ArrayElem(arrayName: QualifiedName, indexes) => arrayLiterAssgnHandler(arrayName, indexes, newRValue)
 
       case Fst(lValue) => ???
       case Snd(lValue) => ???
   }
 
-  def arrayLiterHandler(arrayName: QualifiedName, indexes: List[Expr], newRValue: TypeOrPairElemValue) = {
+  def resolveArrayElem(arrayName: QualifiedName, indexes: List[Expr]): (ArrayBaseLiteral, Int) = {
     (identTables.top(arrayName), indexes.map(evaluate(_))) match
-      case (elems, (is: List[IntLiteral] @unchecked)) => {
-        is.init.foldLeft(elems) { 
+      case (elems, (is: List[IntLiteral] @unchecked)) =>
+        is.init.foldLeft(elems) {
           case (ArrayBaseLiteral(elems), index: IntLiteral) => elems(index.int.toInt)
-        } match
-          case ArrayBaseLiteral(elems) => elems(is.last.int.toInt) = newRValue
-      }
+        } match {
+          case arr @ ArrayBaseLiteral(elems) => (arr, is.last.int.toInt)
+        }
+  }
+
+  def arrayLiterAssgnHandler(arrayName: QualifiedName, indexes: List[Expr], newRValue: TypeOrPairElemValue) = {
+    val (arrayBase, lastIndex) = resolveArrayElem(arrayName, indexes)
+    arrayBase.elems(lastIndex) = newRValue
+  }
+
+  def arrayLiterAccessHandler(arrayName: QualifiedName, indexes: List[Expr]) = {
+    val (arrayBase, lastIndex) = resolveArrayElem(arrayName, indexes)
+    arrayBase.elems(lastIndex)
   }
 
   def rValueHandler(rValue: RValue): TypeOrPairElemValue = (rValue: @unchecked) match
@@ -107,7 +117,9 @@ class Interpreter(prog: Prog) {
     case string: StringLiteral => string
     case char: CharLiteral => char
     case qn: QualifiedName => identTables.top(qn)
-    case ArrayElem(arrayName: Ident, index: List[Expr]) => ???
+    case ArrayElem(arrayName: Ident, indexes: List[Expr]) =>
+      arrayName match
+        case arrayName: QualifiedName => arrayLiterAccessHandler(arrayName, indexes)
     case NullLiteral => ???
 
     case unaryOp: UnaryOperator => unaryEvaluator(unaryOp)
@@ -141,12 +153,12 @@ class Interpreter(prog: Prog) {
     def evalBinaryOp(l: Expr, r: Expr): (TypeOrPairElemValue, TypeOrPairElemValue) = (evaluate(l), evaluate(r))
 
     def evalBinaryLogicalOp(
-      l: Expr, r: Expr, op: (Boolean, Boolean) => Boolean
+        l: Expr, r: Expr, op: (Boolean, Boolean) => Boolean
       ): TypeOrPairElemValue = {
-      evalBinaryOp(l, r) match {
-        case (BoolLiteral(a: Boolean), BoolLiteral(b: Boolean)) => BoolLiteral(op(a, b))
-        case _ => throw new IllegalArgumentException("Invalid operands for binary operation")
-      }
+        evalBinaryOp(l, r) match {
+          case (BoolLiteral(a: Boolean), BoolLiteral(b: Boolean)) => BoolLiteral(op(a, b))
+          case _ => throw new IllegalArgumentException("Invalid operands for binary operation")
+        }
     }
 
     binaryOp match
@@ -189,7 +201,7 @@ class Interpreter(prog: Prog) {
   def printHandler(item: TypeOrPairElemValue, printType: PrintType) = {
     val func: (Any => Unit) = printType match
       case PrintType.PrintLn => println(_)
-      case wacc.interpreter.PrintType.Print => print(_)
+      case PrintType.Print => print(_)
 
     func(itemStringHandler(item))
   }
@@ -199,6 +211,6 @@ class Interpreter(prog: Prog) {
     case BoolLiteral(bool) => bool.toString()
     case StringLiteral(string) => string
     case CharLiteral(char) => char.toString()
-    case ArrayBaseLiteral(elems) => elems.map(itemStringHandler(_)).mkString("[", ", ", "]")
+    case ArrayBaseLiteral(elems) => s"0x${System.identityHashCode(elems).toHexString}"
 
 }

@@ -9,6 +9,8 @@ enum PrintType:
   case PrintLn, Print
 
 class Interpreter(prog: Prog) {
+  final val exprCouldntEval = throw new RuntimeException("Somehow the expr did not evaluate")
+
   val identTables: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()
   lazy val funcTable: immutable.Map[QualifiedFunc, Func] = // lazy as  functions may not be called
     prog.funcs.map {
@@ -30,7 +32,7 @@ class Interpreter(prog: Prog) {
       var ret: Option[TypeOrPairElemValue] = None
       while (ret.isEmpty && evaluate(condition).collect {
         case BoolLiteral(bool: Boolean) => bool
-      }.getOrElse(throw new RuntimeException("Somehow the expr did not evaluate")))
+      }.getOrElse(exprCouldntEval))
       {
         ret = stmtsHandler(stmts)  // Capture the return value
       }
@@ -60,7 +62,7 @@ class Interpreter(prog: Prog) {
     val newRValue = rValueHandler(rValue)
 
     (lValue: @unchecked) match
-      case qn: QualifiedName => identTables.top(qn) = newRValue.getOrElse(throw new RuntimeException("Somehow the expr did not evaluate")); None
+      case qn: QualifiedName => identTables.top(qn) = newRValue.getOrElse(exprCouldntEval); None
       case ArrayElem(arrayName: QualifiedName, indexes) => arrayLiterAssgnHandler(arrayName, indexes, newRValue)
 
       case Fst(lValue) => ???
@@ -77,14 +79,14 @@ class Interpreter(prog: Prog) {
             arr,
             is.last match {
               case Some(IntLiteral(int)) => int.toInt
-              case None => throw new RuntimeException("Somehow the expr did not evaluate")
+              case None => exprCouldntEval
             })
         }
   }
 
   def arrayLiterAssgnHandler(arrayName: QualifiedName, indexes: List[Expr], newRValue: Option[TypeOrPairElemValue]) = {
     val (arrayBase, lastIndex) = resolveArrayElem(arrayName, indexes)
-    arrayBase.elems(lastIndex) = newRValue.getOrElse(throw new RuntimeException("Somehow the expr did not evaluate"))
+    arrayBase.elems(lastIndex) = newRValue.getOrElse(exprCouldntEval)
     None
   }
 
@@ -103,7 +105,7 @@ class Interpreter(prog: Prog) {
 
   def assgnHandler: Assgn => Option[TypeOrPairElemValue] = {
     case Assgn(t, identifier, rValue) => {
-      val result = rValueHandler(rValue).getOrElse(throw new RuntimeException("Somehow the expr did not evaluate"))
+      val result = rValueHandler(rValue).getOrElse(exprCouldntEval)
 
       val qn = identifier match
         case qn: QualifiedName => qn
@@ -118,7 +120,7 @@ class Interpreter(prog: Prog) {
     val newIdentTable = (func.params.reverse.zip(exprs).map {
       (param, expr) => ((param.identifier: @unchecked) match
         case qn: QualifiedName => qn)
-      -> evaluate(expr).getOrElse(throw new RuntimeException("Somehow the expr did not evaluate"))
+      -> evaluate(expr).getOrElse(exprCouldntEval)
     }).to(mutable.Map)
     identTables.push(newIdentTable)
     val returnVal = stmtsHandler(func.stmts)

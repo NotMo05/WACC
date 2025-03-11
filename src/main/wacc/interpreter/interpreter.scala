@@ -4,15 +4,20 @@ import wacc.front_end._
 import scala.collection.mutable
 import scala.collection.immutable
 import cats.implicits._
+import os.read.inputStream
+import java.util.Scanner
+import wacc.front_end.semantic.newPairHandle
 
 case class ExitException(code: Option[TypeOrPairElemValue]) extends RuntimeException
+case class FailedToEvaluate(message: String) extends RuntimeException
 
 enum PrintType:
   case PrintLn, Print
 
-final val exprCouldntEval = throw new RuntimeException("Somehow the expr did not evaluate")
+final val exprCouldntEval = throw new FailedToEvaluate("Somehow the expr did not evaluate")
 
 class Interpreter(prog: Prog) {
+  val scanner = new Scanner(System.in)
   val identTables: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()
   lazy val funcTable: immutable.Map[QualifiedFunc, Func] = // lazy as  functions may not be called
     prog.funcs.map {
@@ -28,8 +33,9 @@ class Interpreter(prog: Prog) {
   def execute(): Unit = try {
     stmtsHandler(prog.main)
   } catch {
-      case ExitException(code) => (code: @unchecked) match
-        case Some(IntLiteral(int)) => println(s"Exited with code: $int")
+    case FailedToEvaluate(message) => println(message)
+    case ExitException(code) => (code: @unchecked) match
+      case Some(IntLiteral(int)) => println(s"Exited with code: $int")
   }
 
   def stmtHandler(stmt: Stmt): Option[TypeOrPairElemValue] = stmt match {
@@ -61,9 +67,31 @@ class Interpreter(prog: Prog) {
     case assgn: Assgn => assgnHandler(assgn)
     case ReAssgn(lValue, rValue) => reasgnHandler(lValue, rValue)
     case Skip => None
-    case Read(_) => ???
-    case Free(_) => ???
-    case Exit(code) => throw new ExitException(evaluate(code))
+    case Read(lValue: LValue) => {
+      (lValue: @unchecked) match
+        case qn: QualifiedName => {
+          (identTables.top(qn): @unchecked) match
+            case IntLiteral(int) => scala.io.StdIn.readInt()
+            case CharLiteral(char) =>
+            case ArrayBaseLiteral(elems) =>
+        }
+        case ArrayElem(arrayName, index) =>
+      None
+      }
+
+    case Free(expr) => {
+      evaluate(expr) match
+        case None => exprCouldntEval
+        case Some(value) => (value: @unchecked) match
+          case StringLiteral(string) => ???
+          case arr: ArrayBaseLiteral => arr.elems match
+            case None => exprCouldntEval
+            case Some(value) => arr.elems = None; None
+    }
+    case Exit(code) => throw new ExitException((evaluate(code): @unchecked) match
+      case Some(value) => (value: @unchecked) match
+        case IntLiteral(int) => Some(IntLiteral(int % 128))
+    )
   }
 
   def reasgnHandler(lValue: LValue, rValue: RValue): Option[TypeOrPairElemValue] = {
@@ -73,43 +101,134 @@ class Interpreter(prog: Prog) {
       case qn: QualifiedName => identTables.top(qn) = newRValue.getOrElse(exprCouldntEval); None
       case ArrayElem(arrayName: QualifiedName, indexes) => arrayLiterAssgnHandler(arrayName, indexes, newRValue)
 
-      case Fst(lValue) => ???
-      case Snd(lValue) => ???
+      case lValue: Fst => {
+        val current = identTables.top(pairReasgnHandler(lValue))
+        identTables.top(pairReasgnHandler(lValue)) = current match
+          case PairLiteral(_, snd) => PairLiteral(newRValue, snd)
+        None
+      }
+
+      case lValue: Snd => {
+        val current = identTables.top(pairReasgnHandler(lValue))
+        identTables.top(pairReasgnHandler(lValue)) = current match
+          case PairLiteral(fst, _) => PairLiteral(fst, newRValue)
+        None
+      }
   }
 
-  def resolveArrayElem(arrayName: QualifiedName, indexes: List[Expr]): (ArrayBaseLiteral, Int) = {
-    (identTables.top(arrayName), indexes.map(evaluate(_))) match
-      case (elems, (is: List[IntLiteral] @unchecked)) =>
-        is.init.foldLeft(elems) {
-          case (ArrayBaseLiteral(elems), index: IntLiteral) => elems(index.int.toInt)
-        } match {
-          case arr @ ArrayBaseLiteral(elems) => (
-            arr,
-            is.last match {
-              case Some(IntLiteral(int)) => int.toInt
-              case None => exprCouldntEval
-            })
-        }
+  def pairReasgnHandler(lValue: LValue, newRValue: Option[RValue] = None): QualifiedName = {
+    (lValue: @unchecked) match
+      case Fst(lValue) => lValue match
+        case qn: QualifiedName => qn
+        case lValue: Fst => identTables.top(pairReasgnHandler(lValue)) match
+          case PairLiteral(fst, _) => fst match
+            case None => ???
+            case Some(value) => value match
+              case QualifiedNameContainer(qn) => qn
+
+        case lValue: Snd => identTables.top(pairReasgnHandler(lValue)) match
+          case PairLiteral(_, snd) => snd match
+            case None => ???
+            case Some(value) => value match
+              case QualifiedNameContainer(qn) => qn
+        // case ArrayElem(qn: QualifiedName, indexes) => arrayLiterAssgnHandler(qn, indexes, newRValue.getOrElse())
+
+      case Snd(lValue) => lValue match
+        case qn: QualifiedName => qn
+        case lValue: Fst => identTables.top(pairReasgnHandler(lValue)) match
+          case PairLiteral(fst, _) => fst match
+            case None => ???
+            case Some(value) => value match
+              case QualifiedNameContainer(qn) => qn
+
+        case lValue: Snd => identTables.top(pairReasgnHandler(lValue)) match
+          case PairLiteral(_, snd) => snd match
+            case None => ???
+            case Some(value) => value match
+              case QualifiedNameContainer(qn) => qn
+
   }
+
+  def pairAccessHandler(lValue: LValue): Option[TypeOrPairElemValue] = (lValue: @unchecked) match
+    case qn: QualifiedName => Some(identTables.top(qn))
+    case Fst(lValue) => pairAccessHandler(lValue) match
+      case None => ???
+      case Some(value) => value match
+        case PairLiteral(fst, _) => fst match
+          case None => ???
+          case Some(value) => value match
+            case QualifiedNameContainer(qn) => Some(identTables.top(qn))
+            case e: Expr => evaluate(e)
+        case e: Expr => evaluate(e)
+
+    case Snd(lValue) => pairAccessHandler(lValue) match
+      case None => ???
+      case Some(value) => value match
+        case PairLiteral(_, snd) => snd match
+          case None => ???
+          case Some(value) => value match
+            case QualifiedNameContainer(qn) => Some(identTables.top(qn))
+            case e: Expr => evaluate(e)
+        case e: Expr => evaluate(e)
+
+  def resolveArrayElem(arrayName: QualifiedName, indexes: List[Expr]): (ArrayBaseLiteral, Int) = {
+    (identTables.top(arrayName), indexes.map(evaluate(_))) match {
+      case (elems, evaluatedIndexes: List[Option[TypeOrPairElemValue]] @unchecked) =>
+        val resolvedIndexes = evaluatedIndexes.collect { case Some(IntLiteral(i)) => i }
+
+        if (resolvedIndexes.size != evaluatedIndexes.size) {
+          throw new NoSuchElementException("Some index expressions could not be evaluated")
+        }
+
+        resolvedIndexes.init.foldLeft(Option(elems): Option[TypeOrPairElemValue]) {
+          case (Some(ArrayBaseLiteral(Some(arr))), index) => arr.lift(index.toInt)
+          case _ => None
+        } match {
+          case Some(arr @ ArrayBaseLiteral(Some(_))) =>
+            val lastIndex = resolvedIndexes.last
+            (arr, lastIndex.toInt)
+          case _ => throw new NoSuchElementException("Array has been freed or not found")
+        }
+    }
+  }
+
+
 
   def arrayLiterAssgnHandler(arrayName: QualifiedName, indexes: List[Expr], newRValue: Option[TypeOrPairElemValue]) = {
     val (arrayBase, lastIndex) = resolveArrayElem(arrayName, indexes)
-    arrayBase.elems(lastIndex) = newRValue.getOrElse(exprCouldntEval)
+    arrayBase.elems match
+      case Some(arr) => arr(lastIndex) = newRValue.getOrElse(exprCouldntEval)
+      case None => throw new NoSuchElementException("Array has been freed")
     None
   }
 
   def arrayLiterAccessHandler(arrayName: QualifiedName, indexes: List[Expr]): TypeOrPairElemValue = {
     val (arrayBase, lastIndex) = resolveArrayElem(arrayName, indexes)
-    arrayBase.elems(lastIndex)
+    arrayBase.elems match
+      case Some(arr) => arr(lastIndex)
+      case None => throw new NoSuchElementException("Array has been freed")
   }
 
   def rValueHandler(rValue: RValue): Option[TypeOrPairElemValue] = (rValue: @unchecked) match
     case expr: Expr => evaluate(expr)
     case Call(qf: QualifiedFunc, exprs: List[Expr]) => callHandler(qf, exprs)
-    case Fst(_) => ???
-    case Snd(_) => ???
-    case ArrayLiter(exprs: List[Expr]) =>  exprs.traverse(evaluate).map(elems => ArrayBaseLiteral(elems.toArray))
-    case NewPair(_, _) => ???
+    case fst: Fst => pairAccessHandler(fst) match
+      case None => ???
+      case Some(value) => value match
+        case e: Expr => evaluate(e)
+
+    case snd: Snd => pairAccessHandler(snd)
+
+    case ArrayLiter(exprs: List[Expr]) =>  exprs.traverse(evaluate).map(elems => ArrayBaseLiteral(Some(elems.toArray)))
+    case NewPair(e1: Expr, e2: Expr) => (e1: Expr, e2: Expr) match
+      case (e1: QualifiedName, e2: QualifiedName) =>
+        Some(PairLiteral(Some(QualifiedNameContainer(e1)), Some(QualifiedNameContainer(e2))))
+      case (e1: QualifiedName, e2: Expr) =>
+        Some(PairLiteral(Some(QualifiedNameContainer(e1)), evaluate(e2)))
+      case (e1: Expr, e2: QualifiedName) =>
+        Some(PairLiteral(evaluate(e1), Some(QualifiedNameContainer(e2))))
+      case (e1: Expr, e2: Expr) =>
+        Some(PairLiteral(evaluate(e1), evaluate(e2)))
 
   def assgnHandler: Assgn => Option[TypeOrPairElemValue] = {
     case Assgn(t, identifier, rValue) => {
@@ -252,11 +371,11 @@ class Interpreter(prog: Prog) {
     case Some(BoolLiteral(bool)) => bool.toString()
     case Some(StringLiteral(string)) => string
     case Some(CharLiteral(char)) => char.toString()
-    case Some(ArrayBaseLiteral(elems)) =>
-      elems.collect { case CharLiteral(c) => c }.mkString match {
+    case Some(ArrayBaseLiteral(Some(elems))) =>
+      elems.collect { case (CharLiteral(c)) => c }.mkString match {
         case "" => s"0x${System.identityHashCode(elems).toHexString}" // If no CharLiterals are found
         case str => str
       }
-    case None => "None"  // Handle the None case
-
+    case Some(pair @ PairLiteral(_, _)) => s"0x${System.identityHashCode(pair).toHexString}"
+    case Some(QualifiedNameContainer(qn)) => itemStringHandler(evaluate(qn))
 }

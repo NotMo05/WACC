@@ -20,7 +20,9 @@ case class BoolLiteral(bool: Boolean) extends Expr, TypeOrPairElemValue
 case class StringLiteral(string: String) extends Expr, TypeOrPairElemValue
 case class CharLiteral(char: Char) extends Expr, TypeOrPairElemValue
 case class Ident(identifier: String) extends Expr, LValue, RValue
-case class ArrayBaseLiteral(elems: Array[TypeOrPairElemValue]) extends TypeOrPairElemValue //necessary for arrays in the interpreter
+case class QualifiedNameContainer(qn: QualifiedName) extends TypeOrPairElemValue
+case class ArrayBaseLiteral(var elems: Option[Array[TypeOrPairElemValue]]) extends TypeOrPairElemValue
+case class PairLiteral(var fst: Option[TypeOrPairElemValue], var snd: Option[TypeOrPairElemValue]) extends TypeOrPairElemValue
 case class ArrayElem(arrayName: Ident, index: List[Expr]) extends Expr, LValue
 
 object IntLiteral extends ParserBridge1[BigInt, IntLiteral]

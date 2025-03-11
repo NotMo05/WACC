@@ -81,7 +81,6 @@ object IR {
 
   def foldConstStmtHelper(stmt: Stmt): Stmt = {
     stmt match {
-      case Skip => Skip
       case Read(lValue) => Read(lValue)
       case Free(expr) => Free(foldConstExprHelper(expr))
       case Return(expr) => Return(foldConstExprHelper(expr))
@@ -127,6 +126,7 @@ object IR {
       }
       
       case Scope(stmts) => Scope(stmts.map(foldConstStmtHelper))
+      case _ => Skip
     }
   }
 
@@ -498,6 +498,7 @@ object IR {
       }
       case WhileDo(condition, stmts) => whileGen(condition, stmts, asmBuilder)
       case IfElse(condition, thenStmts, elseStmts) => ifElseGen(condition, thenStmts, elseStmts, asmBuilder)
+      case Import(_) => ()
     }
 
   // Generates assembly instructions for reassigning a value to a variable

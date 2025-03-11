@@ -6,18 +6,41 @@ import parsley.expr.{precedence}
 import parsley.{Parsley, Result}
 import parsley.Parsley.{atomic, some, pure, notFollowedBy, many}
 import wacc.front_end.lexer._
+import scala.io.Source
+import parsley.{Success, Failure}
 
 object parser {
-  def parse(input: String): Result[String, Prog] = parser.parse(input)
+  def parse(input: String): Result[String, Prog] = {
+  parser.parse(input).map { prog =>
+    // Extract the statements and functions from the Prog case class
+    val (funcs, stmts) = (prog match {
+      case Prog(fs, ss) => (fs, ss)
+    })
+    val importedFuncs = collectImports(stmts)
+    Prog(funcs ++ importedFuncs, stmts)
+  }
+}
   private val parser = fully(program)
 
   private lazy val program = Prog("begin" ~> many(atomic(func)), stmts <~ "end")
+
   private lazy val func = Func(
   typeParser,
     ident,
     "(" ~> onceOrEmptyList(paramList) <~ ")",
     "is" ~> stmts.filter(returns(_)) <~ "end"
   )
+
+  private def collectImports(stmts: List[Stmt]): List[Func] = {
+    stmts.flatMap {
+      case Import(funcs) => funcs
+      case IfElse(_, thenStmts, elseStmts) => 
+        collectImports(thenStmts) ++ collectImports(elseStmts)
+      case WhileDo(_, bodyStmts) => collectImports(bodyStmts)
+      case Scope(bodyStmts) => collectImports(bodyStmts)
+      case _ => List()
+    }
+  }
 
   private lazy val param = (Param(typeParser, ident <~ notFollowedBy("=")))
   private lazy val paramList = sepBy1(param, ",")
@@ -45,7 +68,24 @@ object parser {
   private lazy val ifStmt = IfElse("if" ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
   private lazy val arrayElem = ArrayElem(ident, some("[" ~> expr <~ "]"))
   private lazy val pairElem = Fst("fst" ~> lValue) | Snd("snd" ~> lValue)
-  private lazy val importStmt = Import("import" ~> stringLiteral) // import statement matching
+  private lazy val importStmt = "import" ~> stringLiteral.flatMap { pathLit =>
+    val path = pathLit.string  // Extract the string value properly
+    try {
+      val importedSource = Source.fromFile(path).mkString
+      parser.parse(importedSource) match {
+        case Success(importedAst) => 
+          pure(Import(importedAst.funcs))
+        case Failure(msg) => 
+         throw new Exception(f"error inside other file $msg") 
+        }
+      } catch {
+        case e: Exception =>
+          // Or get the stack trace as a string
+          val stackTrace = e.getStackTrace.mkString("\n")
+          println(s"Stack trace:\n$stackTrace")
+          throw new Exception(f"compilation not successful ${e.getMessage()}")
+    }
+  }
 
   private lazy val typeParser = atomic(arrayType) | interimTypes
 

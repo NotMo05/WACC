@@ -50,7 +50,7 @@ private def readChar(): Option[Char] = {
       isNegative = true
       nextChar()
     }
-
+    
     // Read digits
     while (peekChar().exists(_.isDigit)) {
       result = result * 10 + (nextChar().get - '0')

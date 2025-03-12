@@ -91,25 +91,27 @@ class Interpreter(prog: Prog) {
 
   def readHandler(lValue: LValue): Option[TypeOrPairElemValue] = {
     lValue match
-      case qn: QualifiedName => {
+      case qn: QualifiedName =>
         qn.t match
           case IntType => reader.readInt() match
             case None => ???
             case Some(int) => reasgnHandler(lValue, IntLiteral(int))
-
-
           case CharType => reader.nextChar() match
             case None => ???
             case Some(value) => value match
               case c: Char => reasgnHandler(lValue, CharLiteral(c))
 
-      }
-      case ArrayElem(arrayName, index) => ???
+      case ArrayElem(qn: QualifiedName, indexes) => arrayLiterAccessHandler(qn, indexes) match
+        case IntLiteral(int) => reader.readInt() match
+            case None => ???
+            case Some(int) => arrayLiterAssgnHandler(qn, indexes, Some(IntLiteral(int)))
+        case CharLiteral(char) => reader.nextChar() match
+            case None => ???
+            case Some(value) => value match
+              case c: Char => arrayLiterAssgnHandler(qn, indexes, Some(CharLiteral(c)))
+
       case Fst(lValue) => ???
       case Snd(lValue) => ???
-
-
-
 
   }
 

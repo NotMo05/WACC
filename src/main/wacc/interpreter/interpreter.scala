@@ -7,6 +7,7 @@ import cats.implicits._
 import os.read.inputStream
 import java.util.Scanner
 import wacc.front_end.semantic.newPairHandle
+import wacc.front_end.BinaryOperator
 
 case class ExitException(code: Option[TypeOrPairElemValue]) extends RuntimeException
 case class FailedToEvaluate(message: String) extends RuntimeException
@@ -263,7 +264,7 @@ class Interpreter(prog: Prog) {
     case ArrayElem(arrayName: Ident, indexes: List[Expr]) =>
       arrayName match
         case arrayName: QualifiedName => Some(arrayLiterAccessHandler(arrayName, indexes))
-    case NullLiteral => ???
+    case NullLiteral => Some(NullLiteral)
 
     case unaryOp: UnaryOperator => unaryEvaluator(unaryOp)
     case binaryOp: BinaryOperator => binEvaluator(binaryOp)
@@ -346,12 +347,12 @@ class Interpreter(prog: Prog) {
         case (Some(CharLiteral(a)), Some(CharLiteral(b))) => Some(BoolLiteral(a == b))
         case (Some(BoolLiteral(a)), Some(BoolLiteral(b))) => Some(BoolLiteral(a == b))
         case (Some(ArrayBaseLiteral(es1)), Some(ArrayBaseLiteral(es2))) => Some(BoolLiteral(es1 eq es2)) //check referential equality
+        case (Some(NullLiteral), Some(NullLiteral)) => Some(BoolLiteral(true))
+        case (Some(p1: PairLiteral), Some(NullLiteral)) => Some(BoolLiteral(false))
+        case (Some(NullLiteral), Some(p2: PairLiteral)) => Some(BoolLiteral(false))
 
-      case NotEq(l: Expr, r: Expr) => (evalBinaryOp(l, r): @unchecked) match
-        case (Some(IntLiteral(a)), Some(IntLiteral(b))) => Some(BoolLiteral(a != b))
-        case (Some(CharLiteral(a)), Some(CharLiteral(b))) => Some(BoolLiteral(a != b))
-        case (Some(BoolLiteral(a)), Some(BoolLiteral(b))) => Some(BoolLiteral(a != b))
-        case (Some(ArrayBaseLiteral(es1)), Some(ArrayBaseLiteral(es2))) => Some(BoolLiteral((es1 ne es2))) //check referential equality
+      case NotEq(l, r) => binEvaluator(Eq(l, r).asInstanceOf[BinaryOperator]).getOrElse(exprCouldntEval) match
+        case BoolLiteral(bool) => Some(BoolLiteral(!bool))
 
       case And(l: Expr, r: Expr) => evalBinaryLogicalOp(l, r, (a, b) => a && b)
       case Or(l: Expr, r: Expr) => evalBinaryLogicalOp(l, r, (a, b) => a || b)
@@ -378,4 +379,5 @@ class Interpreter(prog: Prog) {
       }
     case Some(pair @ PairLiteral(_, _)) => s"0x${System.identityHashCode(pair).toHexString}"
     case Some(QualifiedNameContainer(qn)) => itemStringHandler(evaluate(qn))
+    case Some(NullLiteral) => "(nil)"
 }

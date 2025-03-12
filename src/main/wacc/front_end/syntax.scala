@@ -32,7 +32,7 @@ object CharLiteral extends ParserBridge1[Char, CharLiteral]
 object Ident extends ParserBridge1[String, Ident]
 object ArrayElem extends ParserBridge2[Ident, List[Expr], ArrayElem]
 
-case object NullLiteral extends Expr
+case object NullLiteral extends Expr, TypeOrPairElemValue
 
 // Statements
 

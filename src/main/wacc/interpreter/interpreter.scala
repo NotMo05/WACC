@@ -8,6 +8,7 @@ import os.read.inputStream
 import java.util.Scanner
 import wacc.front_end.semantic.newPairHandle
 import wacc.front_end.BinaryOperator
+import wacc.front_end.lexer.ident
 
 case class ExitException(code: Option[TypeOrPairElemValue]) extends RuntimeException
 case class FailedToEvaluate(message: String) extends RuntimeException
@@ -83,11 +84,15 @@ class Interpreter(prog: Prog) {
     case Free(expr) => {
       evaluate(expr) match
         case None => exprCouldntEval
-        case Some(value) => (value: @unchecked) match
+        case Some(value) => (value) match
           case StringLiteral(string) => ???
           case arr: ArrayBaseLiteral => arr.elems match
             case None => exprCouldntEval
             case Some(value) => arr.elems = None; None
+          case p: PairLiteral => (p.fst, p.snd) match
+            case (Some(fst), Some(snd)) => p.fst = None; p.snd = None; None
+            case _ => exprCouldntEval
+          case NullLiteral => ???
     }
     case Exit(code) => throw new ExitException((evaluate(code): @unchecked) match
       case Some(value) => (value: @unchecked) match
@@ -192,8 +197,6 @@ class Interpreter(prog: Prog) {
         }
     }
   }
-
-
 
   def arrayLiterAssgnHandler(arrayName: QualifiedName, indexes: List[Expr], newRValue: Option[TypeOrPairElemValue]) = {
     val (arrayBase, lastIndex) = resolveArrayElem(arrayName, indexes)

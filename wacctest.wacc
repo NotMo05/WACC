@@ -7,10 +7,7 @@
 # Program:
 
 begin
-  int x = 200 + 300;
-  int y = x + 400;
-  int z = x + y;
-  println(x);
-  println(y);
-  println(z)
+  import "/home/adiprabs/server_projects/WACC_06/src/test/wacc/wacc-examples/valid/function/simple_functions/functionSimpleLoop.wacc";
+  int a = call f(1, 2);
+  println(a)
 end

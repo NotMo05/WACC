@@ -97,8 +97,8 @@ def rValueHandler(
       case NewPair(fst, snd) =>
         NewPair(exprHandler(fst, current, parent), exprHandler(snd, current, parent))
       case c: Call => {
-        scopeErrors += s"Function ${c.ident} has not been defined"
-        Call(QualifiedFunc(Undefined, "", 0, List()), List())
+        scopeErrors += s"Function ${c.ident.identifier} has not been defined"
+        Call(QualifiedFunc(Undefined, c.ident.identifier, 0, List()), List())
       }
     }
 

@@ -1,12 +1,16 @@
 package wacc.front_end
 
+import java.nio.file.{Files, Paths}
+
 object semantic {
   val semErrors = List.newBuilder[String]
+  var functionMap: Map[String, Func] = Map()
 
   def analyse(prog: Prog): List[String] = {
     semErrors.clear()
+    functionMap = prog.funcs.map(f => f.identifier.identifier -> f).toMap
     prog.funcs.foreach(validFunction)
-    prog.main.foreach(validStmtArgs(_))
+    prog.main.foreach(stmt => validStmtArgs(stmt))
     semErrors.result()
   }
 
@@ -37,23 +41,61 @@ object semantic {
         case t => t
 
       // Check right num and types of arguments in function call
-      case Call(ident, args) => ident match
-        case qn: QualifiedFunc if qn.t == Undefined => None
-        case qn: QualifiedFunc if
-          qn.paramNum == args.size &&
-          qn.paramTypes.zip(args.map(getExprType(_)).flatten).forall((a,b) =>
-            a weakensTo b) => Some(qn.t)
-        case _ =>
-          semErrors += "Unexpected issue with parameters, incorrect number of args or types don't match"; None
+      case Call(ident, args) => 
+        println(s"DEBUG: Processing function call with ident: $ident (${ident.getClass.getName})")
+        
+        def checkFunction(funcName: String): Option[Type] = {
+          if (funcName.isEmpty) {
+            semErrors += s"Empty function name in function call"
+            None
+          } else if (functionMap.contains(funcName)) {
+            val func = functionMap(funcName)
+            // Check argument count separately from argument types
+            if (func.params.size != args.size) {
+              semErrors += s"Function call to '$funcName' has incorrect number of arguments: expected ${func.params.size}, got ${args.size}"
+              None
+            } else if (!func.params.zip(args).forall((param, arg) => {
+              getExprType(arg) match {
+                case Some(argType) => param.t weakensTo argType
+                case None => false
+              }
+            })) {
+              // Print more detailed type mismatch info if needed
+              val argTypeInfo = func.params.zip(args).zipWithIndex.map { case ((param, arg), idx) =>
+                val argType = getExprType(arg).map(typeToString).getOrElse("unknown")
+                val paramType = typeToString(param.t)
+                s"arg ${idx+1}: expected $paramType, got $argType"
+              }.mkString(", ")
+              semErrors += s"Function call to '$funcName' has arguments of incorrect type: $argTypeInfo"
+              None
+            } else {
+              Some(func.t)
+            }
+          } else {
+            semErrors += s"Undefined function '$funcName'"
+            None
+          }
+        }
+        
+        ident match
+          case qn: QualifiedFunc if qn.t == Undefined => 
+            val funcName = qn.identifier
+            println(s"DEBUG: QualifiedFunc name: '$funcName'")
+            checkFunction(funcName)
+            
+          case regularIdent: Ident =>
+            val funcName = regularIdent.identifier
+            println(s"DEBUG: Regular ident name: '$funcName'") 
+            checkFunction(funcName)
 
       case ArrayLiter(elems) => arrayLiterHandle(elems)
       case NewPair(fst, snd) => newPairHandle(fst, snd)
       case Fst(lValue) => pairElemHandle(lValue) match
-        case None => semErrors += "Expected a valid type here in pair first";None
+        case None => semErrors += "Expected a valid type here in pair first"; None
         case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType))
         case Some(PairType(t1, _)) => Some(t1.asInstanceOf[Type])
       case Snd(lValue) => pairElemHandle(lValue) match
-        case None => semErrors += "Expected a valid type here in pair second";None
+        case None => semErrors += "Expected a valid type here in pair second"; None
         case Some(PairType(_, Pair)) => Some(PairType(AnyType, AnyType))
         case Some(PairType(_, t2)) => Some(t2.asInstanceOf[Type])
   }
@@ -77,6 +119,10 @@ object semantic {
       case qn: QualifiedName => qn.t match
         case Undefined => None 
         case t => Some(t)
+      case ident: Ident => 
+        println(s"DEBUG: Processing Ident: ${ident.identifier}")
+        // Rest of your code...
+        None
       case op: Operator => getOperType(op)
       case IntLiteral(_) => Some(IntType)
       case BoolLiteral(_) => Some(BoolType)
@@ -84,7 +130,6 @@ object semantic {
       case CharLiteral(_) => Some(CharType)
       case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index)
       case NullLiteral => Some(PairType(AnyType, AnyType))
-      case Ident(_) => None
   }
 
   private def exprsMatchType(expr1: Expr, expr2: Expr, t: Type): Option[Boolean] = {
@@ -273,16 +318,61 @@ object semantic {
       case Println(expr) => getExprType(expr)
 
       case Import(filePath) => {
-        import java.nio.file.{Files, Paths}
-        
         val path = filePath.string
-        
-        if (path.nonEmpty && !Files.exists(Paths.get(path))) {
+        if (path.nonEmpty && Files.exists(Paths.get(path))) {
+          processImport(path)
+        } else {
           semErrors += s"error: import path '$path' does not exist"
         }
       }
 
       case Skip => ()
+  }
+
+  def processImport(path: String): Unit = {
+    try {
+      // Read the file content
+      val content = new String(Files.readAllBytes(Paths.get(path)))
+      
+      // Parse the file to get an AST
+      val parseResult = parser.parse(content)
+      
+      // Extract function definitions and add to functionMap
+      parseResult match {
+        case parsley.Success(program) => program match {
+          case Prog(funcs, _) =>
+            println(s"DEBUG: Found ${funcs.size} functions in imported file")
+            funcs.foreach { func =>
+              val funcName = func.identifier.identifier
+              if (funcName.nonEmpty) {
+                println(s"DEBUG: Importing function '$funcName' with ${func.params.size} parameters")
+                functionMap += (funcName -> func)
+                
+                // IMPORTANT: Also update funcTypes in renaming module to keep them in sync
+                renaming.funcTypes(funcName) = new renaming.QualifiedFunc(
+                  func.t, 
+                  funcName, 
+                  func.params.size,  // Set correct parameter count
+                  func.params.map(_.t)  // Set correct parameter types
+                )
+                
+                println(s"DEBUG: imported $funcName with body: ${func}")
+              } else {
+                semErrors += s"Warning: Skipped importing function with empty name"
+                println(s"DEBUG: Found function with empty name: $func")
+              }
+            }
+        }
+        case parsley.Failure(msg) => 
+          semErrors += s"error: imported file '$path' is not a valid WACC program: $msg"
+          println(s"DEBUG: Failed to parse imported file: $msg")
+      }
+    } catch {
+      case e: Exception => 
+        semErrors += s"error processing import '$path': ${e.getMessage}"
+        println(s"DEBUG: Exception while importing: ${e.getMessage}")
+        e.printStackTrace()
+    }
   }
 
 /* Ensures that reading is defined properly with types

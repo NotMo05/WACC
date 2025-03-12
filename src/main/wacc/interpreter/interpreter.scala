@@ -4,8 +4,6 @@ import wacc.front_end._
 import scala.collection.mutable
 import scala.collection.immutable
 import cats.implicits._
-import os.read.inputStream
-import java.util.Scanner
 import wacc.front_end.semantic.newPairHandle
 import wacc.front_end.BinaryOperator
 import wacc.front_end.lexer.ident
@@ -19,7 +17,8 @@ enum PrintType:
 final val exprCouldntEval = throw new FailedToEvaluate("Somehow the expr did not evaluate")
 
 class Interpreter(prog: Prog) {
-  val scanner = new Scanner(System.in)
+  val reader = TerminalReader
+
   val identTables: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()
   lazy val funcTable: immutable.Map[QualifiedFunc, Func] = // lazy as  functions may not be called
     prog.funcs.map {
@@ -69,17 +68,7 @@ class Interpreter(prog: Prog) {
     case assgn: Assgn => assgnHandler(assgn)
     case ReAssgn(lValue, rValue) => reasgnHandler(lValue, rValue)
     case Skip => None
-    case Read(lValue: LValue) => {
-      (lValue: @unchecked) match
-        case qn: QualifiedName => {
-          (identTables.top(qn): @unchecked) match
-            case IntLiteral(int) => scala.io.StdIn.readInt()
-            case CharLiteral(char) =>
-            case ArrayBaseLiteral(elems) =>
-        }
-        case ArrayElem(arrayName, index) =>
-      None
-      }
+    case Read(lValue: LValue) => readHandler(lValue)
 
     case Free(expr) => {
       evaluate(expr) match
@@ -98,6 +87,30 @@ class Interpreter(prog: Prog) {
       case Some(value) => (value: @unchecked) match
         case IntLiteral(int) => Some(IntLiteral(int % 128))
     )
+  }
+
+  def readHandler(lValue: LValue): Option[TypeOrPairElemValue] = {
+    lValue match
+      case qn: QualifiedName => {
+        qn.t match
+          case IntType => reader.readInt() match
+            case None => ???
+            case Some(int) => reasgnHandler(lValue, IntLiteral(int))
+
+
+          case CharType => reader.nextChar() match
+            case None => ???
+            case Some(value) => value match
+              case c: Char => reasgnHandler(lValue, CharLiteral(c))
+
+      }
+      case ArrayElem(arrayName, index) => ???
+      case Fst(lValue) => ???
+      case Snd(lValue) => ???
+
+
+
+
   }
 
   def reasgnHandler(lValue: LValue, rValue: RValue): Option[TypeOrPairElemValue] = {
@@ -221,7 +234,10 @@ class Interpreter(prog: Prog) {
       case Some(value) => value match
         case e: Expr => evaluate(e)
 
-    case snd: Snd => pairAccessHandler(snd)
+    case snd: Snd => pairAccessHandler(snd) match
+      case None => ???
+      case Some(value) => value match
+        case e: Expr => evaluate(e)
 
     case ArrayLiter(exprs: List[Expr]) =>  exprs.traverse(evaluate).map(elems => ArrayBaseLiteral(Some(elems.toArray)))
     case NewPair(e1: Expr, e2: Expr) => (e1: Expr, e2: Expr) match

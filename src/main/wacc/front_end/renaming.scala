@@ -3,6 +3,7 @@ import scala.collection.mutable.LinkedHashMap
 import scala.collection.mutable
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.nio.file.Path
 
 class QualifiedName(val name: String, val num: Int, val t: Type) extends Ident(name) {
 
@@ -56,26 +57,77 @@ def combineImportedFuncs(prog: ProgWithImports): Prog = {
 
 def processImport(path: String): List[Func] = {
   try {
+    // Resolve the import path
+    val resolvedPath = resolveImportPath(path)
+    
+    // If path couldn't be resolved, return empty list
+    if (resolvedPath.isEmpty) {
+      println(s"DEBUG: Import file not found: $path")
+      return List()
+    }
+    
+    println(s"DEBUG: Importing from resolved path: ${resolvedPath.get}")
+    
     // Read the file content
-    val content = new String(Files.readAllBytes(Paths.get(path)))
+    val content = new String(Files.readAllBytes(resolvedPath.get))
 
     // Parse the file to get an AST
     val parseResult = parser.parse(content)
 
-    // Extract function definitions and add to functionMap
+    // Extract function definitions
     parseResult match {
       case parsley.Success(program) => program match {
         case ProgWithImports(_, funcs, _) =>
+          println(s"DEBUG: Successfully imported ${funcs.size} functions from $path")
           funcs
       }
       case parsley.Failure(msg) =>
+        println(s"DEBUG: Failed to parse import file: $path - $msg")
         List()
     }
   } catch {
     case e: Exception =>
+      println(s"DEBUG: Error processing import: $path - ${e.getMessage}")
       e.printStackTrace()
       List()
   }
+}
+
+/**
+ * Resolves an import path to an actual file path.
+ * Handles stdlib imports and relative paths.
+ * 
+ * @param path The import path from the WACC file
+ * @return An Optional Path to the file, or None if the file couldn't be found
+ */
+def resolveImportPath(path: String): Option[Path] = {
+  val projectRoot = Paths.get(System.getProperty("user.dir"))
+  
+  // For stdlib imports
+  if (path.startsWith("stdlib/")) {
+    val stdlibPath = projectRoot.resolve(path)
+    if (Files.exists(stdlibPath)) {
+      println(s"DEBUG: Found stdlib file at: $stdlibPath")
+      return Some(stdlibPath)
+    }
+  }
+  
+  // Try as a relative path from the current directory
+  val relativePath = projectRoot.resolve(path)
+  if (Files.exists(relativePath)) {
+    println(s"DEBUG: Found file via relative path: $relativePath")
+    return Some(relativePath)
+  }
+  
+  // Try as an absolute path
+  val absolutePath = Paths.get(path)
+  if (Files.exists(absolutePath)) {
+    println(s"DEBUG: Found file via absolute path: $absolutePath")
+    return Some(absolutePath)
+  }
+  
+  println(s"DEBUG: Could not resolve import path: $path")
+  None
 }
 
 // check for duplicates

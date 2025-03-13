@@ -110,8 +110,17 @@ class Interpreter(prog: Prog) {
             case Some(value) => value match
               case c: Char => arrayLiterAssgnHandler(qn, indexes, Some(CharLiteral(c)))
 
-      case Fst(lValue) => ???
-      case Snd(lValue) => ???
+      case lValue: (Fst | Snd) => pairAccessHandler(lValue) match
+        case None => ???
+        case Some(value) => value match
+          case IntLiteral(int) => reader.readInt() match
+            case None => ???
+            case Some(int) => reasgnHandler(lValue, IntLiteral(int))
+
+          case CharLiteral(char) => reader.nextChar() match
+            case None => ???
+            case Some(char) => reasgnHandler(lValue, CharLiteral(char))
+
 
   }
 
@@ -152,7 +161,6 @@ class Interpreter(prog: Prog) {
             case None => ???
             case Some(value) => value match
               case QualifiedNameContainer(qn) => qn
-        // case ArrayElem(qn: QualifiedName, indexes) => arrayLiterAssgnHandler(qn, indexes, newRValue.getOrElse())
 
       case Snd(lValue) => lValue match
         case qn: QualifiedName => qn

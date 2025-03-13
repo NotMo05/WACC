@@ -12,6 +12,7 @@ enum PrintType:
   case PrintLn, Print
 
 final val exprCouldntEval = throw new FailedToEvaluate("Somehow the expr did not evaluate")
+final val couldNotFindOnTable = throw new IllegalStateException("Somehow could not find the qn on the table")
 
 class Interpreter(prog: Prog) {
   val reader = TerminalReader
@@ -117,8 +118,6 @@ class Interpreter(prog: Prog) {
           case CharLiteral(char) => reader.nextChar() match
             case None => ???
             case Some(char) => reasgnHandler(lValue, CharLiteral(char))
-
-
   }
 
   def reasgnHandler(lValue: LValue, rValue: RValue): Option[TypeOrPairElemValue] = {
@@ -129,49 +128,60 @@ class Interpreter(prog: Prog) {
       case ArrayElem(arrayName: QualifiedName, indexes) => arrayLiterAssgnHandler(arrayName, indexes, newRValue)
 
       case lValue: Fst => {
-        val current = identTables.top(pairReasgnHandler(lValue))
-        identTables.top(pairReasgnHandler(lValue)) = (current: @unchecked) match
-          case PairLiteral(_, snd) => PairLiteral(newRValue, snd)
+        val qn = pairReasgnHandler(lValue, newRValue)
+        qn match
+          case Some(qn) =>
+            val current = identTables.top(qn)
+            identTables.top(qn) = (current: @unchecked) match
+            case PairLiteral(_, snd) => PairLiteral(newRValue, snd)
+          case None =>
         None
       }
 
       case lValue: Snd => {
-        val current = identTables.top(pairReasgnHandler(lValue))
-        identTables.top(pairReasgnHandler(lValue)) = (current: @unchecked) match
-          case PairLiteral(fst, _) => PairLiteral(fst, newRValue)
+        val qn = pairReasgnHandler(lValue, newRValue)
+        qn match
+          case Some(qn) =>
+            val current = identTables.top(qn)
+            identTables.top(qn) = (current: @unchecked) match
+            case PairLiteral(fst, _) => PairLiteral(fst, newRValue)
+          case None =>
         None
       }
   }
 
-  def pairReasgnHandler(lValue: LValue, newRValue: Option[RValue] = None): QualifiedName = {
+  def pairReasgnHandler(lValue: LValue, newRValue: Option[TypeOrPairElemValue] = None): Option[QualifiedName] = {
     (lValue: @unchecked) match
       case Fst(lValue) => (lValue: @unchecked) match
-        case qn: QualifiedName => qn
-        case lValue: Fst => (identTables.top(pairReasgnHandler(lValue)): @unchecked) match
+        case ArrayElem(arrayName: QualifiedName, indexes) => arrayLiterAssgnHandler(arrayName, indexes, newRValue)
+        case qn: QualifiedName => Some(qn)
+        case lValue: Fst => (identTables.top(pairReasgnHandler(lValue, newRValue).getOrElse(couldNotFindOnTable)): @unchecked) match
           case PairLiteral(fst, _) => fst match
             case None => ???
             case Some(value) => (value: @unchecked) match
-              case QualifiedNameContainer(qn) => qn
+              case QualifiedNameContainer(qn) => Some(qn)
 
-        case lValue: Snd => (identTables.top(pairReasgnHandler(lValue)): @unchecked) match
+        case lValue: Snd => (identTables.top(pairReasgnHandler(lValue, newRValue).getOrElse(couldNotFindOnTable)): @unchecked) match
           case PairLiteral(_, snd) => snd match
             case None => ???
             case Some(value) => (value: @unchecked) match
-              case QualifiedNameContainer(qn) => qn
+              case QualifiedNameContainer(qn) => Some(qn)
 
       case Snd(lValue) => (lValue: @unchecked) match
-        case qn: QualifiedName => qn
-        case lValue: Fst => (identTables.top(pairReasgnHandler(lValue)): @unchecked) match
+        case ArrayElem(arrayName: QualifiedName, indexes) => arrayLiterAssgnHandler(arrayName, indexes, newRValue)
+        case qn: QualifiedName => Some(qn)
+        case lValue: Fst => (identTables.top(pairReasgnHandler(lValue).getOrElse(couldNotFindOnTable)): @unchecked) match
           case PairLiteral(fst, _) => fst match
             case None => ???
             case Some(value) => (value: @unchecked) match
-              case QualifiedNameContainer(qn) => qn
+              case QualifiedNameContainer(qn) => Some(qn)
 
-        case lValue: Snd => (identTables.top(pairReasgnHandler(lValue)): @unchecked) match
+        case lValue: Snd => (identTables.top(pairReasgnHandler(lValue).getOrElse(couldNotFindOnTable)): @unchecked) match
           case PairLiteral(_, snd) => snd match
             case None => ???
             case Some(value) => (value: @unchecked) match
-              case QualifiedNameContainer(qn) => qn
+              case QualifiedNameContainer(qn) => Some(qn)
+
 
   }
 
@@ -186,6 +196,7 @@ class Interpreter(prog: Prog) {
             case QualifiedNameContainer(qn) => Some(identTables.top(qn))
             case e: Expr => evaluate(e)
         case e: Expr => evaluate(e)
+        case QualifiedNameContainer(qn) => pairAccessHandler(Fst(qn))
 
     case Snd(lValue) => pairAccessHandler(lValue) match
       case None => ???
@@ -196,6 +207,8 @@ class Interpreter(prog: Prog) {
             case QualifiedNameContainer(qn) => Some(identTables.top(qn))
             case e: Expr => evaluate(e)
         case e: Expr => evaluate(e)
+        case QualifiedNameContainer(qn) => pairAccessHandler(Snd(qn))
+    case ArrayElem(qn: QualifiedName, indexes) => Some(arrayLiterAccessHandler(qn, indexes))
 
   def resolveArrayElem(arrayName: QualifiedName, indexes: List[Expr]): (ArrayBaseLiteral, Int) = {
     (identTables.top(arrayName), indexes.map(evaluate(_))) match {
@@ -292,7 +305,11 @@ class Interpreter(prog: Prog) {
     case bool: BoolLiteral => Some(bool)
     case string: StringLiteral => Some(string)
     case char: CharLiteral => Some(char)
-    case qn: QualifiedName => Some(identTables.top(qn))
+    case qn: QualifiedName => Some(identTables.top(qn)) match
+      case Some(value) => value match
+        case PairLiteral(_, _) => Some(QualifiedNameContainer(qn))
+        case v => Some(v)
+
     case ArrayElem(arrayName: Ident, indexes: List[Expr]) =>
       arrayName match
         case arrayName: QualifiedName => Some(arrayLiterAccessHandler(arrayName, indexes))

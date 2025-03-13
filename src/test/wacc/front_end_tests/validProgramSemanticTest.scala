@@ -35,9 +35,8 @@ class validProgramSemanticTest extends AnyFlatSpec {
             assert(errors.isEmpty && semantic.analyse(newProg).isEmpty)
 
             val writer = new PrintWriter(newFile)
-            writer.write(FileUtils.formatString(newProg.toString)) // Write your content
+            writer.write(newProg.prettyPrint()) // Write your content
             writer.close()
-
           }
           case Failure(msg) => fail(s"$msg?")
         }

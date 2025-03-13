@@ -4,7 +4,7 @@ import scala.collection.mutable
 import java.nio.file.Files
 import java.nio.file.Paths
 
-class QualifiedName(val name: String, val num: Int, val t:Type) extends Ident(name) {
+class QualifiedName(val name: String, val num: Int, val t: Type) extends Ident(name) {
 
   override def toString() = s"$name$num"
   override def equals(obj: Any): Boolean = obj match {
@@ -58,21 +58,21 @@ def processImport(path: String): List[Func] = {
   try {
     // Read the file content
     val content = new String(Files.readAllBytes(Paths.get(path)))
-    
+
     // Parse the file to get an AST
     val parseResult = parser.parse(content)
-    
+
     // Extract function definitions and add to functionMap
     parseResult match {
       case parsley.Success(program) => program match {
         case ProgWithImports(_, funcs, _) =>
           funcs
       }
-      case parsley.Failure(msg) => 
+      case parsley.Failure(msg) =>
         List()
     }
   } catch {
-    case e: Exception => 
+    case e: Exception =>
       e.printStackTrace()
       List()
   }
@@ -81,8 +81,8 @@ def processImport(path: String): List[Func] = {
 // check for duplicates
 def funcFirstPass(imports: List[Import], funcs: List[Func]) = {
   // Process imported functions
-  imports.foreach { imp => 
-    processImport(imp.filePath.string).foreach { func => 
+  imports.foreach { imp =>
+    processImport(imp.filePath.string).foreach { func =>
       val name = func.identifier.identifier
       if (funcTypes.contains(name)) {
         scopeErrors += s"Illegal redefinition of function $name"
@@ -91,7 +91,7 @@ def funcFirstPass(imports: List[Import], funcs: List[Func]) = {
       }
     }
   }
-  
+
   // Process local functions
   for (func <- funcs) {
     val name = func.identifier.identifier
@@ -207,16 +207,18 @@ def renameAssign(
   parent: Map[String, QualifiedName]
   ): Stmt = {
   if current.contains(name) then {
+    val newRValue = rValueHandler(rValue, current, parent)
     scopeErrors += s"Illegal redeclaration of variable $name"
     val newName = QualifiedName("", 0, Undefined)
-    Assgn(Undefined, newName, rValueHandler(rValue, current, parent))
+    Assgn(Undefined, newName, newRValue)
   }
 
+  val newRValue = rValueHandler(rValue, current, parent)
   globalNumberingUpdate(name)
 
   val newName = QualifiedName(name, globalNumbering(name), t)
   current(name) = newName
-  return Assgn(t, newName, rValueHandler(rValue, current, parent))
+  return Assgn(t, newName, newRValue)
 }
 
 def exprHandler(

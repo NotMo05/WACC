@@ -238,13 +238,19 @@ class Interpreter(prog: Prog) {
     case Call(qf: QualifiedFunc, exprs: List[Expr]) => callHandler(qf, exprs)
     case fst: Fst => pairAccessHandler(fst) match
       case None => ???
-      case Some(value) => (value: @unchecked) match
+      case Some(value) => (value) match
         case e: Expr => evaluate(e)
+        case qn: QualifiedNameContainer => Some(qn)
+        case arr: ArrayBaseLiteral => Some(arr)
+        case pair: PairLiteral => Some(pair)
 
     case snd: Snd => pairAccessHandler(snd) match
       case None => ???
       case Some(value) => (value: @unchecked) match
         case e: Expr => evaluate(e)
+        case qn: QualifiedNameContainer => Some(qn)
+        case arr: ArrayBaseLiteral => Some(arr)
+        case pair: PairLiteral => Some(pair)
 
     case ArrayLiter(exprs: List[Expr]) =>  exprs.traverse(evaluate).map(elems => ArrayBaseLiteral(Some(elems.toArray)))
     case NewPair(e1: Expr, e2: Expr) => (e1: Expr, e2: Expr) match

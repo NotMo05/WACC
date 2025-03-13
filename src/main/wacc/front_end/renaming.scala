@@ -102,27 +102,26 @@ def processImport(path: String): List[Func] = {
  */
 def resolveImportPath(path: String): Option[Path] = {
   val projectRoot = Paths.get(System.getProperty("user.dir"))
+  val stdlibDirectPath = projectRoot.resolve("stdlib").resolve(path)
+  val relativePath = projectRoot.resolve(path)
+  val absolutePath = Paths.get(path)
   
-  // For stdlib imports
+  // For stdlib imports (explicit paths starting with "stdlib/")
   if (path.startsWith("stdlib/")) {
     val stdlibPath = projectRoot.resolve(path)
     if (Files.exists(stdlibPath)) {
-      println(s"DEBUG: Found stdlib file at: $stdlibPath")
       return Some(stdlibPath)
     }
-  }
-  
-  // Try as a relative path from the current directory
-  val relativePath = projectRoot.resolve(path)
-  if (Files.exists(relativePath)) {
-    println(s"DEBUG: Found file via relative path: $relativePath")
+  } else if (Files.exists(stdlibDirectPath)) {
+    // Try to find the file in the stdlib directory first for any import
+    return Some(stdlibDirectPath)
+  } else if (Files.exists(relativePath)) {
+    // Try as a relative path from the current directory
     return Some(relativePath)
   }
   
-  // Try as an absolute path
-  val absolutePath = Paths.get(path)
-  if (Files.exists(absolutePath)) {
-    println(s"DEBUG: Found file via absolute path: $absolutePath")
+  else if (Files.exists(absolutePath)) {
+    // Try as an absolute path
     return Some(absolutePath)
   }
   

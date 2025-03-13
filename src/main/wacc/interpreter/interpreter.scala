@@ -17,6 +17,7 @@ final val couldNotFindOnTable = throw new IllegalStateException("Somehow could n
 class Interpreter(prog: Prog) {
   val reader = TerminalReader
 
+  val heap: mutable.Map[QualifiedName, TypeOrPairElemValue] = mutable.Map()
   val identTables: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()
   lazy val funcTable: immutable.Map[QualifiedFunc, Func] = // lazy as  functions may not be called
     prog.funcs.map {
@@ -181,8 +182,6 @@ class Interpreter(prog: Prog) {
             case None => ???
             case Some(value) => (value: @unchecked) match
               case QualifiedNameContainer(qn) => Some(qn)
-
-
   }
 
   def pairAccessHandler(lValue: LValue): Option[TypeOrPairElemValue] = (lValue: @unchecked) match
@@ -266,15 +265,7 @@ class Interpreter(prog: Prog) {
         case pair: PairLiteral => Some(pair)
 
     case ArrayLiter(exprs: List[Expr]) =>  exprs.traverse(evaluate).map(elems => ArrayBaseLiteral(Some(elems.toArray)))
-    case NewPair(e1: Expr, e2: Expr) => (e1: Expr, e2: Expr) match
-      case (e1: QualifiedName, e2: QualifiedName) =>
-        Some(PairLiteral(Some(QualifiedNameContainer(e1)), Some(QualifiedNameContainer(e2))))
-      case (e1: QualifiedName, e2: Expr) =>
-        Some(PairLiteral(Some(QualifiedNameContainer(e1)), evaluate(e2)))
-      case (e1: Expr, e2: QualifiedName) =>
-        Some(PairLiteral(evaluate(e1), Some(QualifiedNameContainer(e2))))
-      case (e1: Expr, e2: Expr) =>
-        Some(PairLiteral(evaluate(e1), evaluate(e2)))
+    case NewPair(e1: Expr, e2: Expr) => Some(PairLiteral(evaluate(e1), evaluate(e2)))
 
   def assgnHandler: Assgn => Option[TypeOrPairElemValue] = {
     case Assgn(t, identifier, rValue) => {
@@ -282,7 +273,11 @@ class Interpreter(prog: Prog) {
       val qn = identifier match
         case qn: QualifiedName => qn
 
-      identTables.top(qn) = result
+      qn.t match
+        case PairType(t1, t2) => identTables.top(qn) = result
+        case ArrayType(t, d) => identTables.top(qn) = result
+        case _ => identTables.top(qn) = result
+
       None
     }
   }
@@ -427,6 +422,6 @@ class Interpreter(prog: Prog) {
         case str => str
       }
     case Some(pair @ PairLiteral(_, _)) => s"0x${System.identityHashCode(pair).toHexString}"
-    case Some(QualifiedNameContainer(qn)) => itemStringHandler(evaluate(qn))
+    case Some(QualifiedNameContainer(qn)) => itemStringHandler(Some(identTables.top(qn)))
     case Some(NullLiteral) => "(nil)"
 }

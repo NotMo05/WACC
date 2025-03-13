@@ -28,7 +28,54 @@ case object NullLiteral extends Expr
 
 // Statements
 
-case class Prog(funcs: List[Func], main: List[Stmt])
+case class ProgWithImports(imports: List[Import], funcs: List[Func], main: List[Stmt]) {
+  def prettyPrint(): String = {
+    val stringRep = this.toString
+    val indentStep = "  "  // Define the indentation step
+    var indentLevel = 0     // Track the current indentation level
+
+    stringRep.foldLeft("") { (formattedString, char) =>
+      char match {
+        case '(' =>
+          indentLevel += 1
+          formattedString + "(\n" + " " * (indentLevel * indentStep.length)
+        case ')' =>
+          indentLevel -= 1
+          formattedString + "\n" + " " * (indentLevel * indentStep.length) + ")"
+        case ',' =>
+          formattedString + ",\n" + " " * (indentLevel * indentStep.length)
+        case ' ' =>
+          formattedString
+        case _ =>
+          formattedString + char
+      }
+    }
+  }
+}
+case class Prog(funcs: List[Func], main: List[Stmt]) {
+  def prettyPrint(): String = {
+    val stringRep = this.toString
+    val indentStep = "  "  // Define the indentation step
+    var indentLevel = 0     // Track the current indentation level
+
+    stringRep.foldLeft("") { (formattedString, char) =>
+      char match {
+        case '(' =>
+          indentLevel += 1
+          formattedString + "(\n" + " " * (indentLevel * indentStep.length)
+        case ')' =>
+          indentLevel -= 1
+          formattedString + "\n" + " " * (indentLevel * indentStep.length) + ")"
+        case ',' =>
+          formattedString + ",\n" + " " * (indentLevel * indentStep.length)
+        case ' ' =>
+          formattedString
+        case _ =>
+          formattedString + char
+      }
+    }
+  }
+}
 case class Func(t: Type, identifier: Ident, params: List[Param], stmts: List[Stmt])
 case class Call(ident: Ident, args: List[Expr]) extends RValue
 case class Param(t: Type, identifier: Ident)
@@ -37,6 +84,7 @@ case class Snd(lValue: LValue) extends LValue, RValue
 case class ArrayLiter(elems: List[Expr]) extends RValue
 case class NewPair(fst: Expr, snd: Expr) extends RValue
 
+object ProgWithImports extends ParserBridge3[List[Import], List[Func], List[Stmt], ProgWithImports]
 object Prog extends ParserBridge2[List[Func], List[Stmt], Prog]
 object Func extends ParserBridge4[Type, Ident, List[Param], List[Stmt], Func]
 object Call extends ParserBridge2[Ident, List[Expr], RValue]
@@ -58,7 +106,7 @@ case class IfElse(condition: Expr, thenStmts: List[Stmt], elseStmts: List[Stmt])
 case class Assgn(t: Type, identifier: Ident, rValue: RValue) extends Stmt
 case class ReAssgn(lValue: LValue, rValue: RValue) extends Stmt
 case class Scope(stmts: List[Stmt]) extends Stmt
-case class Import(filePath: StringLiteral) extends Stmt // Added import here
+case class Import(filePath: StringLiteral) // Added import here
 
 object Read extends ParserBridge1[LValue, Stmt]
 object Free extends ParserBridge1[Expr, Stmt]
@@ -71,7 +119,7 @@ object IfElse extends ParserBridge3[Expr, List[Stmt], List[Stmt], Stmt]
 object Assgn extends ParserBridge3[Type, Ident, RValue, Stmt]
 object ReAssgn extends ParserBridge2[LValue, RValue, Stmt]
 object Scope extends ParserBridge1[List[Stmt], Stmt]
-object Import extends ParserBridge1[StringLiteral, Stmt] // Added import here
+object Import extends ParserBridge1[StringLiteral, Import] // Added import here
 
 // Types
 

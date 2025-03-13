@@ -81,7 +81,6 @@ object IR {
 
   def foldConstStmtHelper(stmt: Stmt): Stmt = {
     stmt match {
-      case imp: Import => Skip
       case Skip => Skip
       case Read(lValue) => Read(lValue)
       case Free(expr) => Free(foldConstExprHelper(expr))
@@ -471,7 +470,6 @@ object IR {
   def stmtGen(stmt: Stmt, asmBuilder: Builder[Instr, List[Instr]]): Unit =
     (stmt: @unchecked) match {
       case Skip => ()
-      case Import(_) => ()
       case Assgn(t, qn: QualifiedName, rValue) => assgnGen(qn, rValue, asmBuilder, t)
       case ReAssgn(lValue, rValue) => reassgnGen(lValue, rValue, asmBuilder)
       case Exit(expr) => exitGen(expr, asmBuilder)

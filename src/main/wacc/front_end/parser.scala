@@ -7,14 +7,15 @@ import parsley.{Parsley, Result}
 import parsley.Parsley.{atomic, some, pure, notFollowedBy, many}
 import wacc.front_end.lexer._
 
+
 object parser {
-  def parse(input: String): Result[String, Prog] = parser.parse(input)
+  def parse(input: String): Result[String, ProgWithImports] = parser.parse(input)
   private val parser = fully(program)
 
-  private lazy val program = Prog("begin" ~> many(atomic(func)), stmts <~ "end")
+  private lazy val program = ProgWithImports("begin" ~> many(atomic(importStmt)), many(atomic(func)), stmts <~ "end")
   private lazy val func = Func(
   typeParser,
-    ident,
+    ident, 
     "(" ~> onceOrEmptyList(paramList) <~ ")",
     "is" ~> stmts.filter(returns(_)) <~ "end"
   )
@@ -105,7 +106,6 @@ object parser {
     | ifStmt
     | skipStmt
     | beginBlock
-    | importStmt // Added import stmt
 
   def returns(stmts: List[Stmt]): Boolean =
     stmts.last match
@@ -114,7 +114,6 @@ object parser {
       case Scope(stmts) => returns(stmts)
       case Return(_) => true
       case Exit(_) => true
-      case Import(_) => false // added import stmt
       case _ => false
 
 

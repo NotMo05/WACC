@@ -1,6 +1,8 @@
 package wacc.front_end
 
 import scala.collection.mutable
+import java.nio.file.Files
+import java.nio.file.Paths
 
 class QualifiedName(val name: String, val num: Int, val t:Type) extends Ident(name) {
 
@@ -14,7 +16,8 @@ class QualifiedName(val name: String, val num: Int, val t:Type) extends Ident(na
 }
 
 class QualifiedFunc(val t: Type, val funcName: String, val paramNum: Int, val paramTypes: List[Type]) extends Ident(funcName) {
-  override def toString() = {s"QualifiedFunc(t=$t, funcName=$funcName, paramNum=$paramNum, paramTypes=$paramTypes)"}
+  override def toString() = s"QualifiedFunc(t=$t, funcName=$funcName, paramNum=$paramNum, paramTypes=$paramTypes)"
+  override def hashCode() = (t, funcName, paramNum, paramTypes).##
 }
 
 val funcTypes: mutable.Map[String, QualifiedFunc] = mutable.Map()
@@ -30,23 +33,73 @@ def globalNumberingUpdate(name: String): Option[Int] = {
   }
 }
 
-def rename(prog: Prog) : (Prog, List[String]) = {
+def rename(prog: ProgWithImports) : (Prog, List[String]) = {
   scopeErrors.clear()
   globalNumbering.clear()
   funcTypes.clear()
-  funcFirstPass(prog.funcs)
+  funcFirstPass(prog.imports, prog.funcs)
+  val newProg = combineImportedFuncs(prog)
   return (
-    Prog(prog.funcs.map(funcHandler(_)),
-    scopeHandler(prog.main, Map.empty[String, QualifiedName])),
+    Prog(newProg.funcs.map(funcHandler(_)),
+    scopeHandler(newProg.main, Map.empty[String, QualifiedName])),
     scopeErrors.result()
     )
 }
 
-def funcFirstPass(funcs: List[Func]) = {
+def combineImportedFuncs(prog: ProgWithImports): Prog = {
+  val importedFuncs = prog.imports.flatMap(imports => {
+    imports match
+      case Import(filePath) => processImport(filePath.string)
+  })
+  Prog(importedFuncs ++ prog.funcs, prog.main)
+}
+
+def processImport(path: String): List[Func] = {
+  try {
+    // Read the file content
+    val content = new String(Files.readAllBytes(Paths.get(path)))
+    
+    // Parse the file to get an AST
+    val parseResult = parser.parse(content)
+    
+    // Extract function definitions and add to functionMap
+    parseResult match {
+      case parsley.Success(program) => program match {
+        case ProgWithImports(_, funcs, _) =>
+          funcs
+      }
+      case parsley.Failure(msg) => 
+        List()
+    }
+  } catch {
+    case e: Exception => 
+      e.printStackTrace()
+      List()
+  }
+}
+
+// check for duplicates
+def funcFirstPass(imports: List[Import], funcs: List[Func]) = {
+  // Process imported functions
+  imports.foreach { imp => 
+    processImport(imp.filePath.string).foreach { func => 
+      val name = func.identifier.identifier
+      if (funcTypes.contains(name)) {
+        scopeErrors += s"Illegal redefinition of function $name"
+      } else {
+        funcTypes(name) = QualifiedFunc(func.t, name, func.params.size, func.params.map(_.t))
+      }
+    }
+  }
+  
+  // Process local functions
   for (func <- funcs) {
     val name = func.identifier.identifier
-    if funcTypes.contains(name) then scopeErrors += s"Illegal redefinition of function $name"
-    funcTypes(name) = QualifiedFunc(func.t, name, func.params.size, func.params.map(_.t))
+    if (funcTypes.contains(name)) {
+      scopeErrors += s"Illegal redefinition of function $name"
+    } else {
+      funcTypes(name) = QualifiedFunc(func.t, name, func.params.size, func.params.map(_.t))
+    }
   }
 }
 
@@ -88,8 +141,9 @@ def rValueHandler(
   ): RValue = {
     rValue match
       case expr: Expr => exprHandler(expr, current, parent)
-      case Call(ident, args) if funcTypes.contains(ident.identifier) =>
-        Call(funcTypes(ident.identifier), args.map(exprHandler(_, current, parent)))
+      case Call(ident, args) if funcTypes.contains(ident.identifier) => {
+          Call(funcTypes(ident.identifier), args.map(exprHandler(_, current, parent)))
+        }
 
       case Fst(lValue) => Fst(lValueHandler(lValue, current, parent))
       case Snd(lValue) => Snd(lValueHandler(lValue, current, parent))
@@ -109,7 +163,6 @@ def renameStmt(
 ): Stmt = {
   stmt match
     case Skip => Skip
-    case imp: Import => imp // Added import
     case Assgn(t, Ident(name), rValue) => renameAssign(t, name, rValue, current, parent)
     case ReAssgn(lValue, rValue) =>
       ReAssgn(lValueHandler(lValue, current, parent), rValueHandler(rValue, current, parent))

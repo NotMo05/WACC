@@ -9,16 +9,16 @@ object TerminalReader {
   private var currentChar: Option[Char] = None
 
   // Read a single character from the terminal
-private def readChar(): Option[Char] = {
-    val char = reader.read()
-    if (char == -1) {
-      None // End of stream
-    } else if (char == '\n' || char == '\r') {
-      None
-    } else {
-      Some(char.toChar)
+  private def readChar(): Option[Char] = {
+      val char = reader.read()
+      if (char == -1) {
+        None // End of stream
+      } else if (char == '\n' || char == '\r') {
+        None
+      } else {
+        Some(char.toChar)
+      }
     }
-  }
 
   // Get the current character without moving forward
   def peekChar(): Option[Char] = {
@@ -50,7 +50,7 @@ private def readChar(): Option[Char] = {
       isNegative = true
       nextChar()
     }
-    
+
     // Read digits
     while (peekChar().exists(_.isDigit)) {
       result = result * 10 + (nextChar().get - '0')

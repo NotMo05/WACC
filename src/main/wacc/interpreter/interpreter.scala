@@ -4,9 +4,6 @@ import wacc.front_end._
 import scala.collection.mutable
 import scala.collection.immutable
 import cats.implicits._
-import wacc.front_end.semantic.newPairHandle
-import wacc.front_end.BinaryOperator
-import wacc.front_end.lexer.ident
 
 case class ExitException(code: Option[TypeOrPairElemValue]) extends RuntimeException
 case class FailedToEvaluate(message: String) extends RuntimeException
@@ -73,7 +70,7 @@ class Interpreter(prog: Prog) {
     case Free(expr) => {
       evaluate(expr) match
         case None => exprCouldntEval
-        case Some(value) => (value) match
+        case Some(value) => (value: @unchecked) match
           case StringLiteral(string) => ???
           case arr: ArrayBaseLiteral => arr.elems match
             case None => exprCouldntEval
@@ -90,9 +87,9 @@ class Interpreter(prog: Prog) {
   }
 
   def readHandler(lValue: LValue): Option[TypeOrPairElemValue] = {
-    lValue match
+    (lValue: @unchecked) match
       case qn: QualifiedName =>
-        qn.t match
+        (qn.t: @unchecked) match
           case IntType => reader.readInt() match
             case None => ???
             case Some(int) => reasgnHandler(lValue, IntLiteral(int))
@@ -101,7 +98,7 @@ class Interpreter(prog: Prog) {
             case Some(value) => value match
               case c: Char => reasgnHandler(lValue, CharLiteral(c))
 
-      case ArrayElem(qn: QualifiedName, indexes) => arrayLiterAccessHandler(qn, indexes) match
+      case ArrayElem(qn: QualifiedName, indexes) => (arrayLiterAccessHandler(qn, indexes): @unchecked) match
         case IntLiteral(int) => reader.readInt() match
             case None => ???
             case Some(int) => arrayLiterAssgnHandler(qn, indexes, Some(IntLiteral(int)))
@@ -112,7 +109,7 @@ class Interpreter(prog: Prog) {
 
       case lValue: (Fst | Snd) => pairAccessHandler(lValue) match
         case None => ???
-        case Some(value) => value match
+        case Some(value) => (value: @unchecked) match
           case IntLiteral(int) => reader.readInt() match
             case None => ???
             case Some(int) => reasgnHandler(lValue, IntLiteral(int))
@@ -133,14 +130,14 @@ class Interpreter(prog: Prog) {
 
       case lValue: Fst => {
         val current = identTables.top(pairReasgnHandler(lValue))
-        identTables.top(pairReasgnHandler(lValue)) = current match
+        identTables.top(pairReasgnHandler(lValue)) = (current: @unchecked) match
           case PairLiteral(_, snd) => PairLiteral(newRValue, snd)
         None
       }
 
       case lValue: Snd => {
         val current = identTables.top(pairReasgnHandler(lValue))
-        identTables.top(pairReasgnHandler(lValue)) = current match
+        identTables.top(pairReasgnHandler(lValue)) = (current: @unchecked) match
           case PairLiteral(fst, _) => PairLiteral(fst, newRValue)
         None
       }
@@ -148,32 +145,32 @@ class Interpreter(prog: Prog) {
 
   def pairReasgnHandler(lValue: LValue, newRValue: Option[RValue] = None): QualifiedName = {
     (lValue: @unchecked) match
-      case Fst(lValue) => lValue match
+      case Fst(lValue) => (lValue: @unchecked) match
         case qn: QualifiedName => qn
-        case lValue: Fst => identTables.top(pairReasgnHandler(lValue)) match
+        case lValue: Fst => (identTables.top(pairReasgnHandler(lValue)): @unchecked) match
           case PairLiteral(fst, _) => fst match
             case None => ???
-            case Some(value) => value match
+            case Some(value) => (value: @unchecked) match
               case QualifiedNameContainer(qn) => qn
 
-        case lValue: Snd => identTables.top(pairReasgnHandler(lValue)) match
+        case lValue: Snd => (identTables.top(pairReasgnHandler(lValue)): @unchecked) match
           case PairLiteral(_, snd) => snd match
             case None => ???
-            case Some(value) => value match
+            case Some(value) => (value: @unchecked) match
               case QualifiedNameContainer(qn) => qn
 
-      case Snd(lValue) => lValue match
+      case Snd(lValue) => (lValue: @unchecked) match
         case qn: QualifiedName => qn
-        case lValue: Fst => identTables.top(pairReasgnHandler(lValue)) match
+        case lValue: Fst => (identTables.top(pairReasgnHandler(lValue)): @unchecked) match
           case PairLiteral(fst, _) => fst match
             case None => ???
-            case Some(value) => value match
+            case Some(value) => (value: @unchecked) match
               case QualifiedNameContainer(qn) => qn
 
-        case lValue: Snd => identTables.top(pairReasgnHandler(lValue)) match
+        case lValue: Snd => (identTables.top(pairReasgnHandler(lValue)): @unchecked) match
           case PairLiteral(_, snd) => snd match
             case None => ???
-            case Some(value) => value match
+            case Some(value) => (value: @unchecked) match
               case QualifiedNameContainer(qn) => qn
 
   }
@@ -182,20 +179,20 @@ class Interpreter(prog: Prog) {
     case qn: QualifiedName => Some(identTables.top(qn))
     case Fst(lValue) => pairAccessHandler(lValue) match
       case None => ???
-      case Some(value) => value match
+      case Some(value) => (value: @unchecked) match
         case PairLiteral(fst, _) => fst match
           case None => ???
-          case Some(value) => value match
+          case Some(value) => (value: @unchecked) match
             case QualifiedNameContainer(qn) => Some(identTables.top(qn))
             case e: Expr => evaluate(e)
         case e: Expr => evaluate(e)
 
     case Snd(lValue) => pairAccessHandler(lValue) match
       case None => ???
-      case Some(value) => value match
+      case Some(value) => (value: @unchecked) match
         case PairLiteral(_, snd) => snd match
           case None => ???
-          case Some(value) => value match
+          case Some(value) => (value: @unchecked) match
             case QualifiedNameContainer(qn) => Some(identTables.top(qn))
             case e: Expr => evaluate(e)
         case e: Expr => evaluate(e)
@@ -241,12 +238,12 @@ class Interpreter(prog: Prog) {
     case Call(qf: QualifiedFunc, exprs: List[Expr]) => callHandler(qf, exprs)
     case fst: Fst => pairAccessHandler(fst) match
       case None => ???
-      case Some(value) => value match
+      case Some(value) => (value: @unchecked) match
         case e: Expr => evaluate(e)
 
     case snd: Snd => pairAccessHandler(snd) match
       case None => ???
-      case Some(value) => value match
+      case Some(value) => (value: @unchecked) match
         case e: Expr => evaluate(e)
 
     case ArrayLiter(exprs: List[Expr]) =>  exprs.traverse(evaluate).map(elems => ArrayBaseLiteral(Some(elems.toArray)))
@@ -380,7 +377,7 @@ class Interpreter(prog: Prog) {
         case (Some(p1: PairLiteral), Some(NullLiteral)) => Some(BoolLiteral(false))
         case (Some(NullLiteral), Some(p2: PairLiteral)) => Some(BoolLiteral(false))
 
-      case NotEq(l, r) => binEvaluator(Eq(l, r).asInstanceOf[BinaryOperator]).getOrElse(exprCouldntEval) match
+      case NotEq(l, r) => (binEvaluator(Eq(l, r).asInstanceOf[BinaryOperator]).getOrElse(exprCouldntEval): @unchecked) match
         case BoolLiteral(bool) => Some(BoolLiteral(!bool))
 
       case And(l: Expr, r: Expr) => evalBinaryLogicalOp(l, r, (a, b) => a && b)
@@ -396,7 +393,7 @@ class Interpreter(prog: Prog) {
     None
   }
 
-  def itemStringHandler(item: Option[TypeOrPairElemValue]): String = item match
+  def itemStringHandler(item: Option[TypeOrPairElemValue]): String = (item: @unchecked) match
     case Some(IntLiteral(int)) => int.toString()
     case Some(BoolLiteral(bool)) => bool.toString()
     case Some(StringLiteral(string)) => string

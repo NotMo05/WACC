@@ -1,0 +1,17 @@
+# ensures that pairs can be unpacked directly from arrays
+
+# Output:
+# 3
+#
+
+# Program:
+
+begin
+  import "/Users/adiprabs/Coding/WACC_06/src/test/wacc/wacc-examples/valid/function/simple_functions/argScopeCanBeShadowed.wacc";
+  int x = 200 + 300;
+  int y = x + 400;
+  int z = x + y;
+  println(x);
+  println(y);
+  println(z)
+end

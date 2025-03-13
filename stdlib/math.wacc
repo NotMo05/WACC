@@ -1,0 +1,138 @@
+# WACC Standard Math Library
+# Contains common mathematical functions for use in WACC programs
+
+begin
+  # Minimum of two integers
+  int min(int a, int b) is
+    if a < b then
+      return a
+    else
+      return b
+    fi
+  end
+  
+  # Maximum of two integers
+  int max(int a, int b) is
+    if a > b then
+      return a
+    else
+      return b
+    fi
+  end
+  
+  # Absolute value of an integer
+  int abs(int x) is
+    if x < 0 then
+      return -x
+    else
+      return x
+    fi
+  end
+  
+  # Power function: calculates x^n
+  int pow(int x, int n) is
+    int result = 1;
+    int i = 0;
+    
+    while i < n do
+      result = result * x;
+      i = i + 1
+    done;
+    
+    return result
+  end
+  
+  # Greatest Common Divisor using Euclidean algorithm
+  int gcd(int a, int b) is
+    # Ensure positive values
+    a = call abs(a);
+    b = call abs(b);
+    
+    # Base case
+    if b == 0 then
+      return a
+    fi;
+    
+    # Recursive case using modulo
+    int temp = a;
+    while b != 0 do
+      temp = b;
+      b = a % b;
+      a = temp
+    done;
+    
+    return a
+  end
+  
+  # Least Common Multiple
+  int lcm(int a, int b) is
+    int g = call gcd(a, b);
+    return (a / g) * b  # (a*b)/gcd(a,b) avoiding overflow
+  end
+  
+  # Factorial of a non-negative integer
+  int factorial(int n) is
+    if n <= 1 then
+      return 1
+    else
+      return n * call factorial(n-1)
+    fi
+  end
+  
+  # Check if a number is prime
+  bool isPrime(int n) is
+    if n <= 1 then
+      return false
+    fi;
+    
+    if n <= 3 then
+      return true
+    fi;
+    
+    if n % 2 == 0 || n % 3 == 0 then
+      return false
+    fi;
+    
+    int i = 5;
+    while i * i <= n do
+      if n % i == 0 || n % (i + 2) == 0 then
+        return false
+      fi;
+      i = i + 6
+    done;
+    
+    return true
+  end
+  
+  # Integer square root (returns floor of square root)
+  int sqrt(int x) is
+    if x < 0 then
+      return -1  # Error for negative inputs
+    fi;
+    
+    if x == 0 || x == 1 then
+      return x
+    fi;
+    
+    int start = 1;
+    int end = x;
+    int result = 0;
+    
+    while start <= end do
+      int mid = (start + end) / 2;
+      
+      if mid * mid == x then
+        return mid
+      fi;
+      
+      if mid * mid < x then
+        start = mid + 1;
+        result = mid
+      else
+        end = mid - 1
+      fi
+    done;
+    
+    return result
+  end
+end

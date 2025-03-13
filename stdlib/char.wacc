@@ -1,0 +1,50 @@
+# WACC Standard Character Library
+# Contains character classification and manipulation functions
+
+begin
+  # Check if character is a digit
+  bool isDigit(char c) is
+    return '0' <= c && c <= '9'
+  end
+  
+  # Check if character is a letter
+  bool isLetter(char c) is
+    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+  end
+  
+  # Check if character is alphanumeric
+  bool isAlphaNum(char c) is
+    return call isLetter(c) || call isDigit(c)
+  end
+  
+  # Check if character is lowercase
+  bool isLower(char c) is
+    return 'a' <= c && c <= 'z'
+  end
+  
+  # Check if character is uppercase
+  bool isUpper(char c) is
+    return 'A' <= c && c <= 'Z'
+  end
+  
+  # Check if character is whitespace
+  bool isWhitespace(char c) is
+    return c == ' ' || c == '\t' || c == '\n'
+  end
+  
+  # Convert character to lowercase
+  char toLower(char c) is
+    if call isUpper(c) then
+      return chr(ord c + 32)
+    fi;
+    return c
+  end
+  
+  # Convert character to uppercase
+  char toUpper(char c) is
+    if call isLower(c) then
+      return chr(ord c - 32)
+    fi;
+    return c
+  end
+end

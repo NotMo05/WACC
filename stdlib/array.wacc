@@ -1,0 +1,99 @@
+# WACC Standard Array Library
+# Contains common array manipulation functions
+
+begin
+  # Find minimum value in an integer array
+  int minArray(int[] arr) is
+    int length = len arr;
+    if length == 0 then
+      return 0 # Error value
+    fi;
+    
+    int min = arr[0];
+    int i = 1;
+    while i < length do
+      if arr[i] < min then
+        min = arr[i]
+      fi;
+      i = i + 1
+    done;
+    
+    return min
+  end
+  
+  # Find maximum value in an integer array
+  int maxArray(int[] arr) is
+    int length = len arr;
+    if length == 0 then
+      return 0 # Error value
+    fi;
+    
+    int max = arr[0];
+    int i = 1;
+    while i < length do
+      if arr[i] > max then
+        max = arr[i]
+      fi;
+      i = i + 1
+    done;
+    
+    return max
+  end
+  
+  # Sum all elements in an integer array
+  int sum(int[] arr) is
+    int total = 0;
+    int length = len arr;
+    int i = 0;
+    
+    while i < length do
+      total = total + arr[i];
+      i = i + 1
+    done;
+    
+    return total
+  end
+  
+  # Calculate average of integer array
+  int average(int[] arr) is
+    int length = len arr;
+    if length == 0 then
+      return 0 # Error value
+    fi;
+    
+    return call sum(arr) / length
+  end
+  
+  # Reverse an array in-place
+  void reverse(int[] arr) is
+    int length = len arr;
+    int i = 0;
+    while i < length / 2 do
+      int temp = arr[i];
+      arr[i] = arr[length - 1 - i];
+      arr[length - 1 - i] = temp;
+      i = i + 1
+    done
+  end
+  
+  # Bubble sort an array in-place
+  void bubbleSort(int[] arr) is
+    int length = len arr;
+    int i = 0;
+    bool swapped = true;
+    
+    while swapped do
+      swapped = false;
+      i = 0;
+      while i < length - 1 do
+        if arr[i] > arr[i + 1] then
+          int temp = arr[i];
+          arr[i] = arr[i+1];
+          arr[i+1] = temp;
+          swapped = true
+        fi;
+        i = i + 1
+      done
+    done
+  end
+end

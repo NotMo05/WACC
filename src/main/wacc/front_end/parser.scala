@@ -7,11 +7,12 @@ import parsley.{Parsley, Result}
 import parsley.Parsley.{atomic, some, pure, notFollowedBy, many}
 import wacc.front_end.lexer._
 
+
 object parser {
-  def parse(input: String): Result[String, Prog] = parser.parse(input)
+  def parse(input: String): Result[String, ProgWithImports] = parser.parse(input)
   private val parser = fully(program)
 
-  private lazy val program = Prog("begin" ~> many(atomic(func)), stmts <~ "end")
+  private lazy val program = ProgWithImports("begin" ~> many(atomic(importStmt)), many(atomic(func)), stmts <~ "end")
   private lazy val func = Func(
     typeParser,
     ident,
@@ -45,6 +46,7 @@ object parser {
   private lazy val ifStmt = IfElse("if" ~> expr, "then" ~> stmts, "else" ~> stmts <~ "fi")
   private lazy val arrayElem = ArrayElem(ident, some("[" ~> expr <~ "]"))
   private lazy val pairElem = Fst("fst" ~> lValue) | Snd("snd" ~> lValue)
+  private lazy val importStmt = Import("import" ~> stringLiteral) // import statement matching
 
   private lazy val typeParser = atomic(arrayType) | interimTypes
 

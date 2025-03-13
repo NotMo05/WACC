@@ -7,10 +7,11 @@
 # Program:
 
 begin
-  int x = 200 + 300;
-  int y = x + 400;
-  int z = x + y;
-  println(x);
-  println(y);
-  println(z)
+
+  int inc(int x) is
+    return x + 1
+  end
+  # import "/home/adiprabs/server_projects/WACC_06/src/test/wacc/wacc-examples/valid/function/simple_functions/incFunction.wacc"
+  int a = call inc(2);
+  println(a)
 end

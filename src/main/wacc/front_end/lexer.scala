@@ -24,7 +24,7 @@ object lexer {
     ),
     symbolDesc = SymbolDesc.plain.copy(
       hardKeywords  = Set("read", "exit", "begin", "end", "if", "then", "else", "fi", "skip", "true", "false",
-                          "free", "while", "do", "done", "fst", "snd", "newpair", "print", "println", "call",
+                          "free", "while", "do", "done", "fst", "snd", "newpair", "print", "println", "call", "import", //import added here
                           "int", "bool", "char", "null", "string", "pair", "return", "len", "ord", "chr"),
       hardOperators = Set("*", "/", "%", "+", "-", ">", ">=", "<", "<=",
                           "==", "!=", "&&", "||", "!")

@@ -1,12 +1,15 @@
 package wacc.front_end
 
+
 object semantic {
   val semErrors = List.newBuilder[String]
+  var functionMap: Map[String, Func] = Map()
 
   def analyse(prog: Prog): List[String] = {
     semErrors.clear()
+    functionMap = prog.funcs.map(f => f.identifier.identifier -> f).toMap
     prog.funcs.foreach(validFunction)
-    prog.main.foreach(validStmtArgs(_))
+    prog.main.foreach(stmt => validStmtArgs(stmt))
     semErrors.result()
   }
 
@@ -49,11 +52,11 @@ object semantic {
       case ArrayLiter(elems) => arrayLiterHandle(elems)
       case NewPair(fst, snd) => newPairHandle(fst, snd)
       case Fst(lValue) => pairElemHandle(lValue) match
-        case None => semErrors += "Expected a valid type here in pair first";None
+        case None => semErrors += "Expected a valid type here in pair first"; None
         case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType))
         case Some(PairType(t1, _)) => Some(t1.asInstanceOf[Type])
       case Snd(lValue) => pairElemHandle(lValue) match
-        case None => semErrors += "Expected a valid type here in pair second";None
+        case None => semErrors += "Expected a valid type here in pair second"; None
         case Some(PairType(_, Pair)) => Some(PairType(AnyType, AnyType))
         case Some(PairType(_, t2)) => Some(t2.asInstanceOf[Type])
   }
@@ -77,6 +80,7 @@ object semantic {
       case qn: QualifiedName => qn.t match
         case Undefined => None 
         case t => Some(t)
+      case ident: Ident => None
       case op: Operator => getOperType(op)
       case IntLiteral(_) => Some(IntType)
       case BoolLiteral(_) => Some(BoolType)
@@ -84,7 +88,6 @@ object semantic {
       case CharLiteral(_) => Some(CharType)
       case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index)
       case NullLiteral => Some(PairType(AnyType, AnyType))
-      case Ident(_) => None
   }
 
   private def exprsMatchType(expr1: Expr, expr2: Expr, t: Type): Option[Boolean] = {

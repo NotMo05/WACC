@@ -296,7 +296,7 @@ object semantic {
                 val msg = s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)} in reassign"
                 semErrors += msg
                 ErrorStmt(msg)
-              } else ReAssgn(lValue, rValue)
+              } else ReAssgn(lValue, newRValue)
             case (None, newRValue) => ReAssgn(lValue, newRValue)
           case None => ReAssgn(lValue, rValue)
       }

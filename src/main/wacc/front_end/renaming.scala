@@ -21,7 +21,7 @@ class QualifiedFunc(val t: Type, val funcName: String, val paramNum: Int, val pa
   override def hashCode() = (t, funcName, paramNum, paramTypes).##
 }
 
-val funcTypes: mutable.Map[String, mutable.Map[(Type, Int), mutable.ListBuffer[(QualifiedFunc, List[Type])]]] = mutable.Map()
+val funcTypes: mutable.Map[String, mutable.Map[Int, mutable.ListBuffer[QualifiedFunc]]] = mutable.Map()
 
 val globalNumbering: mutable.Map[String, Int] = mutable.Map()
 
@@ -82,8 +82,6 @@ def processImport(path: String): List[Func] = {
 // check for duplicates
 def funcFirstPass(imports: List[Import], funcs: List[Func]) = {
   val uniqueFuncSet: mutable.Set[(String, List[Type], Type)] = mutable.Set()
-  val nameReturnTypeArgNumSet: mutable.Set[(String, Type, List[Type])] = mutable.Set()
-  val stringFuncSet: mutable.Set[String] = mutable.Set()
 
   def addFunc(func: Func) = {
     val name = func.identifier.identifier
@@ -93,8 +91,8 @@ def funcFirstPass(imports: List[Import], funcs: List[Func]) = {
       scopeErrors += s"Illegal redefinition of function $name"
     } else {
       funcTypes.getOrElseUpdate(name, mutable.Map())
-        .getOrElseUpdate((retType, paramTypes.length), mutable.ListBuffer())
-        += ((QualifiedFunc(retType, name, paramTypes.length, paramTypes), paramTypes))
+        .getOrElseUpdate(paramTypes.length, mutable.ListBuffer())
+        += (QualifiedFunc(retType, name, paramTypes.length, paramTypes))
 
       uniqueFuncSet.add((name, paramTypes, retType))
     }
@@ -166,8 +164,9 @@ def rValueHandler(
       case NewPair(fst, snd) =>
         NewPair(exprHandler(fst, current, parent), exprHandler(snd, current, parent))
       case c: Call => {
-        scopeErrors += s"Function ${c.ident.identifier} has not been defined"
-        Call(QualifiedFunc(Undefined, c.ident.identifier, 0, List()), List())
+        val msg = s"Function ${c.ident.identifier} has not been defined"
+        scopeErrors += msg
+        ErrorStmt(msg)
       }
     }
 

@@ -39,35 +39,15 @@ object semantic {
     case AnyType => "any type"
     case Undefined => "undefined"
 
-  def getRValueType(rValue: RValue, lValuetype: Option[Type] = None): (Option[Type], RValue) = {
-    (rValue: @unchecked) match
+  def getRValueType(
+    rValue: RValue,
+    lValuetype: Option[Type] = None
+  ): (Option[Type], RValue) =
+    rValue match
       case expr: Expr => getExprType(expr) match
         case None => (None, rValue)
         case t => (t, rValue)
 
-      case PossibleCalls(ident: Ident, possibleFuncs, args) => {
-        val t = lValuetype.getOrElse(Undefined)
-        ident match
-          case Ident(identifier) => {
-            var matchingReturnType = false
-            for ((qf, argTypes) <- possibleFuncs((t, args.length))) {
-              matchingReturnType = true
-              if qf.paramTypes.zip(
-                args.flatMap(getExprType(_))
-              ).forall(
-                (a,b) => a weakensTo b
-              ) then return (Some(qf.t), Call(qf, args))
-            }
-            val msg: String =
-              if matchingReturnType then {
-                s"Type error: No function $identifier with arguments of types matching $args found"
-              } else {
-                s"Type error: No function $identifier with return type ${t} found"
-              }
-            semErrors += msg
-            return (None, ErrorStmt(msg))
-          }
-      }
       case ArrayLiter(elems) => (arrayLiterHandle(elems), rValue)
       case NewPair(fst, snd) => (newPairHandle(fst, snd), rValue)
       case Fst(lValue) => pairElemHandle(lValue) match
@@ -78,7 +58,44 @@ object semantic {
         case None => semErrors += "Expected a valid type here in pair second"; (None, rValue)
         case Some(PairType(_, Pair)) => (Some(PairType(AnyType, AnyType)), rValue)
         case Some(PairType(_, t2)) => (Some(t2.asInstanceOf[Type]), rValue)
-  }
+
+      case PossibleCalls(ident: Ident, possibleFuncs, args) =>
+        val t = lValuetype.getOrElse(Undefined)
+        ident match
+          case Ident(identifier) => {
+            val argTypes = args.flatMap(getExprType(_))
+
+            // Check if any function has a matching return type
+            val matchingReturnType = possibleFuncs.get(args.length) match
+              case None => false
+              case Some(value) => value.exists(qf => t weakensTo qf.t)
+
+            // Find the first function that matches both return type and argument types
+            possibleFuncs.get(args.length) match
+              case None => {
+                val msg = s"Type error: No function $identifier with ${args.length} argument(s) found"
+                semErrors += msg
+                (None, ErrorStmt(msg))
+              }
+              case Some(value) => value.find(qf =>
+                (t weakensTo qf.t) &&
+                qf.paramTypes.zip(argTypes).forall((a, b) => a weakensTo b)
+            ) match {
+              case Some(qf) => (Some(qf.t), Call(qf, args))
+              case None =>
+                val msg =
+                  if (matchingReturnType)
+                    s"Type error: No function $identifier with arguments of types matching $args found"
+                  else
+                    s"Type error: No function $identifier with return type $t found"
+
+                semErrors += msg
+                (None, ErrorStmt(msg))
+            }
+          }
+      case Call(_, _) => ???
+      case err: ErrorStmt => (None, err)
+
 
 
   def getLValueType(lValue: Any): Option[Type] = lValue match

@@ -86,7 +86,7 @@ case class Prog(funcs: List[Func], main: List[Stmt]) {
 }
 case class Func(t: Type, identifier: Ident, params: List[Param], stmts: List[Stmt])
 case class Call(ident: Ident, args: List[Expr]) extends RValue
-case class PossibleCalls(ident: Ident, funcs: Map[(Type, Int), List[(QualifiedFunc, List[Type])]], args: List[Expr]) extends RValue
+case class PossibleCalls(ident: Ident, funcs: Map[Int, List[QualifiedFunc]], args: List[Expr]) extends RValue
 case class Param(t: Type, identifier: Ident)
 case class Fst(lValue: LValue) extends LValue, RValue
 case class Snd(lValue: LValue) extends LValue, RValue
@@ -98,7 +98,7 @@ object ProgWithImports extends ParserBridge3[List[Import], List[Func], List[Stmt
 object Prog extends ParserBridge2[List[Func], List[Stmt], Prog]
 object Func extends ParserBridge4[Type, Ident, List[Param], List[Stmt], Func]
 object Call extends ParserBridge2[Ident, List[Expr], RValue]
-object PossibleCalls extends ParserBridge3[Ident, Map[(Type, Int), List[(QualifiedFunc, List[Type])]], List[Expr], PossibleCalls]
+object PossibleCalls extends ParserBridge3[Ident, Map[Int, List[QualifiedFunc]], List[Expr], PossibleCalls]
 object Param extends ParserBridge2[Type, Ident, Param]
 object Fst extends ParserBridge1[LValue, Fst]
 object Snd extends ParserBridge1[LValue, Snd]

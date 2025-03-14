@@ -10,6 +10,8 @@ import wacc.front_end.lexer._
 
 object parser {
   def parse(input: String): Result[String, ProgWithImports] = parser.parse(input)
+  def stmtParse(input: String): Result[String, Stmt] = stmtParser.parse(input)
+  private val stmtParser = fully(stmt)
   private val parser = fully(program)
 
   private lazy val program = ProgWithImports("begin" ~> many(atomic(importStmt)), many(atomic(func)), stmts <~ "end")

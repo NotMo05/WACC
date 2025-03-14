@@ -5,6 +5,7 @@ import java.io.File
 import wacc.back_end.IR.generateIR
 import wacc.back_end.AssemblyWriter.generateAsmFile
 import wacc.interpreter.Interpreter
+import wacc.repl.SimpleREPL
 final val SUCCESS = 0
 final val SYNTAX_ERR = 100
 final val SEMANTIC_ERR = 200
@@ -23,6 +24,8 @@ def main(args: Array[String]): Unit = {
       }
     }
     return
+  } else if args(0) == "repl" then {
+    SimpleREPL.repl(args.tail)
   }
 
   processFileArg(args, 0).foreach { fileContent =>

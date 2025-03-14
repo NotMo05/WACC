@@ -25,7 +25,7 @@ def main(args: Array[String]): Unit = {
     }
     return
   } else if args(0) == "repl" then {
-    SimpleREPL.repl(args.tail)
+    SimpleREPL.repl(args.drop(1))
   }
 
   processFileArg(args, 0).foreach { fileContent =>

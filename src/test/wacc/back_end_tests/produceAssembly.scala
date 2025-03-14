@@ -76,36 +76,37 @@ class produceAssembly extends AnyFlatSpec with BeforeAndAfter {
 
       for (file <- files if file.getPath.endsWith(".wacc")) {
         val fileName = file.getPath
-    
+
         it should s"successfully produce assembly for $fileName" in {
           if isPending then pending
           val source = Source.fromFile(file)
           val fileContent = try source.mkString finally source.close()
-          
+
           parser.parse(fileContent) match {
             case Success(ast) =>
-              val (newProg, errors) = rename(ast)
-              assert(errors.isEmpty && semantic.analyse(newProg).isEmpty)
-              
+              val (prog, renamingErrors) = rename(ast)
+              val (newProg, typeErrors) =  semantic.analyse(prog)
+              assert(renamingErrors.isEmpty && typeErrors.isEmpty)
+
               val IR = generateIR(newProg)
               generateAsmFile(IR, fileName, s"$assemblyDir/")
-              
+
               val baseName = new File(fileName).getName.replace(".wacc", "")
               val assemblyFilepath = s"$assemblyDir/$baseName.s"
-    
+
               if (!new File(binDir).exists()) {
                 new File(binDir).mkdirs()
               }
-    
+
               val compilation = Process(s"gcc -z noexecstack -o $binDir/$baseName $assemblyFilepath").!
               println(s"\nCompilation exit code: $compilation")
-    
+
               val exitCode = Process(s"./$binDir/$baseName").!
               println(s"Program exitCode: $exitCode")
-    
+
               val expectedResult = findOutputValues(file.getPath)
               println(s"Comments are: $expectedResult")
-    
+
               if (expectedResult.isEmpty) {
                 println("Not expecting any exit codes or returns")
                 assert(exitCode.toString == "0")
@@ -139,12 +140,12 @@ class produceAssembly extends AnyFlatSpec with BeforeAndAfter {
   // runTest(advancedPath, false, true)
   // runTest(arrayPath, false, true)
   runTest(basicPath, false, true)
-  // runTest(expressionPath, false, true)
+  runTest(expressionPath, false, true)
   // runTest(functionPath, false, true)
-  // runTest(ifPath, false, true)
+  runTest(ifPath, false, true)
   // runTest(IOPath, false, true)
   // runTest(pairsPath, false, true)
-  // runTest(runtimeErrPath, false, true)
+  runTest(runtimeErrPath, false, true)
   // runTest(scopePath, false, true)
   // runTest(variablesPath, false, true)
   // runTest(whilePath, false, true)

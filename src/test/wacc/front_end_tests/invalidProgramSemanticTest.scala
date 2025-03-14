@@ -20,8 +20,9 @@ class invalidProgramSemanticTest extends AnyFlatSpec {
       parser.parse(fileContent) match {
         case Failure(_) =>
         case Success(ast) => {
-          val (newProg, errors) = rename(ast)
-          assert(!(errors.isEmpty && semantic.analyse(newProg).isEmpty))
+          val (prog, renamingErrors) = rename(ast)
+          val (newProg, typeErrors) =  semantic.analyse(prog)
+          assert(!(renamingErrors.isEmpty && typeErrors.isEmpty))
         }
       }
     }

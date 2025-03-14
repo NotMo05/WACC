@@ -27,16 +27,16 @@ object IR {
   case class StringInfo(val string: String, val len: Int, val strCount: Int) {
     override def toString(): String = s"$strCount$string$len"
   }
-  
+
   def foldConsts(prog: Prog): Prog = {
     // Process main program statements
     val foldedMain = findConstantVariables(prog.main)
-    
+
     // Process functions
-    val foldedFuncs = prog.funcs.map(func => 
+    val foldedFuncs = prog.funcs.map(func =>
       Func(func.t, func.identifier, func.params, findConstantVariables(func.stmts))
     )
-    
+
     Prog(foldedFuncs, foldedMain)
   }
 
@@ -56,7 +56,7 @@ object IR {
         }
         case _ => // Do nothing
     }
-    
+
     // go through variables again and then replace all assigns and calls with the literal evaluation
 
     for ((ident, rvalue) <- qnMap){
@@ -65,14 +65,14 @@ object IR {
 
     stmts.map { stmt =>
       stmt match
-        case Assgn(t, identifier, rValue) if qnMap.contains(identifier) => 
+        case Assgn(t, identifier, rValue) if qnMap.contains(identifier) =>
           Assgn(t, identifier, qnMap(identifier))
-        case ReAssgn(lValue, rValue) => 
+        case ReAssgn(lValue, rValue) =>
           ReAssgn(lValue, foldConstRValueHelper(rValue))
-        case WhileDo(condition, bodyStmts) => 
+        case WhileDo(condition, bodyStmts) =>
           WhileDo(condition, bodyStmts.map(foldConstStmtHelper))
         case IfElse(condition, thenStmts, elseStmts) =>
-          IfElse(condition, 
+          IfElse(condition,
                  thenStmts.map(foldConstStmtHelper),
                  elseStmts.map(foldConstStmtHelper))
         case other => other
@@ -87,7 +87,7 @@ object IR {
       case Exit(expr) => Exit(foldConstExprHelper(expr))
       case Print(expr) => Print(foldConstExprHelper(expr))
       case Println(expr) => Println(foldConstExprHelper(expr))
-      
+
       case WhileDo(condition, stmts) => {
         val foldedCond = foldConstExprHelper(condition)
         foldedCond match {
@@ -95,36 +95,36 @@ object IR {
           case _ => WhileDo(foldedCond, stmts.map(foldConstStmtHelper))
         }
       }
-      
+
       case IfElse(condition, thenStmts, elseStmts) => {
         val foldedCond = foldConstExprHelper(condition)
         foldedCond match {
           case BoolLiteral(true) => Scope(thenStmts.map(foldConstStmtHelper))
           case BoolLiteral(false) => Scope(elseStmts.map(foldConstStmtHelper))
-          case _ => IfElse(foldedCond, 
-                          thenStmts.map(foldConstStmtHelper), 
+          case _ => IfElse(foldedCond,
+                          thenStmts.map(foldConstStmtHelper),
                           elseStmts.map(foldConstStmtHelper))
         }
       }
-      
+
       case Assgn(t, identifier, rValue) => {
         rValue match {
           case expr: Expr => Assgn(t, identifier, foldConstExprHelper(expr))
-          case Call(funcName, args) => 
+          case Call(funcName, args) =>
             Assgn(t, identifier, Call(funcName, args.map(foldConstExprHelper)))
           case other => Assgn(t, identifier, other)
         }
       }
-      
+
       case ReAssgn(lValue, rValue) => {
         rValue match {
           case expr: Expr => ReAssgn(lValue, foldConstExprHelper(expr))
-          case Call(funcName, args) => 
+          case Call(funcName, args) =>
             ReAssgn(lValue, Call(funcName, args.map(foldConstExprHelper)))
           case other => ReAssgn(lValue, other)
         }
       }
-      
+
       case Scope(stmts) => Scope(stmts.map(foldConstStmtHelper))
       case _ => Skip
     }
@@ -143,11 +143,11 @@ object IR {
         else id
       }
       case NullLiteral => NullLiteral
-      
+
       // Array elements - fold the index expressions
-      case ArrayElem(arrayName, index) => 
+      case ArrayElem(arrayName, index) =>
         ArrayElem(arrayName, index.map(foldConstExprHelper))
-      
+
       // Unary operations
       case Neg(x) => {
         val foldedX = foldConstExprHelper(x)
@@ -156,7 +156,7 @@ object IR {
           case _ => Neg(foldedX)
         }
       }
-      
+
       case Not(x) => {
         val foldedX = foldConstExprHelper(x)
         foldedX match {
@@ -164,7 +164,7 @@ object IR {
           case _ => Not(foldedX)
         }
       }
-      
+
       case Len(x) => {
         val foldedX = foldConstExprHelper(x)
         foldedX match {
@@ -172,7 +172,7 @@ object IR {
           case _ => Len(foldedX)
         }
       }
-      
+
       // Character conversions
       case Chr(x) => {
         val foldedX = foldConstExprHelper(x)
@@ -181,7 +181,7 @@ object IR {
           case _ => Chr(foldedX)
         }
       }
-      
+
       case Ord(x) => {
         val foldedX = foldConstExprHelper(x)
         foldedX match {
@@ -189,7 +189,7 @@ object IR {
           case _ => Ord(foldedX)
         }
       }
-      
+
       // Binary arithmetic operations
       case Mul(l, r) => {
         val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
@@ -198,7 +198,7 @@ object IR {
           case _ => Mul(foldedL, foldedR)
         }
       }
-      
+
       case Div(l, r) => {
         val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
         (foldedL, foldedR) match {
@@ -206,7 +206,7 @@ object IR {
           case _ => Div(foldedL, foldedR) // Let runtime handle division by zero
         }
       }
-      
+
       case Mod(l, r) => {
         val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
         (foldedL, foldedR) match {
@@ -214,7 +214,7 @@ object IR {
           case _ => Mod(foldedL, foldedR)
         }
       }
-      
+
       case Add(l, r) => {
         val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
         (foldedL, foldedR) match {
@@ -222,7 +222,7 @@ object IR {
           case _ => Add(foldedL, foldedR)
         }
       }
-      
+
       case Sub(l, r) => {
         val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
         (foldedL, foldedR) match {
@@ -230,7 +230,7 @@ object IR {
           case _ => Sub(foldedL, foldedR)
         }
       }
-      
+
       // Comparison operations
       case Less(l, r) => {
         val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
@@ -239,7 +239,7 @@ object IR {
           case _ => Less(foldedL, foldedR)
         }
       }
-      
+
       case LessE(l, r) => {
         val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
         (foldedL, foldedR) match {
@@ -247,7 +247,7 @@ object IR {
           case _ => LessE(foldedL, foldedR)
         }
       }
-      
+
       case Greater(l, r) => {
         val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
         (foldedL, foldedR) match {
@@ -255,7 +255,7 @@ object IR {
           case _ => Greater(foldedL, foldedR)
         }
       }
-      
+
       case GreaterE(l, r) => {
         val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
         (foldedL, foldedR) match {
@@ -263,7 +263,7 @@ object IR {
           case _ => GreaterE(foldedL, foldedR)
         }
       }
-      
+
       // Equality operations
       case Eq(l, r) => {
         val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
@@ -275,7 +275,7 @@ object IR {
           case _ => Eq(foldedL, foldedR)
         }
       }
-      
+
       case NotEq(l, r) => {
         val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
         (foldedL, foldedR) match {
@@ -286,7 +286,7 @@ object IR {
           case _ => NotEq(foldedL, foldedR)
         }
       }
-      
+
       // Logical operations with short-circuit optimization
       case And(l, r) => {
         val foldedL = foldConstExprHelper(l)
@@ -303,7 +303,7 @@ object IR {
           }
         }
       }
-      
+
       case Or(l, r) => {
         val foldedL = foldConstExprHelper(l)
         foldedL match {
@@ -330,7 +330,7 @@ object IR {
     rvalue match {
       // Common expression handling
       case expr: Expr => foldCommonExpr(expr)
-      
+
       // RValue-specific cases
       case Call(id, args) => Call(id, args.map(foldConstExprHelper))
       case Fst(lValue) => Fst(lValue)
@@ -339,12 +339,20 @@ object IR {
       case NewPair(fst, snd) => NewPair(foldConstExprHelper(fst), foldConstExprHelper(snd))
     }
   }
-    
+
   // Generates intermediate representation (IR) for the given program
   def generateIR(prog: Prog): (List[StringInfo], List[FuncLabelDef]) = {
     val optimizedProg = foldConsts(prog)
     val sections = generateROData(optimizedProg.main) :: optimizedProg.funcs.map(func => generateROData(func.stmts))
-    val funcLabelDefs = funcGenerate(optimizedProg.main) :: optimizedProg.funcs.map(func => funcGenerate(func.stmts, func.identifier.identifier, func.params))
+    val funcLabelDefs = funcGenerate(optimizedProg.main) :: optimizedProg.funcs.map(
+        func =>
+          funcGenerate(
+            func.stmts,
+            func.identifier.identifier,
+            func.params,
+            Some(func.t)
+          )
+      )
     val errorList = List("_errBadChar","_errNull","_errOutOfMem","_errOutOfBounds","_errOverflow","_errDivZero")
     val allFuncLabelDefs: List[FuncLabelDef] = funcLabelDefs ++ errorList.map(generateErrorLabels(_))
 
@@ -433,8 +441,16 @@ object IR {
       case _ => Nil
     }
 
+  def labelGenerate(funcName: String, paramTypes: List[Type], retType: Type) = s"wacc_${retType}_${funcName}_${paramGenerate(paramTypes)}"
+  def paramGenerate(paramTypes: List[Type]): String =
+    paramTypes.map(_.toString).mkString("_")
   // Generates a function label definition from a list of statements and parameters.
-  def funcGenerate(stmts: List[Stmt], funcName: String = "", params: List[Param] = Nil): FuncLabelDef = {
+  def funcGenerate(
+      stmts: List[Stmt],
+      funcName: String = "",
+      params: List[Param] = Nil,
+      retType: Option[Type] = None
+    ): FuncLabelDef = {
     val assignedParams =
         if (params.nonEmpty) params.collect {
            case Param(t, qn: QualifiedName) => (t, qn)
@@ -451,7 +467,7 @@ object IR {
     val funcLabel = if (funcName == "") {
       asmBuilder += MOV(Reg(Rax, QWord), Imm(0))
       "main"
-    } else s"wacc_$funcName"
+    } else labelGenerate(funcName, params.map(_.t), retType.get)
 
     asmBuilder += ADD(Reg(Rsp, QWord), Imm(-Stack.frames.last.currentDepth))
     asmBuilder ++= popRbp
@@ -820,7 +836,7 @@ object IR {
       currentDepth += dataWidth
     }
     asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rcx, QWord))
-    asmBuilder += CALL(Label(s"wacc_${qn.funcName}"))
+    asmBuilder += CALL(Label(labelGenerate(qn.funcName, qn.paramTypes, qn.t)))
     asmBuilder += ADD(Reg(Rsp, QWord), Imm(spaceNeeded))
     asmBuilder ++= popRbp
     Reg(Rax, typeToSize(qn.t))

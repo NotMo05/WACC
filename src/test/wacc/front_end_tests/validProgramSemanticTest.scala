@@ -31,8 +31,9 @@ class validProgramSemanticTest extends AnyFlatSpec {
       it should s"successfully parse $fileName" in {
         parser.parse(fileContent) match {
           case Success(ast) => {
-            val (newProg, errors) = rename(ast)
-            assert(errors.isEmpty && semantic.analyse(newProg).isEmpty)
+            val (prog, renamingErrors) = rename(ast)
+            val (newProg, typeErrors) =  semantic.analyse(prog)
+            assert(renamingErrors.isEmpty && typeErrors.isEmpty)
 
             val writer = new PrintWriter(newFile)
             writer.write(newProg.prettyPrint()) // Write your content

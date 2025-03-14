@@ -4,6 +4,7 @@ import scala.collection.mutable
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.Path
+import scala.annotation.meta.param
 
 class QualifiedName(val name: String, val num: Int, val t: Type) extends Ident(name) {
 
@@ -21,7 +22,7 @@ class QualifiedFunc(val t: Type, val funcName: String, val paramNum: Int, val pa
   override def hashCode() = (t, funcName, paramNum, paramTypes).##
 }
 
-val funcTypes: mutable.Map[String, QualifiedFunc] = mutable.Map()
+val funcTypes: mutable.Map[String, mutable.Map[Int, mutable.ListBuffer[QualifiedFunc]]] = mutable.Map()
 
 val globalNumbering: mutable.Map[String, Int] = mutable.Map()
 
@@ -59,15 +60,15 @@ def processImport(path: String): List[Func] = {
   try {
     // Resolve the import path
     val resolvedPath = resolveImportPath(path)
-    
+
     // If path couldn't be resolved, return empty list
     if (resolvedPath.isEmpty) {
       println(s"DEBUG: Import file not found: $path")
       return List()
     }
-    
+
     println(s"DEBUG: Importing from resolved path: ${resolvedPath.get}")
-    
+
     // Read the file content
     val content = new String(Files.readAllBytes(resolvedPath.get))
 
@@ -96,7 +97,7 @@ def processImport(path: String): List[Func] = {
 /**
  * Resolves an import path to an actual file path.
  * Handles stdlib imports and relative paths.
- * 
+ *
  * @param path The import path from the WACC file
  * @return An Optional Path to the file, or None if the file couldn't be found
  */
@@ -105,7 +106,7 @@ def resolveImportPath(path: String): Option[Path] = {
   val stdlibDirectPath = projectRoot.resolve("stdlib").resolve(path)
   val relativePath = projectRoot.resolve(path)
   val absolutePath = Paths.get(path)
-  
+
   // For stdlib imports (explicit paths starting with "stdlib/")
   if (path.startsWith("stdlib/")) {
     val stdlibPath = projectRoot.resolve(path)
@@ -119,39 +120,42 @@ def resolveImportPath(path: String): Option[Path] = {
     // Try as a relative path from the current directory
     return Some(relativePath)
   }
-  
+
   else if (Files.exists(absolutePath)) {
     // Try as an absolute path
     return Some(absolutePath)
   }
-  
+
   println(s"DEBUG: Could not resolve import path: $path")
   None
 }
 
 // check for duplicates
 def funcFirstPass(imports: List[Import], funcs: List[Func]) = {
-  // Process imported functions
-  imports.foreach { imp =>
-    processImport(imp.filePath.string).foreach { func =>
-      val name = func.identifier.identifier
-      if (funcTypes.contains(name)) {
-        scopeErrors += s"Illegal redefinition of function $name"
-      } else {
-        funcTypes(name) = QualifiedFunc(func.t, name, func.params.size, func.params.map(_.t))
-      }
+  val uniqueFuncSet: mutable.Set[(String, List[Type], Type)] = mutable.Set()
+
+  def addFunc(func: Func) = {
+    val name = func.identifier.identifier
+    val paramTypes = func.params.map(_.t)
+    val retType = func.t
+    if (uniqueFuncSet.contains((name, paramTypes, retType))) {
+      scopeErrors += s"Illegal redefinition of function $name"
+    } else {
+      funcTypes.getOrElseUpdate(name, mutable.Map())
+        .getOrElseUpdate(paramTypes.length, mutable.ListBuffer())
+        += (QualifiedFunc(retType, name, paramTypes.length, paramTypes))
+
+      uniqueFuncSet.add((name, paramTypes, retType))
     }
   }
 
-  // Process local functions
-  for (func <- funcs) {
-    val name = func.identifier.identifier
-    if (funcTypes.contains(name)) {
-      scopeErrors += s"Illegal redefinition of function $name"
-    } else {
-      funcTypes(name) = QualifiedFunc(func.t, name, func.params.size, func.params.map(_.t))
-    }
+  // Process imported functions
+  imports.foreach { imp =>
+    processImport(imp.filePath.string).map(addFunc(_))
   }
+
+  // Process local funcs
+  funcs.map(addFunc(_))
 }
 
 def funcHandler(func: Func): Func = {
@@ -175,7 +179,7 @@ def funcHandler(func: Func): Func = {
       acc
     }
   val qParam = paramScope.map((_,qn) => Param(qn.t, qn)).toList
-  Func(func.t, funcTypes(name), qParam, scopeHandler(func.stmts, paramScope.toMap))
+  Func(func.t, func.identifier, qParam, scopeHandler(func.stmts, paramScope.toMap))
 }
 
 def lValueHandler(
@@ -195,10 +199,14 @@ def rValueHandler(
   current: mutable.Map[String, QualifiedName],
   parent: Map[String, QualifiedName]
   ): RValue = {
-    rValue match
+    (rValue: @unchecked) match
       case expr: Expr => exprHandler(expr, current, parent)
       case Call(ident, args) if funcTypes.contains(ident.identifier) => {
-          Call(funcTypes(ident.identifier), args.map(exprHandler(_, current, parent)))
+          PossibleCalls(
+            ident,
+            funcTypes(ident.identifier).view.mapValues(_.toList).toMap, // Convert ListBuffer to List
+            args.map(exprHandler(_, current, parent))
+          )
         }
 
       case Fst(lValue) => Fst(lValueHandler(lValue, current, parent))
@@ -207,8 +215,9 @@ def rValueHandler(
       case NewPair(fst, snd) =>
         NewPair(exprHandler(fst, current, parent), exprHandler(snd, current, parent))
       case c: Call => {
-        scopeErrors += s"Function ${c.ident.identifier} has not been defined"
-        Call(QualifiedFunc(Undefined, c.ident.identifier, 0, List()), List())
+        val msg = s"Function ${c.ident.identifier} has not been defined"
+        scopeErrors += msg
+        ErrorStmt(msg)
       }
     }
 
@@ -217,7 +226,7 @@ def renameStmt(
   current: mutable.Map[String, QualifiedName],
   parent: Map[String, QualifiedName]
 ): Stmt = {
-  stmt match
+  (stmt: @unchecked) match
     case Skip => Skip
     case Assgn(t, Ident(name), rValue) => renameAssign(t, name, rValue, current, parent)
     case ReAssgn(lValue, rValue) =>

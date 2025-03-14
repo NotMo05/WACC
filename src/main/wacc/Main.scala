@@ -11,6 +11,10 @@ final val SYNTAX_ERR = 100
 final val SEMANTIC_ERR = 200
 
 def main(args: Array[String]): Unit = {
+  if args.isEmpty then
+    println("No argument was provided"); return
+
+
   if args(0) == "interpreter" then {
     processFileArg(args, 1).foreach { fileContent => //file path should be second argument
       val fileName = args(1)

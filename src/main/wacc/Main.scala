@@ -14,7 +14,7 @@ def main(args: Array[String]): Unit = {
     processFileArg(args, 1).foreach { fileContent => //file path should be second argument
       val fileName = args(1)
       val prog = genAST(fileContent, fileName)
-
+      println(prog.prettyPrint())
       val interpreter = new Interpreter(prog)
       try {
         interpreter.execute()
@@ -52,14 +52,15 @@ def processFileArg(args: Array[String], index: Int): Option[String] = {
 def genAST(fileContent: String, fileName: String): Prog = {
   parser.parse(fileContent) match {
     case Success(ast) =>
-      val (prog, errors) = rename(ast)
-
-      if (errors.nonEmpty || semantic.analyse(prog).nonEmpty) {
+      val (prog, renamingErrors) = rename(ast)
+      val (newProg, typeErrors) =  semantic.analyse(prog)
+      if (renamingErrors.nonEmpty || typeErrors.nonEmpty) {
         println("Semantic Errors:")
-        semantic.analyse(prog).foreach(println)
+        renamingErrors.foreach(println)
+        typeErrors.foreach(println)
         sys.exit(SEMANTIC_ERR)
       } else {
-        prog
+        newProg
       }
 
     case Failure(msg) =>

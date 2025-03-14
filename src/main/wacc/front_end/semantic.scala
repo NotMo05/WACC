@@ -1,22 +1,28 @@
 package wacc.front_end
 
+import javax.lang.model.`type`.ErrorType
+
 
 object semantic {
   val semErrors = List.newBuilder[String]
+  val newStmts = List.newBuilder[Stmt]
+  val newFuncs = List.newBuilder[Func]
   var functionMap: Map[String, Func] = Map()
 
-  def analyse(prog: Prog): List[String] = {
+  def analyse(prog: Prog): (Prog, List[String]) = {
     semErrors.clear()
     functionMap = prog.funcs.map(f => f.identifier.identifier -> f).toMap
-    prog.funcs.foreach(validFunction)
-    prog.main.foreach(stmt => validStmtArgs(stmt))
-    semErrors.result()
+    val newFuncs = prog.funcs.map(validFunction(_))
+    val newStmts = prog.main.map(stmt => validStmtArgs(stmt))
+    (Prog(newFuncs, newStmts), semErrors.result())
   }
 
   // Validates a function by checking the types of its statements.
-  def validFunction(func: Func) = {
-    func.stmts.foreach(validStmtArgs(_, Some(func.t)))
-  }
+  def validFunction(func: Func): Func = Func(
+    func.t,
+    func.identifier,
+    func.params,
+    func.stmts.map(validStmtArgs(_, Some(func.t))))
 
   private def typeToString(t: Type): String = t match
     case PairType(t1, t2) =>
@@ -33,62 +39,72 @@ object semantic {
     case AnyType => "any type"
     case Undefined => "undefined"
 
-  def getRValueType(rValue: Any): Option[Type] = {
-    rValue match
+  def getRValueType(rValue: RValue, lValuetype: Option[Type] = None): (Option[Type], RValue) = {
+    (rValue: @unchecked) match
       case expr: Expr => getExprType(expr) match
-        case None => None
-        case t => t
+        case None => (None, rValue)
+        case t => (t, rValue)
 
-      // Check right num and types of arguments in function call
-      case Call(ident, args) => ident match
-        case qn: QualifiedFunc if qn.t == Undefined => None
-        case qn: QualifiedFunc if
-          qn.paramNum == args.size &&
-          qn.paramTypes.zip(args.map(getExprType(_)).flatten).forall((a,b) =>
-            a weakensTo b) => Some(qn.t)
-        case _ =>
-          semErrors += "Unexpected issue with parameters, incorrect number of args or types don't match"; None
-
-      case ArrayLiter(elems) => arrayLiterHandle(elems)
-      case NewPair(fst, snd) => newPairHandle(fst, snd)
+      case PossibleCalls(ident: Ident, possibleFuncs, args) => {
+        val t = lValuetype.getOrElse(Undefined)
+        ident match
+          case Ident(identifier) => {
+            var matchingReturnType = false
+            for ((qf, argTypes) <- possibleFuncs((t, args.length))) {
+              matchingReturnType = true
+              if qf.paramTypes.zip(
+                args.flatMap(getExprType(_))
+              ).forall(
+                (a,b) => a weakensTo b
+              ) then return (Some(qf.t), Call(qf, args))
+            }
+            val msg: String =
+              if matchingReturnType then {
+                s"Type error: No function $identifier with arguments of types matching $args found"
+              } else {
+                s"Type error: No function $identifier with return type ${t} found"
+              }
+            semErrors += msg
+            return (None, ErrorStmt(msg))
+          }
+      }
+      case ArrayLiter(elems) => (arrayLiterHandle(elems), rValue)
+      case NewPair(fst, snd) => (newPairHandle(fst, snd), rValue)
       case Fst(lValue) => pairElemHandle(lValue) match
-        case None => semErrors += "Expected a valid type here in pair first"; None
-        case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType))
-        case Some(PairType(t1, _)) => Some(t1.asInstanceOf[Type])
+        case None => semErrors += "Expected a valid type here in pair first"; (None, rValue)
+        case Some(PairType(Pair, _)) => (Some(PairType(AnyType, AnyType)), rValue)
+        case Some(PairType(t1, _)) => (Some(t1.asInstanceOf[Type]), rValue)
       case Snd(lValue) => pairElemHandle(lValue) match
-        case None => semErrors += "Expected a valid type here in pair second"; None
-        case Some(PairType(_, Pair)) => Some(PairType(AnyType, AnyType))
-        case Some(PairType(_, t2)) => Some(t2.asInstanceOf[Type])
+        case None => semErrors += "Expected a valid type here in pair second"; (None, rValue)
+        case Some(PairType(_, Pair)) => (Some(PairType(AnyType, AnyType)), rValue)
+        case Some(PairType(_, t2)) => (Some(t2.asInstanceOf[Type]), rValue)
   }
 
-  def getLValueType(lValue: Any): Option[Type] = {
-    lValue match
-      case ident: Ident => getExprType(ident)
-      case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index)
-      case Fst(lValue) => pairElemHandle(lValue) match
-        case None => semErrors += "Expected a valid type here in pair first";None
-        case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType))
-        case Some(PairType(t1, _)) => Some(t1.asInstanceOf[Type])
-      case Snd(lValue) => pairElemHandle(lValue) match
-        case None => semErrors += "Expected a valid type here in pair second";None
-        case Some(PairType(_, Pair)) => Some(PairType(AnyType, AnyType))
-        case Some(PairType(_, t2)) => Some(t2.asInstanceOf[Type])
-  }
 
-  def getExprType(expr: Expr): Option[Type] = {
-    expr match
-      case qn: QualifiedName => qn.t match
-        case Undefined => None 
-        case t => Some(t)
-      case ident: Ident => None
-      case op: Operator => getOperType(op)
-      case IntLiteral(_) => Some(IntType)
-      case BoolLiteral(_) => Some(BoolType)
-      case StringLiteral(_) => Some(StringType)
-      case CharLiteral(_) => Some(CharType)
-      case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index)
-      case NullLiteral => Some(PairType(AnyType, AnyType))
-  }
+  def getLValueType(lValue: Any): Option[Type] = lValue match
+    case ident: Ident => getExprType(ident)
+    case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index)
+    case Fst(lValue) => pairElemHandle(lValue) match
+      case None => semErrors += "Expected a valid type here in pair first";None
+      case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType))
+      case Some(PairType(t1, _)) => Some(t1.asInstanceOf[Type])
+    case Snd(lValue) => pairElemHandle(lValue) match
+      case None => semErrors += "Expected a valid type here in pair second";None
+      case Some(PairType(_, Pair)) => Some(PairType(AnyType, AnyType))
+      case Some(PairType(_, t2)) => Some(t2.asInstanceOf[Type])
+
+  def getExprType(expr: Expr): Option[Type] = expr match
+    case qn: QualifiedName => qn.t match
+      case Undefined => None
+      case t => Some(t)
+    case ident: Ident => None
+    case op: Operator => getOperType(op)
+    case IntLiteral(_) => Some(IntType)
+    case BoolLiteral(_) => Some(BoolType)
+    case StringLiteral(_) => Some(StringType)
+    case CharLiteral(_) => Some(CharType)
+    case ArrayElem(arrayName, index) => arrayElemHandle(arrayName, index)
+    case NullLiteral => Some(PairType(AnyType, AnyType))
 
   private def exprsMatchType(expr1: Expr, expr2: Expr, t: Type): Option[Boolean] = {
     val expr1Type = getExprType(expr1)
@@ -133,14 +149,12 @@ object semantic {
     expr1Type match
       case Some(x) => expr2Type match
         case Some(y) if (x weakensTo y) => Some(true)
-        case Some(y) => semErrors += s"TypeK error: unexpected ${typeToString(y)} expected ${typeToString(x)}"; Some(false)
+        case Some(y) => semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)}"; Some(false)
         case None => None
       case None => None
   }
 
-  def getOperType(op: Operator): Option[BaseType] = {
-
-    op match
+  def getOperType(op: Operator): Option[BaseType] = op match
       case Mul(l,r) => exprsMatchType(l, r, IntType) match
         case Some(true) => Some(IntType)
         case _ => None
@@ -212,47 +226,73 @@ object semantic {
       case NotEq(l, r) => exprsAreOfSameType(l, r) match
         case Some(true) => Some(BoolType)
         case _ => None
-  }
 
-  def validStmtArgs(stmt: Any, funcType: Option[Type] = None): Unit = {
+
+  def validStmtArgs(stmt: Stmt, funcType: Option[Type] = None): Stmt = {
     stmt match
       case Read(lValue) => getLValueType(lValue) match
-        case Some(IntType) => ()
-        case Some(CharType) => ()
-        case _ => semErrors += "error: `read` must be followed by an `int` or `char`"
+        case Some(IntType) => Read(lValue)
+        case Some(CharType) => Read(lValue)
+        case _ => {
+          val incorrectRead = "error: `read` must be followed by an `int` or `char`"
+          semErrors += incorrectRead
+          ErrorStmt(incorrectRead)
+        }
 
       case Free(expr) => getExprType(expr) match
-        case Some(ArrayType(_, _)) => ()
-        case Some(PairType(_, _)) => ()
-        case _ => semErrors += "error: `free` can only be used on `arrays` or `pairs`"
+        case Some(ArrayType(_, _)) => Free(expr)
+        case Some(PairType(_, _)) => Free(expr)
+        case _ =>{
+          val incorrectFree = "error: `free` can only be used on `arrays` or `pairs`"
+          semErrors += incorrectFree
+          ErrorStmt(incorrectFree)
+        }
 
       case Exit(expr) => getExprType(expr) match
-        case Some(IntType) => ()
-        case _ => semErrors += "error: `exit` statement must be provided with an exit code of type `int`"
-      case Assgn(t, _, rValue) =>
-        getRValueType(rValue) match
-        case Some(x) =>
-          if !(t weakensTo x) then
-            semErrors += s"Type error: unexpected ${typeToString(x)} expected ${typeToString(t)} in assignment"
-        case None => ()
+        case Some(IntType) => Exit(expr)
+
+        case _ => {
+          val exitError = "error: `exit` statement must be provided with an exit code of type `int`"
+          semErrors += exitError
+          ErrorStmt(exitError)
+        }
+
+      case Assgn(t, ident, rValue) =>
+        getRValueType(rValue, Some(t)) match
+        case (Some(x), newRValue) =>
+          if !(t weakensTo x) then {
+            val typeError = s"Type error: unexpected ${typeToString(x)} expected ${typeToString(t)} in assignment"
+            semErrors += typeError
+            ErrorStmt(typeError)
+          } else Assgn(t, ident, newRValue)
+
+        case (None, _) => Assgn(t, ident, rValue)
+        case (None, newRValue) => Assgn(t, ident, newRValue)
+
       case ReAssgn(lValue, rValue) => {
         val lType = getLValueType(lValue)
-        val rType = getRValueType(rValue)
+        val rType = getRValueType(rValue, lType)
         lType match
           case Some(x) => rType match
-            case Some(y) =>
-              if !(x weakensTo y) then
-                semErrors += s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)} in reassign"
-            case None => ()
-          case None => ()
+            case (Some(y), newRValue) =>
+              if !(x weakensTo y) then {
+                val msg = s"Type error: unexpected ${typeToString(y)} expected ${typeToString(x)} in reassign"
+                semErrors += msg
+                ErrorStmt(msg)
+              } else ReAssgn(lValue, rValue)
+            case (None, newRValue) => ReAssgn(lValue, newRValue)
+          case None => ReAssgn(lValue, rValue)
       }
+
       case WhileDo(cond, stmts) => {
         getExprType(cond) match
           case Some(BoolType) => ()
           case Some(_) => semErrors += "error: `while` constructs must have condition of type `bool`"
           case None => ()
         stmts.foreach(validStmtArgs(_, funcType))
+        WhileDo(cond, stmts)
       }
+
       case IfElse(cond, thenStmts, elseStmts) => {
         getExprType(cond) match
           case Some(BoolType) => ()
@@ -260,27 +300,44 @@ object semantic {
           case None => ()
         thenStmts.foreach(validStmtArgs(_, funcType))
         elseStmts.foreach(validStmtArgs(_, funcType))
+        IfElse(cond, thenStmts, elseStmts)
       }
-      case Scope(stmts) => stmts.foreach(validStmtArgs(_))
+
+      case Scope(stmts) => {
+        stmts.foreach(validStmtArgs(_))
+        Scope(stmts)
+      }
 
       case Return(expr) => funcType match
         case Some(x) => getExprType(expr) match
-          case Some(y) if x weakensTo y => ()
-          case Some(z) => semErrors +=
+          case Some(y) if x weakensTo y => Return(expr)
+          case Some(z) => {
+            semErrors +=
             s"error: ${typeToString(z)} `return` is incompatible with enclosing ${typeToString(x)} function"
-          case None => ()
-        case None => semErrors += "error: `return` cannot be called outside function/in main body of program"
+            Return(expr)
+          }
+          case None => (Return(expr))
+        case None => {
+          semErrors += "error: `return` cannot be called outside function/in main body of program"
+          Return(expr)
+        }
 
-      case Print(expr) => getExprType(expr)
+      case Print(expr) => {
+        getExprType(expr)
+        Print(expr)
+      }
 
-      case Println(expr) => getExprType(expr)
+      case Println(expr) => {
+        getExprType(expr)
+        Println(expr)
+      }
 
-      case Skip => ()
+      case Skip => Skip
   }
 
-/* Ensures that reading is defined properly with types
- * Builds on errors if incorrect type encountered
- */
+  /* Ensures that reading is defined properly with types
+  * Builds on errors if incorrect type encountered
+  */
   def validRead(lValue: LValue) = {
     val lValueType = getLValueType(lValue)
     lValueType match
@@ -325,12 +382,11 @@ object semantic {
     lValue match
       case ident: Ident =>
         getExprType(ident) match
-          case Some(pairType: PairType)=> Some(pairType)
+          case Some(pairType: PairType) => Some(pairType)
           case _ => semErrors += s"Expected pair type here, this var is ${getExprType(ident)}"; None
-
       case ArrayElem(arrayName, index) =>
         arrayElemHandle(arrayName, index) match
-          case Some(pairType: PairType)=> Some(pairType)
+          case Some(pairType: PairType) => Some(pairType)
           case _ => semErrors += s"Expected pair type here, instead found ${arrayElemHandle(arrayName, index)}"; None
       case Fst(lValue) => pairElemHandle(lValue) match
         case Some(PairType(Pair, _)) => Some(PairType(AnyType, AnyType))

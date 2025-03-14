@@ -3,6 +3,7 @@ import scala.collection.mutable.LinkedHashMap
 import scala.collection.mutable
 import java.nio.file.Files
 import java.nio.file.Paths
+import scala.annotation.meta.param
 
 class QualifiedName(val name: String, val num: Int, val t: Type) extends Ident(name) {
 
@@ -20,7 +21,7 @@ class QualifiedFunc(val t: Type, val funcName: String, val paramNum: Int, val pa
   override def hashCode() = (t, funcName, paramNum, paramTypes).##
 }
 
-val funcTypes: mutable.Map[String, QualifiedFunc] = mutable.Map()
+val funcTypes: mutable.Map[String, mutable.Map[(Type, Int), mutable.ListBuffer[(QualifiedFunc, List[Type])]]] = mutable.Map()
 
 val globalNumbering: mutable.Map[String, Int] = mutable.Map()
 
@@ -80,27 +81,32 @@ def processImport(path: String): List[Func] = {
 
 // check for duplicates
 def funcFirstPass(imports: List[Import], funcs: List[Func]) = {
-  // Process imported functions
-  imports.foreach { imp =>
-    processImport(imp.filePath.string).foreach { func =>
-      val name = func.identifier.identifier
-      if (funcTypes.contains(name)) {
-        scopeErrors += s"Illegal redefinition of function $name"
-      } else {
-        funcTypes(name) = QualifiedFunc(func.t, name, func.params.size, func.params.map(_.t))
-      }
+  val uniqueFuncSet: mutable.Set[(String, List[Type], Type)] = mutable.Set()
+  val nameReturnTypeArgNumSet: mutable.Set[(String, Type, List[Type])] = mutable.Set()
+  val stringFuncSet: mutable.Set[String] = mutable.Set()
+
+  def addFunc(func: Func) = {
+    val name = func.identifier.identifier
+    val paramTypes = func.params.map(_.t)
+    val retType = func.t
+    if (uniqueFuncSet.contains((name, paramTypes, retType))) {
+      scopeErrors += s"Illegal redefinition of function $name"
+    } else {
+      funcTypes.getOrElseUpdate(name, mutable.Map())
+        .getOrElseUpdate((retType, paramTypes.length), mutable.ListBuffer())
+        += ((QualifiedFunc(retType, name, paramTypes.length, paramTypes), paramTypes))
+
+      uniqueFuncSet.add((name, paramTypes, retType))
     }
   }
 
-  // Process local functions
-  for (func <- funcs) {
-    val name = func.identifier.identifier
-    if (funcTypes.contains(name)) {
-      scopeErrors += s"Illegal redefinition of function $name"
-    } else {
-      funcTypes(name) = QualifiedFunc(func.t, name, func.params.size, func.params.map(_.t))
-    }
+  // Process imported functions
+  imports.foreach { imp =>
+    processImport(imp.filePath.string).map(addFunc(_))
   }
+
+  // Process local funcs
+  funcs.map(addFunc(_))
 }
 
 def funcHandler(func: Func): Func = {
@@ -124,7 +130,7 @@ def funcHandler(func: Func): Func = {
       acc
     }
   val qParam = paramScope.map((_,qn) => Param(qn.t, qn)).toList
-  Func(func.t, funcTypes(name), qParam, scopeHandler(func.stmts, paramScope.toMap))
+  Func(func.t, func.identifier, qParam, scopeHandler(func.stmts, paramScope.toMap))
 }
 
 def lValueHandler(
@@ -144,10 +150,14 @@ def rValueHandler(
   current: mutable.Map[String, QualifiedName],
   parent: Map[String, QualifiedName]
   ): RValue = {
-    rValue match
+    (rValue: @unchecked) match
       case expr: Expr => exprHandler(expr, current, parent)
       case Call(ident, args) if funcTypes.contains(ident.identifier) => {
-          Call(funcTypes(ident.identifier), args.map(exprHandler(_, current, parent)))
+          PossibleCalls(
+            ident,
+            funcTypes(ident.identifier).view.mapValues(_.toList).toMap, // Convert ListBuffer to List
+            args.map(exprHandler(_, current, parent))
+          )
         }
 
       case Fst(lValue) => Fst(lValueHandler(lValue, current, parent))
@@ -166,7 +176,7 @@ def renameStmt(
   current: mutable.Map[String, QualifiedName],
   parent: Map[String, QualifiedName]
 ): Stmt = {
-  stmt match
+  (stmt: @unchecked) match
     case Skip => Skip
     case Assgn(t, Ident(name), rValue) => renameAssign(t, name, rValue, current, parent)
     case ReAssgn(lValue, rValue) =>

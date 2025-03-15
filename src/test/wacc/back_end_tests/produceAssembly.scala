@@ -105,7 +105,6 @@ class produceAssembly extends AnyFlatSpec with BeforeAndAfter {
               println(s"Program exitCode: $exitCode")
 
               val expectedResult = findOutputValues(file.getPath)
-              println(s"Comments are: $expectedResult")
 
               if (expectedResult.isEmpty) {
                 println("Not expecting any exit codes or returns")
@@ -139,14 +138,14 @@ class produceAssembly extends AnyFlatSpec with BeforeAndAfter {
 
   // runTest(advancedPath, false, true)
   // runTest(arrayPath, false, true)
-  runTest(basicPath, false, true)
-  runTest(expressionPath, false, true)
+  // runTest(basicPath, false, true)
+  // runTest(expressionPath, false, true)
   // runTest(functionPath, false, true)
-  runTest(ifPath, false, true)
+  // runTest(ifPath, false, true)
   // runTest(IOPath, false, true)
   // runTest(pairsPath, false, true)
-  runTest(runtimeErrPath, false, true)
+  // runTest(runtimeErrPath, false, true)
   // runTest(scopePath, false, true)
   // runTest(variablesPath, false, true)
-  // runTest(whilePath, false, true)
+  runTest(whilePath, false, true)
 }

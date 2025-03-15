@@ -38,54 +38,55 @@ class Interpreter(prog: Prog) {
       case Some(IntLiteral(int)) => println(s"Exited with code: $int")
   }
 
-  def stmtHandler(stmt: Stmt): Option[TypeOrPairElemValue] = stmt match {
-    case Return(expr) => evaluate(expr)
-    case Print(expr) => printHandler(evaluate(expr), PrintType.Print)
-    case Println(expr) => printHandler(evaluate(expr), PrintType.PrintLn)
-    case WhileDo(condition, stmts) => {
-      var ret: Option[TypeOrPairElemValue] = None
-      while (ret.isEmpty && evaluate(condition).collect {
-        case BoolLiteral(bool: Boolean) => bool
-      }.getOrElse(exprCouldntEval))
-      {
-        ret = stmtsHandler(stmts)  // Capture the return value
+  def stmtHandler(stmt: Stmt): Option[TypeOrPairElemValue] = 
+    stmt: @unchecked match {
+      case Return(expr) => evaluate(expr)
+      case Print(expr) => printHandler(evaluate(expr), PrintType.Print)
+      case Println(expr) => printHandler(evaluate(expr), PrintType.PrintLn)
+      case WhileDo(condition, stmts) => {
+        var ret: Option[TypeOrPairElemValue] = None
+        while (ret.isEmpty && evaluate(condition).collect {
+          case BoolLiteral(bool: Boolean) => bool
+        }.getOrElse(exprCouldntEval))
+        {
+          ret = stmtsHandler(stmts)  // Capture the return value
+        }
+        ret
       }
-      ret
-    }
-    case IfElse(condition, thenStmts, elseStmts) => {
-      evaluate(condition) match {
-        case Some(BoolLiteral(bool)) =>
-          if bool then stmtsHandler(thenStmts)
-          else stmtsHandler(elseStmts)
-        case _ =>
-          // Handle unexpected cases, e.g., None or incorrect types
-          throw new RuntimeException("Expected BoolLiteral but got None or wrong type")
+      case IfElse(condition, thenStmts, elseStmts) => {
+        evaluate(condition) match {
+          case Some(BoolLiteral(bool)) =>
+            if bool then stmtsHandler(thenStmts)
+            else stmtsHandler(elseStmts)
+          case _ =>
+            // Handle unexpected cases, e.g., None or incorrect types
+            throw new RuntimeException("Expected BoolLiteral but got None or wrong type")
+        }
       }
-    }
 
-    case Scope(stmts) => stmtsHandler(stmts) // No need to create new stack, renaming already handled
-    case assgn: Assgn => assgnHandler(assgn)
-    case ReAssgn(lValue, rValue) => reasgnHandler(lValue, rValue)
-    case Skip => None
-    case Read(lValue: LValue) => readHandler(lValue)
+      case Scope(stmts) => stmtsHandler(stmts) // No need to create new stack, renaming already handled
+      case assgn: Assgn => assgnHandler(assgn)
+      case ReAssgn(lValue, rValue) => reasgnHandler(lValue, rValue)
+      case Skip => None
+      case Read(lValue: LValue) => readHandler(lValue)
 
-    case Free(expr) => {
-      evaluate(expr) match
-        case None => exprCouldntEval
+      case Free(expr) => {
+        evaluate(expr) match
+          case None => exprCouldntEval
+          case Some(value) => (value: @unchecked) match
+            case StringLiteral(string) => ???
+            case arr: ArrayBaseLiteral => arr.elems match
+              case None => exprCouldntEval
+              case Some(value) => arr.elems = None; None
+            case p: PairLiteral => (p.fst, p.snd) match
+              case (Some(fst), Some(snd)) => p.fst = None; p.snd = None; None
+              case _ => exprCouldntEval
+            case NullLiteral => ???
+      }
+      case Exit(code) => throw new ExitException((evaluate(code): @unchecked) match
         case Some(value) => (value: @unchecked) match
-          case StringLiteral(string) => ???
-          case arr: ArrayBaseLiteral => arr.elems match
-            case None => exprCouldntEval
-            case Some(value) => arr.elems = None; None
-          case p: PairLiteral => (p.fst, p.snd) match
-            case (Some(fst), Some(snd)) => p.fst = None; p.snd = None; None
-            case _ => exprCouldntEval
-          case NullLiteral => ???
-    }
-    case Exit(code) => throw new ExitException((evaluate(code): @unchecked) match
-      case Some(value) => (value: @unchecked) match
-        case IntLiteral(int) => Some(IntLiteral(int % 128))
-    )
+          case IntLiteral(int) => Some(IntLiteral(int % 128))
+      )
   }
 
   def readHandler(lValue: LValue): Option[TypeOrPairElemValue] = {

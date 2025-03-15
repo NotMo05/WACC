@@ -1,8 +1,5 @@
 package wacc.front_end
 
-import javax.lang.model.`type`.ErrorType
-
-
 object semantic {
   val semErrors = List.newBuilder[String]
   val newStmts = List.newBuilder[Stmt]
@@ -14,7 +11,6 @@ object semantic {
     functionMap = prog.funcs.map(f => f.identifier.identifier -> f).toMap
     val newFuncs = prog.funcs.map(validFunction(_))
     val newStmts = prog.main.map(stmt => validStmtArgs(stmt))
-    println(Prog(newFuncs, newStmts).prettyPrint())
     (Prog(newFuncs, newStmts), semErrors.result())
   }
 
@@ -60,7 +56,7 @@ object semantic {
         case Some(PairType(_, Pair)) => (Some(PairType(AnyType, AnyType)), rValue)
         case Some(PairType(_, t2)) => (Some(t2.asInstanceOf[Type]), rValue)
 
-      case PossibleCalls(ident: Ident, possibleFuncs, args) =>
+      case x@PossibleCalls(ident: Ident, possibleFuncs, args) =>
         val t = lValuetype.getOrElse(Undefined)
         ident match
           case Ident(identifier) => {
@@ -82,7 +78,7 @@ object semantic {
                 (t weakensTo qf.t) &&
                 qf.paramTypes.zip(argTypes).forall((a, b) => a weakensTo b)
             ) match {
-              case Some(qf) => println("got here\n\n\n\n\n"); (Some(qf.t), Call(qf, args))
+              case Some(qf) => (Some(qf.t), Call(qf, args))
               case None =>
                 val msg =
                   if (matchingReturnType)
@@ -95,6 +91,7 @@ object semantic {
             }
           }
       case Call(_, _) => ???
+
       case err: ErrorStmt => (None, err)
 
 
@@ -350,6 +347,7 @@ object semantic {
         Println(expr)
       }
 
+      case wacc.front_end.ErrorStmt(_) => ???
       case Skip => Skip
   }
 

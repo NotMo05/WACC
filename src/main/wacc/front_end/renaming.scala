@@ -4,7 +4,6 @@ import scala.collection.mutable
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.Path
-import scala.annotation.meta.param
 
 class QualifiedName(val name: String, val num: Int, val t: Type) extends Ident(name) {
 
@@ -126,7 +125,6 @@ def resolveImportPath(path: String): Option[Path] = {
     return Some(absolutePath)
   }
 
-  println(s"DEBUG: Could not resolve import path: $path")
   None
 }
 
@@ -170,7 +168,6 @@ def funcHandler(func: Func): Func = {
     (paramName, QualifiedName(paramName, globalNumbering(paramName), param.t))
   }
 
-  val name = func.identifier.identifier
   val params = func.params
   val paramScope = params.reverse
     .map(paramHandler)

@@ -16,14 +16,16 @@ final val couldNotFindOnTable = throw new IllegalStateException("Somehow could n
 
 class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
   val reader = TerminalReader
-
-  val heap: mutable.Map[QualifiedName, TypeOrPairElemValue] = mutable.Map()
-  val identTables: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()
-  lazy val funcTable: immutable.Map[QualifiedFunc, Func] = // lazy as  functions may not be called
-    prog.funcs.map {
+  def funcListToMap(funcs: List[Func]): Map[QualifiedFunc, Func] =
+    funcs.map {
       func => (func.identifier match
         case qf: QualifiedFunc => qf)
       -> func }.toMap()
+
+  val heap: mutable.Map[QualifiedName, TypeOrPairElemValue] = mutable.Map()
+  val identTables: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()
+  val mutableFuncTable: mutable.Map[QualifiedFunc, Func] = mutable.Map()
+  lazy val funcTable: immutable.Map[QualifiedFunc, Func] = funcListToMap(prog.funcs)
   identTables.push(mutable.Map())
 
   def stmtsHandler(stmts: List[Stmt]): Option[TypeOrPairElemValue] =
@@ -283,7 +285,12 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
   }
 
   def callHandler(qf: QualifiedFunc, exprs: List[Expr]): Option[TypeOrPairElemValue] = {
-    val func = funcTable(qf)
+    val func = mutableFuncTable.get(qf) match
+      case None => funcTable.get(qf) match
+        case None => println(s"Function `${qf.funcName} does not exist`"); return None
+        case Some(value) => value
+      case Some(value) => value
+
     val newIdentTable = (func.params.reverse.zip(exprs).map {
       (param, expr) => ((param.identifier: @unchecked) match
         case qn: QualifiedName => qn)

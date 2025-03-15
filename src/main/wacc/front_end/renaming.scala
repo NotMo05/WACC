@@ -170,7 +170,6 @@ def funcHandler(func: Func): Func = {
     (paramName, QualifiedName(paramName, globalNumbering(paramName), param.t))
   }
 
-  val name = func.identifier.identifier
   val params = func.params
   val paramScope = params.reverse
     .map(paramHandler)

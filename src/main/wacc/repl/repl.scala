@@ -31,7 +31,15 @@ object SimpleREPL {
         } else {
           // Try parsing as a statement
           parser.importParse(input) match
-            case Success(Import(filePath)) => {
+            case Success(imp: Import) => {
+              funcFirstPass(List(imp), List.empty)
+              interpreter.mutableFuncTable.addAll(
+                interpreter.funcListToMap(
+                  combineImportedFuncs
+                    (ProgWithImports(List(imp), List.empty, List.empty))
+                    .funcs.toList
+                  )
+              )
 
 
             }

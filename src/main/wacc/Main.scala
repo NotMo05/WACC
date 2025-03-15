@@ -14,15 +14,14 @@ def main(args: Array[String]): Unit = {
   if args.isEmpty then
     println("No argument was provided"); return
 
-
   if args(0) == "interpreter" then {
     processFileArg(args, 1).foreach { fileContent => //file path should be second argument
       val fileName = args(1)
       val prog = genAST(fileContent, fileName)
       println(prog.prettyPrint())
-      val interpreter = new Interpreter(prog)
+      val interpreter = new Interpreter()
       try {
-        interpreter.execute()
+        interpreter.execute(prog)
       } catch {
         case e: RuntimeException => println(e.getMessage()); sys.exit(1)
       }

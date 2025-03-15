@@ -14,7 +14,7 @@ enum PrintType:
 final val exprCouldntEval = throw new FailedToEvaluate("Somehow the expr did not evaluate")
 final val couldNotFindOnTable = throw new IllegalStateException("Somehow could not find the qn on the table")
 
-class Interpreter(prog: Prog) {
+class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
   val reader = TerminalReader
 
   val heap: mutable.Map[QualifiedName, TypeOrPairElemValue] = mutable.Map()
@@ -29,8 +29,7 @@ class Interpreter(prog: Prog) {
   def stmtsHandler(stmts: List[Stmt]): Option[TypeOrPairElemValue] =
     stmts.collectFirst { case stmt if stmtHandler(stmt).isDefined => stmtHandler(stmt).get }
 
-
-  def execute(): Unit = try {
+  def execute(prog: Prog): Unit = try {
     stmtsHandler(prog.main)
   } catch {
     case FailedToEvaluate(message) => println(message)
@@ -86,6 +85,7 @@ class Interpreter(prog: Prog) {
       case Some(value) => (value: @unchecked) match
         case IntLiteral(int) => Some(IntLiteral(int % 128))
     )
+    case ErrorStmt(_) => ???
   }
 
   def readHandler(lValue: LValue): Option[TypeOrPairElemValue] = {

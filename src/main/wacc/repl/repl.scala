@@ -4,6 +4,9 @@ import parsley.Success
 import parsley.Failure
 import org.jline.reader.{LineReader, LineReaderBuilder, EndOfFileException, UserInterruptException}
 import org.jline.terminal.TerminalBuilder
+import scala.collection.mutable
+import wacc.front_end.semantic.validStmtArgs
+import wacc.interpreter.Interpreter
 
 object SimpleREPL {
   def repl(args: Array[String]): Unit = {
@@ -11,6 +14,7 @@ object SimpleREPL {
     val reader = LineReaderBuilder.builder()
       .terminal(terminal)
       .build()
+    val interpreter = Interpreter()
 
     // Enable history
     val historyFile = java.nio.file.Paths.get(".repl_history")
@@ -18,7 +22,7 @@ object SimpleREPL {
 
     println("Welcome to the Simple REPL. Type :q to quit.")
     var running = true
-
+    val topRenamingScope = mutable.Map.empty[String, QualifiedName]
     while (running) {
       try {
         val input = reader.readLine("> ")
@@ -26,13 +30,12 @@ object SimpleREPL {
           running = false
         } else {
           parser.stmtParse(input) match
-            case Success(result) =>
-              val stmt = scopeHandler(List(result), Map.empty[String, QualifiedName])
+            case Success(astStmt) =>
+              val renamedStmt = renameStmt(astStmt, topRenamingScope, Map.empty[String, QualifiedName])
+              val typeCheckedStmt = validStmtArgs(renamedStmt)
 
-              println(s"Parsed: $stmt")
               try {
-                // val evalResult = evaluate(result)
-                // println(s"Result: $evalResult")
+                val retVal = interpreter.stmtHandler(typeCheckedStmt)
               } catch {
                 case e: Exception => println(s"Evaluation Error: ${e.getMessage}")
               }

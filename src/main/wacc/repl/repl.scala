@@ -2,32 +2,49 @@ package wacc.repl
 import wacc.front_end._
 import parsley.Success
 import parsley.Failure
+import org.jline.reader.{LineReader, LineReaderBuilder, EndOfFileException, UserInterruptException}
+import org.jline.terminal.TerminalBuilder
 
 object SimpleREPL {
   def repl(args: Array[String]): Unit = {
+    val terminal = TerminalBuilder.builder().system(true).build()
+    val reader = LineReaderBuilder.builder()
+      .terminal(terminal)
+      .build()
+
+    // Enable history
+    val historyFile = java.nio.file.Paths.get(".repl_history")
+    reader.setVariable(LineReader.HISTORY_FILE, historyFile)
+
     println("Welcome to the Simple REPL. Type :q to quit.")
     var running = true
+
     while (running) {
-      print("> ")
-      val input = readMultiLineInput()
-      if (input == ":q") {
-        running = false
-      } else {
-        parser.stmtParse(input) match
-          case Success(result) => 
+      try {
+        val input = reader.readLine("> ")
+        if (input == ":q") {
+          running = false
+        } else {
+          parser.stmtParse(input) match
+            case Success(result) =>
+              val stmt = scopeHandler(List(result), Map.empty[String, QualifiedName])
 
-            println(s"Parsed: $result")
-            try {
-              // val evalResult = evaluate(result)
-              // println(s"Result: $evalResult")
-            } catch {
-              case e: Exception => println(s"Evaluation Error: ${e.getMessage}")
-            }
-          case Failure(err) =>
-            println(s"Parse Error: $err")
-
+              println(s"Parsed: $stmt")
+              try {
+                // val evalResult = evaluate(result)
+                // println(s"Result: $evalResult")
+              } catch {
+                case e: Exception => println(s"Evaluation Error: ${e.getMessage}")
+              }
+            case Failure(err) =>
+              println(s"Parse Error: $err")
+        }
+      } catch {
+        case _: EndOfFileException => running = false // Handle Ctrl+D
+        case _: UserInterruptException => running = false // Handle Ctrl+C
       }
     }
+    reader.getHistory.save()
   }
 
   // Read multi-line input

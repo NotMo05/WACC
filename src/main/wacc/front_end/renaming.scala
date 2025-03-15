@@ -325,5 +325,5 @@ def renameIdent(
     return parent(name)
   }
   scopeErrors += s"Variable $name has not been declared in scope"
-  return QualifiedName("", 0, Undefined)
+  return QualifiedName(name, -1, Undefined)
 }

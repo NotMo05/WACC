@@ -300,10 +300,11 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
     case bool: BoolLiteral => Some(bool)
     case string: StringLiteral => Some(string)
     case char: CharLiteral => Some(char)
-    case qn: QualifiedName => Some(identTables.top(qn)) match
+    case qn: QualifiedName => identTables.top.get(qn) match
       case Some(value) => value match
         case PairLiteral(_, _) => Some(QualifiedNameContainer(qn))
         case v => Some(v)
+      case None => println(s"`${qn.name}` not found in current scope"); None
 
     case ArrayElem(arrayName: Ident, indexes: List[Expr]) =>
       arrayName match
@@ -424,4 +425,5 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
     case Some(pair @ PairLiteral(_, _)) => s"0x${System.identityHashCode(pair).toHexString}"
     case Some(QualifiedNameContainer(qn)) => itemStringHandler(Some(identTables.top(qn)))
     case Some(NullLiteral) => "(nil)"
+    case None => ""
 }

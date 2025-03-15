@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
   }
   
   // Compile assembly to binary (from root directory)
-  sprintf(command, "gcc -o ./%s ./%s.s", basename, basename);
+  sprintf(command, "gcc -z noexecstack -o ./%s ./%s.s", basename, basename);
   printf("Running: %s\n", command);
   status = system(command);
   if (status != 0) {

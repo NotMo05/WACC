@@ -9,13 +9,6 @@ import scala.collection.mutable
 import scala.collection.mutable.{Builder, Map}
 import wacc.front_end.semantic.getExprType
 
-/** TODO:
- * - qnMap doesn't address different scoeps. An x in a while loop may be different from an x outside the while loop
- * - Try to single pass all of the folding and propogation (right now it happens in three different passes)
- * - Some redundant re-processing under the blocks of while and ifelse blocks
- * - Should try and localise qnMap to avoid unexpected behaviour
-*/
-
 object IR {
   val STACK_ALIGN = -16
   var localLabelCounter = 0
@@ -41,116 +34,135 @@ object IR {
   }
 
   def findConstantVariables(stmts: List[Stmt]): List[Stmt] = {
-    for (stmt <- stmts) {
-      stmt match
-        case Assgn(t, identifier, rValue) => qnMap += identifier -> rValue
-        case ReAssgn(lValue, rValue) => {
-          lValue match
-            case ident: Ident => qnMap -= ident
-            case _ => // Do nothing
+    // Create a scope stack to track variables in different scopes
+    val scopeStack = mutable.Stack[mutable.Map[Ident, RValue]](mutable.Map.empty)
+    
+    // Process statements in a single pass
+    transformStmts(stmts, scopeStack)
+  }
+
+  // Helper method to transform statements with scope awareness
+  private def transformStmts(stmts: List[Stmt], scopeStack: mutable.Stack[mutable.Map[Ident, RValue]]): List[Stmt] = {
+    stmts.map(stmt => transformStmt(stmt, scopeStack))
+  }
+
+  private def transformStmt(stmt: Stmt, scopeStack: mutable.Stack[mutable.Map[Ident, RValue]]): Stmt = {
+    stmt match {
+      case Assgn(t, identifier, rValue) =>
+        val foldedRValue = foldConstRValueHelper(rValue, scopeStack)
+        // Only mark as constant if it's a literal or other constant expression
+        isConstantValue(foldedRValue) match {
+          case true =>
+            // Add to current scope's constants
+            scopeStack.top += (identifier -> foldedRValue)
+            Assgn(t, identifier, foldedRValue)
+          case false =>
+            // Remove from constants if reassigned to non-constant
+            scopeStack.top -= identifier
+            Assgn(t, identifier, foldedRValue)
         }
-        case WhileDo(condition, stmts) => findConstantVariables(stmts)
-        case IfElse(condition, thenStmts, elseStmts) => {
-          findConstantVariables(thenStmts)
-          findConstantVariables(elseStmts)
+      
+      case ReAssgn(lValue, rValue) =>
+        val foldedRValue = foldConstRValueHelper(rValue, scopeStack)
+        lValue match {
+          case ident: Ident =>
+            // Remove from constants when reassigned
+            scopeStack.foreach(_.remove(ident))
+            ReAssgn(lValue, foldedRValue)
+          case _ => 
+            ReAssgn(lValue, foldedRValue)
         }
-        case _ => // Do nothing
-    }
 
-    // go through variables again and then replace all assigns and calls with the literal evaluation
-
-    for ((ident, rvalue) <- qnMap){
-      qnMap(ident) = foldConstRValueHelper(rvalue)
-    }
-
-    stmts.map { stmt =>
-      stmt match
-        case Assgn(t, identifier, rValue) if qnMap.contains(identifier) =>
-          Assgn(t, identifier, qnMap(identifier))
-        case ReAssgn(lValue, rValue) =>
-          ReAssgn(lValue, foldConstRValueHelper(rValue))
-        case WhileDo(condition, bodyStmts) =>
-          WhileDo(condition, bodyStmts.map(foldConstStmtHelper))
-        case IfElse(condition, thenStmts, elseStmts) =>
-          IfElse(condition,
-                 thenStmts.map(foldConstStmtHelper),
-                 elseStmts.map(foldConstStmtHelper))
-        case other => other
+      case WhileDo(condition, bodyStmts) =>
+        val foldedCondition = foldConstExprHelper(condition, scopeStack)
+        foldedCondition match {
+          case BoolLiteral(false) => Skip  // Unreachable code elimination
+          case _ => 
+            // Create a new scope for the while body
+            scopeStack.push(mutable.Map.empty)
+            val foldedBody = transformStmts(bodyStmts, scopeStack)
+            scopeStack.pop() // Restore scope
+            WhileDo(foldedCondition, foldedBody)
+        }
+        
+      case IfElse(condition, thenStmts, elseStmts) =>
+        val foldedCondition = foldConstExprHelper(condition, scopeStack)
+        foldedCondition match {
+          case BoolLiteral(true) => 
+            // Only then branch is reachable
+            scopeStack.push(mutable.Map.empty)
+            val foldedThen = transformStmts(thenStmts, scopeStack)
+            scopeStack.pop()
+            Scope(foldedThen)
+          case BoolLiteral(false) => 
+            // Only else branch is reachable
+            scopeStack.push(mutable.Map.empty)
+            val foldedElse = transformStmts(elseStmts, scopeStack)
+            scopeStack.pop()
+            Scope(foldedElse)
+          case _ => 
+            // Create new scopes for then and else branches
+            scopeStack.push(mutable.Map.empty)
+            val foldedThen = transformStmts(thenStmts, scopeStack)
+            scopeStack.pop()
+            
+            scopeStack.push(mutable.Map.empty)
+            val foldedElse = transformStmts(elseStmts, scopeStack)
+            scopeStack.pop()
+            
+            IfElse(foldedCondition, foldedThen, foldedElse)
+        }
+        
+      case Scope(innerStmts) =>
+        scopeStack.push(mutable.Map.empty)
+        val foldedStmts = transformStmts(innerStmts, scopeStack)
+        scopeStack.pop()
+        Scope(foldedStmts)
+        
+      // Handle other statement types but still fold any expressions they contain
+      case Read(lValue) => Read(lValue)
+      case Free(expr) => Free(foldConstExprHelper(expr, scopeStack))
+      case Return(expr) => Return(foldConstExprHelper(expr, scopeStack))
+      case Exit(expr) => Exit(foldConstExprHelper(expr, scopeStack))
+      case Print(expr) => Print(foldConstExprHelper(expr, scopeStack))
+      case Println(expr) => Println(foldConstExprHelper(expr, scopeStack))
+      case Skip => Skip
+      case _ => stmt
     }
   }
 
-  def foldConstStmtHelper(stmt: Stmt): Stmt = {
-    stmt match {
-      case Read(lValue) => Read(lValue)
-      case Free(expr) => Free(foldConstExprHelper(expr))
-      case Return(expr) => Return(foldConstExprHelper(expr))
-      case Exit(expr) => Exit(foldConstExprHelper(expr))
-      case Print(expr) => Print(foldConstExprHelper(expr))
-      case Println(expr) => Println(foldConstExprHelper(expr))
-
-      case WhileDo(condition, stmts) => {
-        val foldedCond = foldConstExprHelper(condition)
-        foldedCond match {
-          case BoolLiteral(false) => Skip  // Unreachable code elimination
-          case _ => WhileDo(foldedCond, stmts.map(foldConstStmtHelper))
-        }
-      }
-
-      case IfElse(condition, thenStmts, elseStmts) => {
-        val foldedCond = foldConstExprHelper(condition)
-        foldedCond match {
-          case BoolLiteral(true) => Scope(thenStmts.map(foldConstStmtHelper))
-          case BoolLiteral(false) => Scope(elseStmts.map(foldConstStmtHelper))
-          case _ => IfElse(foldedCond,
-                          thenStmts.map(foldConstStmtHelper),
-                          elseStmts.map(foldConstStmtHelper))
-        }
-      }
-
-      case Assgn(t, identifier, rValue) => {
-        rValue match {
-          case expr: Expr => Assgn(t, identifier, foldConstExprHelper(expr))
-          case Call(funcName, args) =>
-            Assgn(t, identifier, Call(funcName, args.map(foldConstExprHelper)))
-          case other => Assgn(t, identifier, other)
-        }
-      }
-
-      case ReAssgn(lValue, rValue) => {
-        rValue match {
-          case expr: Expr => ReAssgn(lValue, foldConstExprHelper(expr))
-          case Call(funcName, args) =>
-            ReAssgn(lValue, Call(funcName, args.map(foldConstExprHelper)))
-          case other => ReAssgn(lValue, other)
-        }
-      }
-
-      case Scope(stmts) => Scope(stmts.map(foldConstStmtHelper))
-      case _ => Skip
+  // Helper to determine if an RValue is a constant that can be propagated
+  private def isConstantValue(rvalue: RValue): Boolean = {
+    rvalue match {
+      case _: IntLiteral | _: BoolLiteral | _: CharLiteral | _: StringLiteral => true
+      case _ => false
     }
   }
 
   // Helper method for common expression folding logic
-  private def foldCommonExpr(expr: Expr): Expr = {
+  private def foldConstExprHelper(expr: Expr, scopeStack: mutable.Stack[mutable.Map[Ident, RValue]]): Expr = {
     expr match {
       // Base cases - literals remain unchanged
       case lit: IntLiteral => lit
       case lit: BoolLiteral => lit
       case lit: StringLiteral => lit
       case lit: CharLiteral => lit
-      case id: Ident => {
-        if (qnMap.contains(id)) foldConstRValueHelper(qnMap(id)).asInstanceOf[Expr]
-        else id
-      }
+      case id: Ident =>
+        // Look up the identifier in all scopes, from innermost to outermost
+        val constantValue = scopeStack.iterator.flatMap(_.get(id)).nextOption()
+        constantValue match {
+          case Some(constVal) => constVal.asInstanceOf[Expr]
+          case None => id
+        }
       case NullLiteral => NullLiteral
 
       // Array elements - fold the index expressions
       case ArrayElem(arrayName, index) =>
-        ArrayElem(arrayName, index.map(foldConstExprHelper))
+        ArrayElem(arrayName, index.map(expr => foldConstExprHelper(expr, scopeStack)))
 
       // Unary operations
       case Neg(x) => {
-        val foldedX = foldConstExprHelper(x)
+        val foldedX = foldConstExprHelper(x, scopeStack)
         foldedX match {
           case IntLiteral(i) => IntLiteral(-i)
           case _ => Neg(foldedX)
@@ -158,7 +170,7 @@ object IR {
       }
 
       case Not(x) => {
-        val foldedX = foldConstExprHelper(x)
+        val foldedX = foldConstExprHelper(x, scopeStack)
         foldedX match {
           case BoolLiteral(b) => BoolLiteral(!b)
           case _ => Not(foldedX)
@@ -166,7 +178,7 @@ object IR {
       }
 
       case Len(x) => {
-        val foldedX = foldConstExprHelper(x)
+        val foldedX = foldConstExprHelper(x, scopeStack)
         foldedX match {
           case StringLiteral(s) => IntLiteral(s.length)
           case _ => Len(foldedX)
@@ -175,7 +187,7 @@ object IR {
 
       // Character conversions
       case Chr(x) => {
-        val foldedX = foldConstExprHelper(x)
+        val foldedX = foldConstExprHelper(x, scopeStack)
         foldedX match {
           case IntLiteral(i) if i >= 0 && i <= 127 => CharLiteral(i.toChar)
           case _ => Chr(foldedX)
@@ -183,7 +195,7 @@ object IR {
       }
 
       case Ord(x) => {
-        val foldedX = foldConstExprHelper(x)
+        val foldedX = foldConstExprHelper(x, scopeStack)
         foldedX match {
           case CharLiteral(c) => IntLiteral(c.toInt)
           case _ => Ord(foldedX)
@@ -192,7 +204,7 @@ object IR {
 
       // Binary arithmetic operations
       case Mul(l, r) => {
-        val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
+        val (foldedL, foldedR) = (foldConstExprHelper(l, scopeStack), foldConstExprHelper(r, scopeStack))
         (foldedL, foldedR) match {
           case (IntLiteral(a), IntLiteral(b)) => IntLiteral(a * b)
           case _ => Mul(foldedL, foldedR)
@@ -200,7 +212,7 @@ object IR {
       }
 
       case Div(l, r) => {
-        val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
+        val (foldedL, foldedR) = (foldConstExprHelper(l, scopeStack), foldConstExprHelper(r, scopeStack))
         (foldedL, foldedR) match {
           case (IntLiteral(a), IntLiteral(b)) if b != 0 => IntLiteral(a / b)
           case _ => Div(foldedL, foldedR) // Let runtime handle division by zero
@@ -208,7 +220,7 @@ object IR {
       }
 
       case Mod(l, r) => {
-        val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
+        val (foldedL, foldedR) = (foldConstExprHelper(l, scopeStack), foldConstExprHelper(r, scopeStack))
         (foldedL, foldedR) match {
           case (IntLiteral(a), IntLiteral(b)) if b != 0 => IntLiteral(a % b)
           case _ => Mod(foldedL, foldedR)
@@ -216,7 +228,7 @@ object IR {
       }
 
       case Add(l, r) => {
-        val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
+        val (foldedL, foldedR) = (foldConstExprHelper(l, scopeStack), foldConstExprHelper(r, scopeStack))
         (foldedL, foldedR) match {
           case (IntLiteral(a), IntLiteral(b)) => IntLiteral(a + b)
           case _ => Add(foldedL, foldedR)
@@ -224,7 +236,7 @@ object IR {
       }
 
       case Sub(l, r) => {
-        val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
+        val (foldedL, foldedR) = (foldConstExprHelper(l, scopeStack), foldConstExprHelper(r, scopeStack))
         (foldedL, foldedR) match {
           case (IntLiteral(a), IntLiteral(b)) => IntLiteral(a - b)
           case _ => Sub(foldedL, foldedR)
@@ -233,7 +245,7 @@ object IR {
 
       // Comparison operations
       case Less(l, r) => {
-        val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
+        val (foldedL, foldedR) = (foldConstExprHelper(l, scopeStack), foldConstExprHelper(r, scopeStack))
         (foldedL, foldedR) match {
           case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a < b)
           case _ => Less(foldedL, foldedR)
@@ -241,7 +253,7 @@ object IR {
       }
 
       case LessE(l, r) => {
-        val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
+        val (foldedL, foldedR) = (foldConstExprHelper(l, scopeStack), foldConstExprHelper(r, scopeStack))
         (foldedL, foldedR) match {
           case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a <= b)
           case _ => LessE(foldedL, foldedR)
@@ -249,7 +261,7 @@ object IR {
       }
 
       case Greater(l, r) => {
-        val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
+        val (foldedL, foldedR) = (foldConstExprHelper(l, scopeStack), foldConstExprHelper(r, scopeStack))
         (foldedL, foldedR) match {
           case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a > b)
           case _ => Greater(foldedL, foldedR)
@@ -257,7 +269,7 @@ object IR {
       }
 
       case GreaterE(l, r) => {
-        val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
+        val (foldedL, foldedR) = (foldConstExprHelper(l, scopeStack), foldConstExprHelper(r, scopeStack))
         (foldedL, foldedR) match {
           case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a >= b)
           case _ => GreaterE(foldedL, foldedR)
@@ -266,7 +278,7 @@ object IR {
 
       // Equality operations
       case Eq(l, r) => {
-        val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
+        val (foldedL, foldedR) = (foldConstExprHelper(l, scopeStack), foldConstExprHelper(r, scopeStack))
         (foldedL, foldedR) match {
           case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a == b)
           case (BoolLiteral(a), BoolLiteral(b)) => BoolLiteral(a == b)
@@ -277,7 +289,7 @@ object IR {
       }
 
       case NotEq(l, r) => {
-        val (foldedL, foldedR) = (foldConstExprHelper(l), foldConstExprHelper(r))
+        val (foldedL, foldedR) = (foldConstExprHelper(l, scopeStack), foldConstExprHelper(r, scopeStack))
         (foldedL, foldedR) match {
           case (IntLiteral(a), IntLiteral(b)) => BoolLiteral(a != b)
           case (BoolLiteral(a), BoolLiteral(b)) => BoolLiteral(a != b)
@@ -289,11 +301,11 @@ object IR {
 
       // Logical operations with short-circuit optimization
       case And(l, r) => {
-        val foldedL = foldConstExprHelper(l)
+        val foldedL = foldConstExprHelper(l, scopeStack)
         foldedL match {
           case BoolLiteral(false) => BoolLiteral(false) // Short-circuit
           case _ => {
-            val foldedR = foldConstExprHelper(r)
+            val foldedR = foldConstExprHelper(r, scopeStack)
             (foldedL, foldedR) match {
               case (BoolLiteral(true), right) => right
               case (left, BoolLiteral(true)) => left
@@ -305,11 +317,11 @@ object IR {
       }
 
       case Or(l, r) => {
-        val foldedL = foldConstExprHelper(l)
+        val foldedL = foldConstExprHelper(l, scopeStack)
         foldedL match {
           case BoolLiteral(true) => BoolLiteral(true) // Short-circuit
           case _ => {
-            val foldedR = foldConstExprHelper(r)
+            val foldedR = foldConstExprHelper(r, scopeStack)
             (foldedL, foldedR) match {
               case (BoolLiteral(false), right) => right
               case (left, BoolLiteral(false)) => left
@@ -322,21 +334,19 @@ object IR {
     }
   }
 
-  def foldConstExprHelper(expr: Expr): Expr = {
-    foldCommonExpr(expr)
-  }
-
-  def foldConstRValueHelper(rvalue: RValue): RValue = {
+  private def foldConstRValueHelper(rvalue: RValue, scopeStack: mutable.Stack[mutable.Map[Ident, RValue]]): RValue = {
     rvalue match {
       // Common expression handling
-      case expr: Expr => foldCommonExpr(expr)
+      case expr: Expr => foldConstExprHelper(expr, scopeStack)
 
       // RValue-specific cases
-      case Call(id, args) => Call(id, args.map(foldConstExprHelper))
+      case Call(id, args) => Call(id, args.map(expr => foldConstExprHelper(expr, scopeStack)))
       case Fst(lValue) => Fst(lValue)
       case Snd(lValue) => Snd(lValue)
-      case ArrayLiter(elems) => ArrayLiter(elems.map(foldConstExprHelper))
-      case NewPair(fst, snd) => NewPair(foldConstExprHelper(fst), foldConstExprHelper(snd))
+      case ArrayLiter(elems) => ArrayLiter(elems.map(expr => foldConstExprHelper(expr, scopeStack)))
+      case NewPair(fst, snd) => NewPair(foldConstExprHelper(fst, scopeStack), foldConstExprHelper(snd, scopeStack))
+      case wacc.front_end.PossibleCalls(_, _, _) => ??? // If we get to this case then something seriously wrong has happened
+      case ErrorStmt(error: String) => ??? // Should not be happening
     }
   }
 
@@ -592,7 +602,6 @@ object IR {
       case expr: Expr => {
         exprGen(expr, asmBuilder) match
           case Reg(num, dataWidth) => {
-            print(MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(num, dataWidth)))
             MOV(OffsetAddr(dataWidth, Reg(Rbp, QWord), Stack.getOffset(qn)), Reg(num, dataWidth))
           }
 
@@ -867,8 +876,6 @@ object IR {
     }
   }
 
-
-
   val (pushRbp) =
     List(
       PUSH(Reg(Rbp, QWord)),
@@ -979,5 +986,4 @@ object IR {
     )
     asmBuilder ++= popRbp
   }
-
 }

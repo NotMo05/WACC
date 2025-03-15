@@ -14,6 +14,7 @@ object semantic {
     functionMap = prog.funcs.map(f => f.identifier.identifier -> f).toMap
     val newFuncs = prog.funcs.map(validFunction(_))
     val newStmts = prog.main.map(stmt => validStmtArgs(stmt))
+    println(Prog(newFuncs, newStmts).prettyPrint())
     (Prog(newFuncs, newStmts), semErrors.result())
   }
 
@@ -81,7 +82,7 @@ object semantic {
                 (t weakensTo qf.t) &&
                 qf.paramTypes.zip(argTypes).forall((a, b) => a weakensTo b)
             ) match {
-              case Some(qf) => (Some(qf.t), Call(qf, args))
+              case Some(qf) => println("got here\n\n\n\n\n"); (Some(qf.t), Call(qf, args))
               case None =>
                 val msg =
                   if (matchingReturnType)
@@ -276,15 +277,14 @@ object semantic {
 
       case Assgn(t, ident, rValue) =>
         getRValueType(rValue, Some(t)) match
-        case (Some(x), newRValue) =>
-          if !(t weakensTo x) then {
-            val typeError = s"Type error: unexpected ${typeToString(x)} expected ${typeToString(t)} in assignment"
-            semErrors += typeError
-            ErrorStmt(typeError)
-          } else Assgn(t, ident, newRValue)
+          case (Some(x), newRValue) =>
+            if !(t weakensTo x) then {
+              val typeError = s"Type error: unexpected ${typeToString(x)} expected ${typeToString(t)} in assignment"
+              semErrors += typeError
+              ErrorStmt(typeError)
+            } else Assgn(t, ident, newRValue)
 
-        case (None, _) => Assgn(t, ident, rValue)
-        case (None, newRValue) => Assgn(t, ident, newRValue)
+          case (None, newRValue) => Assgn(t, ident, newRValue)
 
       case ReAssgn(lValue, rValue) => {
         val lType = getLValueType(lValue)
@@ -298,7 +298,7 @@ object semantic {
                 ErrorStmt(msg)
               } else ReAssgn(lValue, newRValue)
             case (None, newRValue) => ReAssgn(lValue, newRValue)
-          case None => ReAssgn(lValue, rValue)
+          case None => ReAssgn(lValue, rType._2)
       }
 
       case WhileDo(cond, stmts) => {
@@ -306,8 +306,7 @@ object semantic {
           case Some(BoolType) => ()
           case Some(_) => semErrors += "error: `while` constructs must have condition of type `bool`"
           case None => ()
-        stmts.foreach(validStmtArgs(_, funcType))
-        WhileDo(cond, stmts)
+        WhileDo(cond, stmts.map(validStmtArgs(_, funcType)))
       }
 
       case IfElse(cond, thenStmts, elseStmts) => {
@@ -315,14 +314,16 @@ object semantic {
           case Some(BoolType) => ()
           case Some(_) => semErrors += "error: `if` constructs must have condition of type `bool`"
           case None => ()
-        thenStmts.foreach(validStmtArgs(_, funcType))
-        elseStmts.foreach(validStmtArgs(_, funcType))
-        IfElse(cond, thenStmts, elseStmts)
+        IfElse(
+          cond,
+          thenStmts.map(validStmtArgs(_, funcType)),
+          elseStmts.map(validStmtArgs(_, funcType))
+        )
       }
 
       case Scope(stmts) => {
-        stmts.foreach(validStmtArgs(_))
-        Scope(stmts)
+        Scope(stmts.map(validStmtArgs(_))
+        )
       }
 
       case Return(expr) => funcType match

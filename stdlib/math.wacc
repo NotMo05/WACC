@@ -51,19 +51,17 @@ begin
     # Base case
     if b == 0 then
       return a
-	else
-	  skip
-    fi;
-
+    else
     # Recursive case using modulo
-    int temp = a;
-    while b != 0 do
-      temp = b;
-      b = a % b;
-      a = temp
-    done;
+      int temp = a;
+      while b != 0 do
+        temp = b;
+        b = a % b;
+        a = temp
+      done;
+      return a
+    fi
 
-    return a
   end
 
   # Least Common Multiple
@@ -77,7 +75,7 @@ begin
     if n <= 1 then
       return 1
     else
-      int next = call factorial(n-1);
+	  int next = call factorial(n-1);
       return n * next
     fi
   end
@@ -132,14 +130,14 @@ begin
     int start = 1;
     int finish = x;
     int result = 0;
-
+    
     while start <= finish do
       int mid = (start + finish) / 2;
-
+      
       if mid * mid == x then
         return mid
-	    else
-	      skip
+	  else
+		skip
       fi;
 
       if mid * mid < x then

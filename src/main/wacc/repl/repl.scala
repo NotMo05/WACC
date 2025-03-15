@@ -22,15 +22,13 @@ object SimpleREPL {
 
     println("Welcome to the Simple REPL. Type :q to quit.")
     var running = true
-    var indentLevel = 0
     val topRenamingScope = mutable.Map.empty[String, QualifiedName]
     while (running) {
       try {
-        val unprocessedInput = readMultiLineInput(reader, indentLevel)
-        if (unprocessedInput == ":q") {
+        val input = readMultiLineInput(reader)
+        if (input == ":q") {
           running = false
         } else {
-          val input = removeIndentation(unprocessedInput, indentLevel)
           // Try parsing as a statement
           parser.importParse(input) match
             case Success(Import(filePath)) => {
@@ -80,17 +78,18 @@ object SimpleREPL {
 
 
   // Read multi-line input
-  def readMultiLineInput(reader: LineReader, indentLevel: Int): String = {
+  def readMultiLineInput(reader: LineReader): String = {
     val input = new StringBuilder()
-    var line = reader.readLine("\n> " + " " * indentLevel)
+    var line = reader.readLine("\n> ")
     input.append(line)
 
-    val newIndentLevel = updateIndentation(line, indentLevel)
+    var indentLevel = updateIndentation(line, 0)
 
     // Continue reading until the input is complete
     while (!isInputComplete(input.toString())) {
-      line = reader.readLine(". " + "  " * newIndentLevel) // Use ". " as the continuation prompt
+      line = reader.readLine(". " + "  " * indentLevel) // Use ". " as the continuation prompt
       input.append("\n").append(line)
+      indentLevel = updateIndentation(line, indentLevel)
     }
 
     input.toString()
@@ -144,10 +143,5 @@ object SimpleREPL {
     } else {
       currentIndent // No change in indentation
     }
-  }
-
-  def removeIndentation(input: String, indentLevel: Int): String = {
-    val lines = input.split("\n")
-    lines.map(_.stripLeading()).mkString("\n") // Remove leading spaces from each line
   }
 }

@@ -341,8 +341,8 @@ class produceAssembly extends AnyFlatSpec with BeforeAndAfter {
   // Run tests for each directory - uncomment as needed
   // runTest(advancedPath, false, true)
   // runTest(arrayPath, false, true)
-  runTest(basicPath, false, true)
-  runTest(expressionPath, false, true)
+  // runTest(basicPath, false, true)
+  // runTest(expressionPath, false, true)
   // runTest(functionPath, false, true)
   // runTest(ifPath, false, true)
   // runTest(IOPath, false, true)

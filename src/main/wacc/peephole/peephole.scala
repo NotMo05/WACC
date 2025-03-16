@@ -11,7 +11,7 @@ object Peephole {
     var instrNum = 0
 
     def isPushPopOrPopPush(instrNum: Int): Boolean = {
-      if (instrNum == funcLabelDefInstrArrayBuff.size - 1) then false
+      if (instrNum >= funcLabelDefInstrArrayBuff.size - 1) then false
       else {
       funcLabelDefInstrArrayBuff(instrNum) match
         case PUSH(op1) => funcLabelDefInstrArrayBuff(instrNum + 1) match
@@ -25,7 +25,7 @@ object Peephole {
     }
     
     def isRspAdjMovOverwrite(instrNum: Int): Boolean = {
-      if (instrNum == funcLabelDefInstrArrayBuff.size - 1) then false
+      if (instrNum >= funcLabelDefInstrArrayBuff.size - 1) then false
       else {
         funcLabelDefInstrArrayBuff(instrNum) match
           case ADD((Reg(RegName.Rsp, dataWidth1), _)) => funcLabelDefInstrArrayBuff(instrNum + 1) match
@@ -36,14 +36,29 @@ object Peephole {
       }
     }
 
+    def isRspAddSubCancel(instrNum: Int): Boolean = {
+      if (instrNum >= funcLabelDefInstrArrayBuff.size - 1) then false
+      else {
+        funcLabelDefInstrArrayBuff(instrNum) match
+          case ADD((Reg(RegName.Rsp, dataWidth1), Imm(value1))) => funcLabelDefInstrArrayBuff(instrNum + 1) match
+            case SUB((Reg(RegName.Rsp, dataWidth2), Imm(value2))) if dataWidth1 == dataWidth2 && value1 == value2 => true
+            case _ => false
+          case _ => false
+      }
+    }
+
     while (instrNum < funcLabelDefInstrArrayBuff.size) {
       var anOptimisationHasBeenDone = false
       if (isPushPopOrPopPush(instrNum)) {
-        funcLabelDefInstrArrayBuff.remove(instrNum, instrNum + 1)
+        funcLabelDefInstrArrayBuff.remove(instrNum, instrNum + 2)
         anOptimisationHasBeenDone = true
       }
       if (isRspAdjMovOverwrite(instrNum)) {
         funcLabelDefInstrArrayBuff.remove(instrNum)
+        anOptimisationHasBeenDone = true
+      }
+      if (isRspAddSubCancel(instrNum)) {
+        funcLabelDefInstrArrayBuff.remove(instrNum, instrNum + 2)
         anOptimisationHasBeenDone = true
       }
       if (!anOptimisationHasBeenDone) then instrNum += 1

@@ -83,10 +83,142 @@ class peepholeTest extends AnyFlatSpec with BeforeAndAfter {
     )
   }
 
-  it should "successfully remove assembly for RspAdjMovOverwriteIR" in {
+  val PushPopOrPopPushIR = {
+    (
+      List.empty[StringInfo], 
+      List(
+        FuncLabelDef(
+          "main", 
+          List.newBuilder.addAll(
+            List(
+              PUSH(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              ),
+              POP(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              ),
+              PUSH(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              ),
+              POP(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              ),
+              POP(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              ),
+              PUSH(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              ),
+              POP(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              ),
+              PUSH(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              ),
+              PUSH(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              ),
+              POP(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              ),
+              POP(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              ),
+              PUSH(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              )
+            )
+          )
+        )
+      )
+    )
+  }
+
+  val optimisedPushPopOrPopPushIR = {
+    (
+      List.empty[StringInfo], 
+      List(
+        FuncLabelDef(
+          "main", 
+          List.newBuilder.addAll(
+            List(
+            )
+          )
+        )
+      )
+    )
+  }
+
+  val RspAddSubCancelIR = {
+    (
+      List.empty[StringInfo], 
+      List(
+        FuncLabelDef(
+          "main", 
+          List.newBuilder.addAll(
+            List(
+              ADD(
+                Reg(RegName.Rsp, DataWidth.QWord),
+                Imm(8)
+              ),
+              SUB(
+                Reg(RegName.Rsp, DataWidth.QWord),
+                Imm(8)
+              ),
+              ADD(
+                Reg(RegName.Rsp, DataWidth.QWord),
+                Imm(8)
+              ),
+              SUB(
+                Reg(RegName.Rsp, DataWidth.QWord),
+                Imm(8)
+              ),
+              ADD(
+                Reg(RegName.Rsp, DataWidth.QWord),
+                Imm(8)
+              ),
+              SUB(
+                Reg(RegName.Rsp, DataWidth.QWord),
+                Imm(8)
+              )
+            )
+          )
+        )
+      )
+    )
+  }
+
+  val optimisedRspAddSubCancelIR = {
+    (
+      List.empty[StringInfo], 
+      List(
+        FuncLabelDef(
+          "main", 
+          List.newBuilder.addAll(
+            List(
+            )
+          )
+        )
+      )
+    )
+  }
+
+  it should "successfully remove ADDs from RspAdjMovOverwriteIR" in {
     val optimisedIRFuncLabelDefs = RspAdjMovOverwriteIR._2.map(Peephole.optimiseFuncLabelDef)
     val IR = (RspAdjMovOverwriteIR._1, optimisedIRFuncLabelDefs)
     assert(IR == optimisedRspAdjMovOverwriteIR)
+  }
+
+  it should "successfully remove all instructions from PushPopOrPopPushIR" in {
+    val optimisedIRFuncLabelDefs = PushPopOrPopPushIR._2.map(Peephole.optimiseFuncLabelDef)
+    val IR = (PushPopOrPopPushIR._1, optimisedIRFuncLabelDefs)
+    assert(IR == optimisedPushPopOrPopPushIR)
+  }
+
+  it should "successfully remove all instructions from RspAddSubCancelIR" in {
+    val optimisedIRFuncLabelDefs = RspAddSubCancelIR._2.map(Peephole.optimiseFuncLabelDef)
+    val IR = (RspAddSubCancelIR._1, optimisedIRFuncLabelDefs)
+    assert(IR == optimisedRspAddSubCancelIR)
   }
 }
 

@@ -34,7 +34,7 @@ def globalNumberingUpdate(name: String): Option[Int] = {
   }
 }
 
-def rename(prog: ProgWithImports) : (Prog, List[String]) = {
+def rename(prog: ProgWithImports): (Prog, List[String]) = {
   scopeErrors.clear()
   globalNumbering.clear()
   funcTypes.clear()
@@ -44,14 +44,18 @@ def rename(prog: ProgWithImports) : (Prog, List[String]) = {
     Prog(newProg.funcs.map(funcHandler(_)),
     scopeHandler(newProg.main, Map.empty[String, QualifiedName])),
     scopeErrors.result()
-    )
+  )
+}
+
+def importHandleForRepl(imp: Import): List[Func] = {
+  funcFirstPass(List(imp), List.empty)
+  combineImportedFuncs(ProgWithImports(List(imp), List.empty, List.empty)).funcs.map(funcHandler(_))
 }
 
 def combineImportedFuncs(prog: ProgWithImports): Prog = {
-  val importedFuncs = prog.imports.flatMap(imports => {
-    imports match
+  val importedFuncs = prog.imports.flatMap(imports => imports match
       case Import(filePath) => processImport(filePath.string)
-  })
+  )
   Prog(importedFuncs ++ prog.funcs, prog.main)
 }
 
@@ -176,7 +180,16 @@ def funcHandler(func: Func): Func = {
       acc
     }
   val qParam = paramScope.map((_,qn) => Param(qn.t, qn)).toList
-  Func(func.t, func.identifier, qParam, scopeHandler(func.stmts, paramScope.toMap))
+  Func(
+    func.t,
+    QualifiedFunc(
+      func.t,
+      func.identifier.identifier,
+      params.length, params.map(_.t)
+    ),
+    qParam,
+    scopeHandler(func.stmts, paramScope.toMap)
+  )
 }
 
 def lValueHandler(
@@ -322,5 +335,5 @@ def renameIdent(
     return parent(name)
   }
   scopeErrors += s"Variable $name has not been declared in scope"
-  return QualifiedName("", 0, Undefined)
+  return QualifiedName(name, -1, Undefined)
 }

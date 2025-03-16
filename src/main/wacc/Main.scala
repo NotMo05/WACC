@@ -5,6 +5,8 @@ import java.io.File
 import wacc.back_end.IR.generateIR
 import wacc.back_end.AssemblyWriter.generateAsmFile
 import wacc.interpreter.Interpreter
+import wacc.peephole.Peephole
+import wacc.peephole.Peephole.optimiseFuncLabelDef
 final val SUCCESS = 0
 final val SYNTAX_ERR = 100
 final val SEMANTIC_ERR = 200
@@ -70,7 +72,9 @@ def genAST(fileContent: String, fileName: String): Prog = {
 }
 
 def compileAST(prog: Prog, fileName: String) = {
-  val IR = generateIR(prog)
+  var IR = generateIR(prog)
+  val optimisedIRFuncLabelDefs = IR._2.map(optimiseFuncLabelDef)
+  IR = (IR._1, optimisedIRFuncLabelDefs)
   generateAsmFile(IR, fileName)
   sys.exit(SUCCESS)
 }

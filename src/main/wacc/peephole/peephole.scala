@@ -49,15 +49,18 @@ object Peephole {
       if (isPushPop(instrNum)) {
         funcLabelDefInstrArrayBuff.remove(instrNum)
         funcLabelDefInstrArrayBuff.remove(instrNum)
+        if (instrNum > 0) then instrNum -= 1
         anOptimisationHasBeenDone = true
       }
       if (isRspAdjMovOverwrite(instrNum)) {
         funcLabelDefInstrArrayBuff.remove(instrNum)
+        if (instrNum > 0) then instrNum -= 1
         anOptimisationHasBeenDone = true
       }
       if (isRspAddSubCancel(instrNum)) {
         funcLabelDefInstrArrayBuff.remove(instrNum)
         funcLabelDefInstrArrayBuff.remove(instrNum)
+        if (instrNum > 0) then instrNum -= 1
         anOptimisationHasBeenDone = true
       }
       if (!anOptimisationHasBeenDone) then instrNum += 1

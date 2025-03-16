@@ -83,7 +83,7 @@ class peepholeTest extends AnyFlatSpec with BeforeAndAfter {
     )
   }
 
-  val PushPopOrPopPushIR = {
+  val PushPopIR = {
     (
       List.empty[StringInfo], 
       List(
@@ -134,7 +134,7 @@ class peepholeTest extends AnyFlatSpec with BeforeAndAfter {
     )
   }
 
-  val optimisedPushPopOrPopPushIR = {
+  val optimisedPushPopIR = {
     (
       List.empty[StringInfo], 
       List(
@@ -142,6 +142,12 @@ class peepholeTest extends AnyFlatSpec with BeforeAndAfter {
           "main", 
           List.newBuilder.addAll(
             List(
+              POP(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              ),
+              PUSH(
+                Reg(RegName.Rbp, DataWidth.QWord)
+              )
             )
           )
         )
@@ -210,9 +216,9 @@ class peepholeTest extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "successfully remove all instructions from PushPopOrPopPushIR" in {
-    val optimisedIRFuncLabelDefs = PushPopOrPopPushIR._2.map(Peephole.optimiseFuncLabelDef)
-    val IR = (PushPopOrPopPushIR._1, optimisedIRFuncLabelDefs)
-    assert(IR == optimisedPushPopOrPopPushIR)
+    val optimisedIRFuncLabelDefs = PushPopIR._2.map(Peephole.optimiseFuncLabelDef)
+    val IR = (PushPopIR._1, optimisedIRFuncLabelDefs)
+    assert(IR == optimisedPushPopIR)
   }
 
   it should "successfully remove all instructions from RspAddSubCancelIR" in {

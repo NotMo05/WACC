@@ -13,6 +13,7 @@ enum PrintType:
 
 final val exprCouldntEval = throw new FailedToEvaluate("Somehow the expr did not evaluate")
 final val couldNotFindOnTable = throw new IllegalStateException("Somehow could not find the qn on the table")
+final val nullAccess = throw new IllegalArgumentException("Atempted to access a null")
 
 class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
   val reader = TerminalReader
@@ -54,7 +55,7 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
 
   def addFuncsToMutableFuncTable(funcs: List[Func]) = mutableFuncTable.addAll(funcListToMap(funcs))
 
-  val heap: mutable.Map[QualifiedName, TypeOrPairElemValue] = mutable.Map()
+  val heap: mutable.Map[QualifiedNameContainer, TypeOrPairElemValue] = mutable.Map()
   val identTables: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()
   val mutableFuncTable: mutable.Map[QualifiedFunc, Func] = mutable.Map()
   lazy val funcTable: immutable.Map[QualifiedFunc, Func] = funcListToMap(prog.funcs)
@@ -218,30 +219,36 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
               case QualifiedNameContainer(qn) => Some(qn)
   }
 
-  def pairAccessHandler(lValue: LValue): Option[TypeOrPairElemValue] = (lValue: @unchecked) match
+  // fst fst x
+
+
+  def pairAccessHandler(lValue: LValue): Option[TypeOrPairElemValue] = lValue match
     case qn: QualifiedName => Some(identTables.top(qn))
     case Fst(lValue) => pairAccessHandler(lValue) match
       case None => ???
-      case Some(value) => (value: @unchecked) match
-        case PairLiteral(fst, _) => fst match
-          case None => ???
-          case Some(value) => (value: @unchecked) match
-            case QualifiedNameContainer(qn) => Some(identTables.top(qn))
-            case e: Expr => evaluate(e)
-        case e: Expr => evaluate(e)
-        case QualifiedNameContainer(qn) => pairAccessHandler(Fst(qn))
+      case Some(value) => value match
+        case container: QualifiedNameContainer => heap(container) match
+          case IntLiteral(int) => ???
+          case BoolLiteral(bool) => ???
+          case StringLiteral(string) => ???
+          case CharLiteral(char) => ???
+          case QualifiedNameContainer(qn) => ???
+          case ArrayBaseLiteral(elems) => ???
+          case PairLiteral(fst, snd) => fst
+          case NullLiteral => nullAccess
 
     case Snd(lValue) => pairAccessHandler(lValue) match
       case None => ???
-      case Some(value) => (value: @unchecked) match
-        case PairLiteral(_, snd) => snd match
-          case None => ???
-          case Some(value) => (value: @unchecked) match
-            case QualifiedNameContainer(qn) => Some(identTables.top(qn))
-            case e: Expr => evaluate(e)
-        case e: Expr => evaluate(e)
-        case QualifiedNameContainer(qn) => pairAccessHandler(Snd(qn))
-    case ArrayElem(qn: QualifiedName, indexes) => Some(arrayLiterAccessHandler(qn, indexes))
+      case Some(value) => value match
+        case container: QualifiedNameContainer => heap(container) match
+          case IntLiteral(int) => ???
+          case BoolLiteral(bool) => ???
+          case StringLiteral(string) => ???
+          case CharLiteral(char) => ???
+          case QualifiedNameContainer(qn) => ???
+          case ArrayBaseLiteral(elems) => ???
+          case PairLiteral(fst, snd) => snd
+          case NullLiteral => nullAccess
 
   def resolveArrayElem(arrayName: QualifiedName, indexes: List[Expr]): (ArrayBaseLiteral, Int) = {
     (identTables.top(arrayName), indexes.map(evaluate(_))) match {
@@ -308,10 +315,11 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
         case qn: QualifiedName => qn
 
       qn.t match
-        case PairType(t1, t2) => identTables.top(qn) = result
-        case ArrayType(t, d) => identTables.top(qn) = result
+        case t: (PairType | ArrayType) => {
+          heap.addOne(QualifiedNameContainer(qn), result)
+          identTables.top(qn) = QualifiedNameContainer(qn)
+        }
         case _ => identTables.top(qn) = result
-
       None
     }
   }

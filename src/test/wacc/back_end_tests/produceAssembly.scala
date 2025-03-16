@@ -138,8 +138,8 @@ class produceAssembly extends AnyFlatSpec with BeforeAndAfter {
 
   // runTest(advancedPath, false, true)
   // runTest(arrayPath, false, true)
-  // runTest(basicPath, false, true)
-  // runTest(expressionPath, false, true)
+  runTest(basicPath, false, true)
+  runTest(expressionPath, false, true)
   // runTest(functionPath, false, true)
   // runTest(ifPath, false, true)
   // runTest(IOPath, false, true)
@@ -147,5 +147,5 @@ class produceAssembly extends AnyFlatSpec with BeforeAndAfter {
   // runTest(runtimeErrPath, false, true)
   // runTest(scopePath, false, true)
   // runTest(variablesPath, false, true)
-  runTest(whilePath, false, true)
+  // runTest(whilePath, false, true)
 }

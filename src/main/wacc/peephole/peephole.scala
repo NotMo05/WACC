@@ -10,15 +10,12 @@ object Peephole {
     val funcLabelDefInstrArrayBuff = mutable.ArrayBuffer.from(funcLabelDef.instructions.result())
     var instrNum = 0
 
-    def isPushPopOrPopPush(instrNum: Int): Boolean = {
+    def isPushPop(instrNum: Int): Boolean = {
       if (instrNum >= funcLabelDefInstrArrayBuff.size - 1) then false
       else {
       funcLabelDefInstrArrayBuff(instrNum) match
         case PUSH(op1) => funcLabelDefInstrArrayBuff(instrNum + 1) match
           case POP(op2) if op1 == op2 => true
-          case _ => false
-        case POP(op1) => funcLabelDefInstrArrayBuff(instrNum + 1) match
-          case PUSH(op2) if op1 == op2 => true
           case _ => false
         case _ => false
       }
@@ -49,7 +46,7 @@ object Peephole {
 
     while (instrNum < funcLabelDefInstrArrayBuff.size) {
       var anOptimisationHasBeenDone = false
-      if (isPushPopOrPopPush(instrNum)) {
+      if (isPushPop(instrNum)) {
         funcLabelDefInstrArrayBuff.remove(instrNum)
         funcLabelDefInstrArrayBuff.remove(instrNum)
         anOptimisationHasBeenDone = true

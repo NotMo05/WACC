@@ -7,6 +7,7 @@ import org.jline.terminal.TerminalBuilder
 import scala.collection.mutable
 import wacc.front_end.semantic.validStmtArgs
 import wacc.interpreter.Interpreter
+import scala.repl.handleSpecialCommand
 
 object SimpleREPL {
   def repl(args: Array[String]): Unit = {
@@ -26,47 +27,41 @@ object SimpleREPL {
     while (running) {
       try {
         val input = readMultiLineInput(reader)
-        if (input == ":q") {
-          running = false
+        if (handleSpecialCommand(input, interpreter, reader)) {
+          if (input == ":q") then running = false
         } else {
-          // Try parsing as a statement
-          parser.importParse(input) match
-            case Success(imp: Import) => {
+          // Try parsing the input in order of priority
+          val result = parser.importParse(input) // Try parsing as an Import
+            .orElse(parser.stmtParse(input))    // Fall back to parsing as a Stmt
+            .orElse(parser.exprParse(input))    // Fall back to parsing as an Expr
+
+          result match {
+            case Success(imp: Import) =>
               interpreter.mutableFuncTable.addAll(
                 interpreter.addFuncsToMutableFuncTable(importHandleForRepl(imp))
               )
-            }
-            case Failure(msg) => {
-            parser.stmtParse(input) match {
-              case Success(astStmt) =>
-                // Process the statement
-                val renamedStmt = renameStmt(astStmt, topRenamingScope, Map.empty[String, QualifiedName])
-                val typeCheckedStmt = validStmtArgs(renamedStmt)
 
-                try {
-                  interpreter.stmtHandler(typeCheckedStmt)
-                } catch {
-                  case e: Exception => println(s"Evaluation Error: ${e.getMessage}")
-                }
+            case Success(astStmt: Stmt) =>
+              val renamedStmt = renameStmt(astStmt, topRenamingScope, Map.empty[String, QualifiedName])
+              val typeCheckedStmt = validStmtArgs(renamedStmt)
+              try {
+                interpreter.stmtHandler(typeCheckedStmt)
+              } catch {
+                case e: Exception => println(s"Evaluation Error: ${e.getMessage}")
+              }
 
-              case Failure(stmtErr) =>
-                // If statement parsing fails, try parsing as an expression
-                parser.exprParse(input) match {
-                  case Success(expr: Expr) =>
-                    // Process the expression
-                    val renamedStmt = renameStmt(Println(expr), topRenamingScope, Map.empty[String, QualifiedName])
-                    val typeCheckedStmt = validStmtArgs(renamedStmt)
-                    try {
-                      val retVal = interpreter.stmtHandler(typeCheckedStmt)
-                    } catch {
-                      case e: Exception => println(s"Evaluation Error: ${e.getMessage}")
-                    }
+            case Success(expr: Expr) =>
+              // Handle Expr by wrapping it in a Println statement
+              val renamedStmt = renameStmt(Println(expr), topRenamingScope, Map.empty[String, QualifiedName])
+              val typeCheckedStmt = validStmtArgs(renamedStmt)
+              try {
+                interpreter.stmtHandler(typeCheckedStmt)
+              } catch {
+                case e: Exception => println(s"Evaluation Error: ${e.getMessage}")
+              }
 
-                  case Failure(exprErr) =>
-                    // If both parsing attempts fail, print an error message
-                    println(s"Parse Error (Statement): $stmtErr")
-                }
-            }
+            case Failure(err) =>
+              println(s"Parse Error: $err")
           }
         }
       } catch {
@@ -77,8 +72,6 @@ object SimpleREPL {
     reader.getHistory.save()
   }
 
-
-  // Read multi-line input
   def readMultiLineInput(reader: LineReader): String = {
     val input = new StringBuilder()
     var line = reader.readLine("\n> ")

@@ -21,6 +21,7 @@ def main(args: Array[String]): Unit = {
       try {
         val interpreter = new Interpreter(prog)
         interpreter.execute(prog)
+        sys.exit(SUCCESS)
       } catch {
         case e: RuntimeException => println(e.getMessage()); sys.exit(1)
       }
@@ -28,6 +29,7 @@ def main(args: Array[String]): Unit = {
     return
   } else if args(0) == "repl" then {
     SimpleREPL.repl(args.drop(1))
+    sys.exit(SUCCESS)
   }
 
   processFileArg(args, 0).foreach { fileContent =>

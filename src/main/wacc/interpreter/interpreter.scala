@@ -22,6 +22,36 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
       case qf: QualifiedFunc => qf)
       -> func }.toMap()
 
+  def reset() = {
+    heap.clear()
+    identTables.clear()
+    mutableFuncTable.clear()
+  }
+
+  def printLocals() = {
+    identTables.headOption match {
+    case Some(topTable) if topTable.nonEmpty =>
+      topTable.foreach { case (qn, value) =>
+        println(s"${qn.t} ${qn.name} = ${itemStringHandler(Some(value))}")
+      }
+    case _ =>
+      println("No variables in the current scope.")
+    }
+  }
+
+  def printFunctions(): Unit = {
+    val allFuncs = mutableFuncTable.keys ++ funcTable.keys
+    if (allFuncs.isEmpty) {
+      println("No functions defined.")
+    } else {
+      allFuncs.foreach { qf =>
+        val paramStr = qf.paramTypes.mkString(", ") 
+        println(s"${qf.t} ${qf.funcName}($paramStr)")
+      }
+    }
+  }
+
+
   def addFuncsToMutableFuncTable(funcs: List[Func]) = mutableFuncTable.addAll(funcListToMap(funcs))
 
   val heap: mutable.Map[QualifiedName, TypeOrPairElemValue] = mutable.Map()

@@ -19,8 +19,10 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
   def funcListToMap(funcs: List[Func]): Map[QualifiedFunc, Func] =
     funcs.map {
       func => (func.identifier match
-        case qf: QualifiedFunc => qf)
+      case qf: QualifiedFunc => qf)
       -> func }.toMap()
+
+  def addFuncsToMutableFuncTable(funcs: List[Func]) = mutableFuncTable.addAll(funcListToMap(funcs))
 
   val heap: mutable.Map[QualifiedName, TypeOrPairElemValue] = mutable.Map()
   val identTables: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()

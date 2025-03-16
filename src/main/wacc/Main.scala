@@ -18,9 +18,8 @@ def main(args: Array[String]): Unit = {
     processFileArg(args, 1).foreach { fileContent => //file path should be second argument
       val fileName = args(1)
       val prog = genAST(fileContent, fileName)
-      println(prog.prettyPrint())
-      val interpreter = new Interpreter()
       try {
+        val interpreter = new Interpreter(prog)
         interpreter.execute(prog)
       } catch {
         case e: RuntimeException => println(e.getMessage()); sys.exit(1)

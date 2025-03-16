@@ -32,16 +32,9 @@ object SimpleREPL {
           // Try parsing as a statement
           parser.importParse(input) match
             case Success(imp: Import) => {
-              funcFirstPass(List(imp), List.empty)
               interpreter.mutableFuncTable.addAll(
-                interpreter.funcListToMap(
-                  combineImportedFuncs
-                    (ProgWithImports(List(imp), List.empty, List.empty))
-                    .funcs.toList
-                  )
+                interpreter.addFuncsToMutableFuncTable(importHandleForRepl(imp))
               )
-
-
             }
             case Failure(msg) => {
             parser.stmtParse(input) match {

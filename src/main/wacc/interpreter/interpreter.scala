@@ -221,17 +221,48 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
           case PairLiteral(fst, snd) => snd
           case NullLiteral => nullAccess
 
-  def resolveArrayElem(arrayName: QualifiedName, indexes: List[Expr]): (ArrayBaseLiteral, Int) = {
-    (identTables.top(arrayName), indexes.map(evaluate(_))) match {
-      case (elems, evaluatedIndexes: List[Option[TypeOrPairElemValue]] @unchecked) =>
-        val resolvedIndexes = evaluatedIndexes.collect { case Some(IntLiteral(i)) => i }
+  def resolveArrayElem(arrayName: (QualifiedName | QualifiedNameContainer), indexes: List[Expr]): (ArrayBaseLiteral, Int) = {
+    // Retrieve the array key from the current scope
+    val cont: QualifiedNameContainer = arrayName match
+      case qn: QualifiedName => identTables.top(qn) match
+        case cont: QualifiedNameContainer => cont
+        case NullLiteral => nullAccess
 
+      case cont: QualifiedNameContainer => cont
+
+
+    // Retrieve the array from the heap
+    heap.get(cont) match {
+      case Some(array: ArrayBaseLiteral) =>
+        // Evaluate the index expressions
+        val evaluatedIndexes = indexes.map(evaluate(_))
+
+        // Collect valid integer indices
+        val resolvedIndexes = evaluatedIndexes.collect {
+          case Some(IntLiteral(i)) => i
+        }
+
+        // Check if all indices were successfully evaluated
         if (resolvedIndexes.size != evaluatedIndexes.size) {
           throw new NoSuchElementException("Some index expressions could not be evaluated")
         }
+        // Traverse the array using the indices
+        resolvedIndexes.init.foldLeft(Option(array): Option[ArrayBaseLiteral]) {
+          case (Some(ArrayBaseLiteral(Some(arr))), index) =>
+            arr.lift(index.toInt) match {
+              case None => throw new NoSuchElementException(s"Index $index is out of bounds")
+              case Some(value) => value match {
+                case arr: ArrayBaseLiteral => Some(arr)
+                case cont: QualifiedNameContainer => heap(cont) match
+                  case arr: ArrayBaseLiteral => Some(arr)
+                  case PairLiteral(fst, snd) => ???
+                  case NullLiteral => ???
 
-        resolvedIndexes.init.foldLeft(Option(elems): Option[TypeOrPairElemValue]) {
-          case (Some(ArrayBaseLiteral(Some(arr))), index) => arr.lift(index.toInt)
+                case PairLiteral(_, _) => throw new UnsupportedOperationException("Cannot index into a pair")
+                case NullLiteral => throw new NoSuchElementException("Array element is null")
+                case _ => throw new UnsupportedOperationException(s"Cannot index into ${value.getClass.getSimpleName}")
+              }
+            }
           case _ => None
         } match {
           case Some(arr @ ArrayBaseLiteral(Some(_))) =>
@@ -441,7 +472,7 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
         case str => str
       }
     case Some(pair @ PairLiteral(_, _)) => s"0x${System.identityHashCode(pair).toHexString}"
-    case Some(QualifiedNameContainer(qn)) => itemStringHandler(Some(identTables.top(qn)))
+    case Some(cont: QualifiedNameContainer) => itemStringHandler(Some(heap(cont)))
     case Some(NullLiteral) => "(nil)"
     case None => ""
 }

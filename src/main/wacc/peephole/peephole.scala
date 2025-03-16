@@ -1,8 +1,6 @@
 package wacc.peephole
 import wacc.back_end._
-import wacc.back_end.IR._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 object Peephole {
 

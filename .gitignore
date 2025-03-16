@@ -4,6 +4,7 @@
 .vscode/
 src/test/wacc/wacc-examples/valid_trees
 src/test/wacc/back_end_tests/bin
+src/test/wacc/back_end_tests/binFiles
 src/test/wacc/wacctest.wacc
 *.s
 wacctest

@@ -1,4 +1,5 @@
 package wacc.repl
+
 import wacc.front_end._
 import parsley.Success
 import parsley.Failure
@@ -11,6 +12,7 @@ import scala.repl.handleSpecialCommand
 
 object SimpleREPL {
   def repl(args: Array[String]): Unit = {
+    // Initialize terminal and line reader
     val terminal = TerminalBuilder.builder().system(true).build()
     val reader = LineReaderBuilder.builder()
       .terminal(terminal)
@@ -23,10 +25,13 @@ object SimpleREPL {
 
     println("Welcome to the Simple REPL. Type :q to quit.")
     var running = true
+    // Top-level renaming scope for variables
     val topRenamingScope = mutable.Map.empty[String, QualifiedName]
     while (running) {
       try {
+        // Read multi-line input from the user
         val input = readMultiLineInput(reader)
+        // Handle special commands like :q for quit
         if (handleSpecialCommand(input, interpreter, reader)) {
           if (input == ":q") then running = false
         } else {
@@ -37,11 +42,13 @@ object SimpleREPL {
 
           result match {
             case Success(imp: Import) =>
+              // Handle import statements
               interpreter.mutableFuncTable.addAll(
                 interpreter.addFuncsToMutableFuncTable(importHandleForRepl(imp))
               )
 
             case Success(astStmt: Stmt) =>
+              // Handle statements
               val renamedStmt = renameStmt(astStmt, topRenamingScope, Map.empty[String, QualifiedName])
               val typeCheckedStmt = validStmtArgs(renamedStmt)
               try {
@@ -61,6 +68,7 @@ object SimpleREPL {
               }
 
             case Failure(err) =>
+              // Handle parsing errors
               println(s"Parse Error: $err")
           }
         }
@@ -72,6 +80,7 @@ object SimpleREPL {
     reader.getHistory.save()
   }
 
+  // Reads multi-line input from the user until a complete statement is entered
   def readMultiLineInput(reader: LineReader): String = {
     val input = new StringBuilder()
     var line = reader.readLine("\n> ")
@@ -89,7 +98,7 @@ object SimpleREPL {
     input.toString()
   }
 
-  // Check if the input is complete
+  // Checks if the input is complete based on block keywords
   def isInputComplete(input: String): Boolean = {
     val lines = input.split("\n")
     val stack = scala.collection.mutable.Stack[String]() // Stack to track block keywords
@@ -110,9 +119,7 @@ object SimpleREPL {
         }
 
         // Check for block terminators
-
-        // Check for block terminators
-        trimmedLine match
+        trimmedLine match {
           case line if line.endsWith("done") =>
             if (stack.isEmpty || stack.pop() != "while") isComplete = false
           case line if line.endsWith("fi") =>
@@ -120,6 +127,7 @@ object SimpleREPL {
           case line if line.endsWith("end") =>
             if (stack.isEmpty || stack.pop() != "begin") isComplete = false
           case _ => // Ignore other lines
+        }
       }
     }
 
@@ -127,6 +135,7 @@ object SimpleREPL {
     isComplete && stack.isEmpty
   }
 
+  // Updates the indentation level based on block keywords
   def updateIndentation(line: String, currentIndent: Int): Int = {
     val trimmedLine = line.trim
 

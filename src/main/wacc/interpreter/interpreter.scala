@@ -14,23 +14,56 @@ enum PrintType:
 final val exprCouldntEval = throw new FailedToEvaluate("Somehow the expr did not evaluate")
 final val couldNotFindOnTable = throw new IllegalStateException("Somehow could not find the qn on the table")
 
-class Interpreter(prog: Prog) {
+class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
   val reader = TerminalReader
+  def funcListToMap(funcs: List[Func]): Map[QualifiedFunc, Func] =
+    funcs.map {
+      func => (func.identifier match
+      case qf: QualifiedFunc => qf)
+      -> func }.toMap()
+
+  def reset() = {
+    heap.clear()
+    identTables.clear()
+    mutableFuncTable.clear()
+  }
+
+  def printLocals() = {
+    identTables.headOption match {
+    case Some(topTable) if topTable.nonEmpty =>
+      topTable.foreach { case (qn, value) =>
+        println(s"${qn.t} ${qn.name} = ${itemStringHandler(Some(value))}")
+      }
+    case _ =>
+      println("No variables in the current scope.")
+    }
+  }
+
+  def printFunctions(): Unit = {
+    val allFuncs = mutableFuncTable.keys ++ funcTable.keys
+    if (allFuncs.isEmpty) {
+      println("No functions defined.")
+    } else {
+      allFuncs.foreach { qf =>
+        val paramStr = qf.paramTypes.mkString(", ")
+        println(s"${qf.t} ${qf.funcName}($paramStr)")
+      }
+    }
+  }
+
+
+  def addFuncsToMutableFuncTable(funcs: List[Func]) = mutableFuncTable.addAll(funcListToMap(funcs))
 
   val heap: mutable.Map[QualifiedName, TypeOrPairElemValue] = mutable.Map()
   val identTables: mutable.Stack[mutable.Map[QualifiedName, TypeOrPairElemValue]] = mutable.Stack()
-  lazy val funcTable: immutable.Map[QualifiedFunc, Func] = // lazy as  functions may not be called
-    prog.funcs.map {
-      func => (func.identifier match
-        case qf: QualifiedFunc => qf)
-      -> func }.toMap()
+  val mutableFuncTable: mutable.Map[QualifiedFunc, Func] = mutable.Map()
+  lazy val funcTable: immutable.Map[QualifiedFunc, Func] = funcListToMap(prog.funcs)
   identTables.push(mutable.Map())
 
   def stmtsHandler(stmts: List[Stmt]): Option[TypeOrPairElemValue] =
     stmts.collectFirst { case stmt if stmtHandler(stmt).isDefined => stmtHandler(stmt).get }
 
-
-  def execute(): Unit = try {
+  def execute(prog: Prog): Unit = try {
     stmtsHandler(prog.main)
   } catch {
     case FailedToEvaluate(message) => println(message)
@@ -38,7 +71,7 @@ class Interpreter(prog: Prog) {
       case Some(IntLiteral(int)) => println(s"Exited with code: $int")
   }
 
-  def stmtHandler(stmt: Stmt): Option[TypeOrPairElemValue] = 
+  def stmtHandler(stmt: Stmt): Option[TypeOrPairElemValue] =
     stmt: @unchecked match {
       case Return(expr) => evaluate(expr)
       case Print(expr) => printHandler(evaluate(expr), PrintType.Print)
@@ -284,7 +317,12 @@ class Interpreter(prog: Prog) {
   }
 
   def callHandler(qf: QualifiedFunc, exprs: List[Expr]): Option[TypeOrPairElemValue] = {
-    val func = funcTable(qf)
+    val func = mutableFuncTable.get(qf) match
+      case None => funcTable.get(qf) match
+        case None => println(s"Function `${qf.funcName} does not exist`"); return None
+        case Some(value) => value
+      case Some(value) => value
+
     val newIdentTable = (func.params.reverse.zip(exprs).map {
       (param, expr) => ((param.identifier: @unchecked) match
         case qn: QualifiedName => qn)
@@ -301,10 +339,11 @@ class Interpreter(prog: Prog) {
     case bool: BoolLiteral => Some(bool)
     case string: StringLiteral => Some(string)
     case char: CharLiteral => Some(char)
-    case qn: QualifiedName => Some(identTables.top(qn)) match
+    case qn: QualifiedName => identTables.top.get(qn) match
       case Some(value) => value match
         case PairLiteral(_, _) => Some(QualifiedNameContainer(qn))
         case v => Some(v)
+      case None => println(s"`${qn.name}` not found in current scope"); None
 
     case ArrayElem(arrayName: Ident, indexes: List[Expr]) =>
       arrayName match
@@ -425,4 +464,5 @@ class Interpreter(prog: Prog) {
     case Some(pair @ PairLiteral(_, _)) => s"0x${System.identityHashCode(pair).toHexString}"
     case Some(QualifiedNameContainer(qn)) => itemStringHandler(Some(identTables.top(qn)))
     case Some(NullLiteral) => "(nil)"
+    case None => ""
 }

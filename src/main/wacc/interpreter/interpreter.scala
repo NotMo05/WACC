@@ -224,7 +224,7 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
   def resolveArrayElem(arrayName: (QualifiedName | QualifiedNameContainer), indexes: List[Expr]): (ArrayBaseLiteral, Int) = {
     // Retrieve the array key from the current scope
     val cont: QualifiedNameContainer = arrayName match
-      case qn: QualifiedName => identTables.top(qn) match
+      case qn: QualifiedName=> (identTables.top(qn): @unchecked) match
         case cont: QualifiedNameContainer => cont
         case NullLiteral => nullAccess
 
@@ -232,7 +232,7 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
 
 
     // Retrieve the array from the heap
-    heap.get(cont) match {
+    (heap.get(cont): @unchecked) match {
       case Some(array: ArrayBaseLiteral) =>
         // Evaluate the index expressions
         val evaluatedIndexes = indexes.map(evaluate(_))
@@ -253,7 +253,7 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
               case None => throw new NoSuchElementException(s"Index $index is out of bounds")
               case Some(value) => value match {
                 case arr: ArrayBaseLiteral => Some(arr)
-                case cont: QualifiedNameContainer => heap(cont) match
+                case cont: QualifiedNameContainer => (heap(cont): @unchecked) match
                   case arr: ArrayBaseLiteral => Some(arr)
                   case PairLiteral(fst, snd) => ???
                   case NullLiteral => ???

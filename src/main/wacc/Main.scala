@@ -7,23 +7,31 @@ import wacc.back_end.AssemblyWriter.generateAsmFile
 import wacc.interpreter.Interpreter
 import wacc.peephole.Peephole
 import wacc.peephole.Peephole.optimiseFuncLabelDef
+import wacc.repl.SimpleREPL
 final val SUCCESS = 0
 final val SYNTAX_ERR = 100
 final val SEMANTIC_ERR = 200
 
 def main(args: Array[String]): Unit = {
+  if args.isEmpty then
+    println("No argument was provided"); return
+
   if args(0) == "interpreter" then {
     processFileArg(args, 1).foreach { fileContent => //file path should be second argument
       val fileName = args(1)
       val prog = genAST(fileContent, fileName)
-      val interpreter = new Interpreter(prog)
       try {
-        interpreter.execute()
+        val interpreter = new Interpreter(prog)
+        interpreter.execute(prog)
+        sys.exit(SUCCESS)
       } catch {
         case e: RuntimeException => println(e.getMessage()); sys.exit(1)
       }
     }
     return
+  } else if args(0) == "repl" then {
+    SimpleREPL.repl(args.drop(1))
+    sys.exit(SUCCESS)
   }
 
   processFileArg(args, 0).foreach { fileContent =>

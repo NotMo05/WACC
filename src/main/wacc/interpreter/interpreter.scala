@@ -14,6 +14,7 @@ enum PrintType:
 final val exprCouldntEval = throw new FailedToEvaluate("Somehow the expr did not evaluate")
 final val couldNotFindOnTable = throw new IllegalStateException("Somehow could not find the qn on the table")
 final val nullAccess = throw new IllegalArgumentException("Atempted to access a null")
+final val illegalPairAccess = throw new IllegalArgumentException("Atempted to access a reassign a ")
 
 class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
   val reader = TerminalReader
@@ -164,89 +165,59 @@ class Interpreter(prog: Prog = Prog(List.empty, List.empty)) {
       case ArrayElem(arrayName: QualifiedName, indexes) => arrayLiterAssgnHandler(arrayName, indexes, newRValue)
 
       case lValue: Fst => {
-        val qn = pairReasgnHandler(lValue, newRValue)
-        qn match
-          case Some(qn) =>
-            val current = identTables.top(qn)
-            identTables.top(qn) = (current: @unchecked) match
+        val cont = pairReasgnHandler(lValue, newRValue)
+        cont match
+          case Some(cont) =>
+            val current = heap(cont)
+            heap(cont) = (current: @unchecked) match
             case PairLiteral(_, snd) => PairLiteral(newRValue, snd)
           case None =>
         None
       }
 
       case lValue: Snd => {
-        val qn = pairReasgnHandler(lValue, newRValue)
-        qn match
-          case Some(qn) =>
-            val current = identTables.top(qn)
-            identTables.top(qn) = (current: @unchecked) match
+        val cont = pairReasgnHandler(lValue, newRValue)
+        cont match
+          case Some(cont) =>
+            val current = heap(cont)
+            heap(cont) = (current: @unchecked) match
             case PairLiteral(fst, _) => PairLiteral(fst, newRValue)
           case None =>
         None
       }
   }
 
-  def pairReasgnHandler(lValue: LValue, newRValue: Option[TypeOrPairElemValue] = None): Option[QualifiedName] = {
+  def pairReasgnHandler(lValue: LValue, newRValue: Option[TypeOrPairElemValue] = None): Option[QualifiedNameContainer] ={
     (lValue: @unchecked) match
-      case Fst(lValue) => (lValue: @unchecked) match
-        case ArrayElem(arrayName: QualifiedName, indexes) => arrayLiterAssgnHandler(arrayName, indexes, newRValue)
-        case qn: QualifiedName => Some(qn)
-        case lValue: Fst => (identTables.top(pairReasgnHandler(lValue, newRValue).getOrElse(couldNotFindOnTable)): @unchecked) match
-          case PairLiteral(fst, _) => fst match
-            case None => ???
-            case Some(value) => (value: @unchecked) match
-              case QualifiedNameContainer(qn) => Some(qn)
+      case qn: QualifiedName => (identTables.top(qn): @unchecked) match
+        case cont: QualifiedNameContainer => Some(cont)
 
-        case lValue: Snd => (identTables.top(pairReasgnHandler(lValue, newRValue).getOrElse(couldNotFindOnTable)): @unchecked) match
-          case PairLiteral(_, snd) => snd match
-            case None => ???
-            case Some(value) => (value: @unchecked) match
-              case QualifiedNameContainer(qn) => Some(qn)
+      case ArrayElem(arrayName: QualifiedName, indexes) => arrayLiterAssgnHandler(arrayName, indexes, newRValue)
 
-      case Snd(lValue) => (lValue: @unchecked) match
-        case ArrayElem(arrayName: QualifiedName, indexes) => arrayLiterAssgnHandler(arrayName, indexes, newRValue)
-        case qn: QualifiedName => Some(qn)
-        case lValue: Fst => (identTables.top(pairReasgnHandler(lValue).getOrElse(couldNotFindOnTable)): @unchecked) match
-          case PairLiteral(fst, _) => fst match
-            case None => ???
-            case Some(value) => (value: @unchecked) match
-              case QualifiedNameContainer(qn) => Some(qn)
+      case Fst(lValue) => pairReasgnHandler(lValue, newRValue) match
+        case None => ???
+        case Some(value) => value match
+          case container: QualifiedNameContainer => Some(container)
 
-        case lValue: Snd => (identTables.top(pairReasgnHandler(lValue).getOrElse(couldNotFindOnTable)): @unchecked) match
-          case PairLiteral(_, snd) => snd match
-            case None => ???
-            case Some(value) => (value: @unchecked) match
-              case QualifiedNameContainer(qn) => Some(qn)
+      case Snd(lValue) => pairReasgnHandler(lValue, newRValue) match
+        case None => ???
+        case Some(value) => value match
+          case container: QualifiedNameContainer => Some(container)
   }
 
-  // fst fst x
-
-
-  def pairAccessHandler(lValue: LValue): Option[TypeOrPairElemValue] = lValue match
+  def pairAccessHandler(lValue: LValue): Option[TypeOrPairElemValue] = (lValue: @unchecked) match
     case qn: QualifiedName => Some(identTables.top(qn))
     case Fst(lValue) => pairAccessHandler(lValue) match
       case None => ???
-      case Some(value) => value match
-        case container: QualifiedNameContainer => heap(container) match
-          case IntLiteral(int) => ???
-          case BoolLiteral(bool) => ???
-          case StringLiteral(string) => ???
-          case CharLiteral(char) => ???
-          case QualifiedNameContainer(qn) => ???
-          case ArrayBaseLiteral(elems) => ???
+      case Some(value) => (value: @unchecked) match
+        case container: QualifiedNameContainer => (heap(container): @unchecked) match
           case PairLiteral(fst, snd) => fst
           case NullLiteral => nullAccess
 
     case Snd(lValue) => pairAccessHandler(lValue) match
       case None => ???
-      case Some(value) => value match
-        case container: QualifiedNameContainer => heap(container) match
-          case IntLiteral(int) => ???
-          case BoolLiteral(bool) => ???
-          case StringLiteral(string) => ???
-          case CharLiteral(char) => ???
-          case QualifiedNameContainer(qn) => ???
-          case ArrayBaseLiteral(elems) => ???
+      case Some(value) => (value: @unchecked) match
+        case container: QualifiedNameContainer => (heap(container): @unchecked) match
           case PairLiteral(fst, snd) => snd
           case NullLiteral => nullAccess
 

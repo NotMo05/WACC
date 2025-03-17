@@ -80,8 +80,8 @@ object AssemblyWriter {
 
   // Appends assembly text for given instruction
   def instructionHandler(instr: Instr) = {
-    assemblyBuilder += (
-      (instr: @unchecked) match
+    val x = (
+      (instr: @unchecked) match 
         case ADD((op1, op2)) => s"  add $op1, $op2"
         case SUB((op1, op2)) => s"  sub $op1, $op2"
         case IDIV(op) => s"  idiv $op"
@@ -105,6 +105,8 @@ object AssemblyWriter {
         case WhileIfLabel(num) => s".L$num:"
         case Comment(comment) => s"# $comment"
     )
+    println(x)
+    assemblyBuilder += x
   }
 
   // Adding conditional jumps to assembly file

@@ -453,7 +453,7 @@ object IR {
 
   def labelGenerate(funcName: String, paramTypes: List[Type], retType: Type) = s"wacc_${retType}_${funcName}_${paramGenerate(paramTypes)}"
   def paramGenerate(paramTypes: List[Type]): String =
-    paramTypes.map(_.toString).mkString("_")
+    paramTypes.mkString("_").replaceAll("[(,)]", "_")
   // Generates a function label definition from a list of statements and parameters.
   def funcGenerate(
       stmts: List[Stmt],
@@ -845,7 +845,7 @@ object IR {
       currentDepth += dataWidth
     }
     asmBuilder += MOV(Reg(Rbp, QWord), Reg(Rcx, QWord))
-    asmBuilder += CALL(Label(labelGenerate(qn.funcName, qn.paramTypes, qn.t)))
+    asmBuilder += CALL(Label(labelGenerate(qn.funcName, qn.paramTypes, qn.t))) // to be replace
     asmBuilder += ADD(Reg(Rsp, QWord), Imm(spaceNeeded))
     asmBuilder ++= popRbp
     Reg(Rax, typeToSize(qn.t))

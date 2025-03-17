@@ -66,11 +66,8 @@ def processImport(path: String): List[Func] = {
 
     // If path couldn't be resolved, return empty list
     if (resolvedPath.isEmpty) {
-      println(s"DEBUG: Import file not found: $path")
       return List()
     }
-
-    println(s"DEBUG: Importing from resolved path: ${resolvedPath.get}")
 
     // Read the file content
     val content = new String(Files.readAllBytes(resolvedPath.get))
@@ -82,16 +79,13 @@ def processImport(path: String): List[Func] = {
     parseResult match {
       case parsley.Success(program) => program match {
         case ProgWithImports(_, funcs, _) =>
-          println(s"DEBUG: Successfully imported ${funcs.size} functions from $path")
           funcs
       }
       case parsley.Failure(msg) =>
-        println(s"DEBUG: Failed to parse import file: $path - $msg")
         List()
     }
   } catch {
     case e: Exception =>
-      println(s"DEBUG: Error processing import: $path - ${e.getMessage}")
       e.printStackTrace()
       List()
   }

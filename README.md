@@ -4,10 +4,10 @@ This project involves creating a simple compiler for a custom programming langua
 
 ## Overview
 
-- **Project Type**: Compiler Construction
-- **Languages Used**: C, Flex, Bison
+- **Project Type**: Compiler
+- **Languages Used**: Scala
 - **Key Features**:
   - Parsing of custom language syntax
   - Semantic analysis and error checking
-  - Code generation to intermediate language
+  - Code generation to intermediate representation
   - Basic optimization techniques
